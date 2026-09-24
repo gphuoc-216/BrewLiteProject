@@ -1,0 +1,66 @@
+version: "3.8"
+
+services:
+  # 1. Cơ sở dữ liệu PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    container_name: brewlite_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: brewlite_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - brewlite_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d brewlite_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. Dịch vụ Backend (NestJS API)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: brewlite_backend
+    restart: always
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgrespassword@postgres:5432/brewlite_db?schema=public"
+      PORT: 3000
+      JWT_SECRET: "brewlite_super_secret_jwt_key"
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - brewlite_network
+
+  # 3. Dịch vụ Frontend (React / Vite)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: brewlite_frontend
+    restart: always
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:3000
+    depends_on:
+      - backend
+    networks:
+      - brewlite_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  brewlite_network:
+    driver: bridge
