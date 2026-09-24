@@ -1,0 +1,30 @@
+import { BadRequestException } from '@nestjs/common';
+
+export enum OrderStatus {
+  PENDING = 'PENDING',
+  PAID = 'PAID',
+  PREPARING = 'PREPARING',
+  READY = 'READY',
+  COMPLETED = 'COMPLETED',
+  PAYMENT_FAILED = 'PAYMENT_FAILED',
+  CANCELLED = 'CANCELLED',
+}
+
+const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  [OrderStatus.PENDING]: [OrderStatus.PAID, OrderStatus.PAYMENT_FAILED, OrderStatus.CANCELLED],
+  [OrderStatus.PAYMENT_FAILED]: [OrderStatus.PENDING, OrderStatus.CANCELLED],
+  [OrderStatus.PAID]: [OrderStatus.PREPARING, OrderStatus.CANCELLED],
+  [OrderStatus.PREPARING]: [OrderStatus.READY],
+  [OrderStatus.READY]: [OrderStatus.COMPLETED],
+  [OrderStatus.COMPLETED]: [],
+  [OrderStatus.CANCELLED]: [],
+};
+
+export function assertTransition(current: OrderStatus, next: OrderStatus): void {
+  const allowed = ALLOWED_TRANSITIONS[current] || [];
+  if (!allowed.includes(next)) {
+    throw new BadRequestException(
+      `Không thể chuyển trạng thái đơn hàng từ ${current} sang ${next}`
+    );
+  }
+}
