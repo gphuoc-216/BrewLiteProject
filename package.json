@@ -1,0 +1,27 @@
+{
+  "name": "brewlite-monorepo",
+  "version": "1.0.0",
+  "description": "BrewLite Cashless Coffee Ordering Platform",
+  "private": true,
+  "scripts": {
+    "dev:backend": "npm --prefix backend run start:dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build:backend": "npm --prefix backend run build",
+    "build:frontend": "npm --prefix frontend run build",
+    "test:backend": "npm --prefix backend test",
+    "test:e2e": "npm --prefix backend run test:e2e",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:build": "docker compose up --build"
+  },
+  "keywords": [
+    "coffee",
+    "cashless",
+    "nestjs",
+    "nextjs",
+    "prisma",
+    "docker"
+  ],
+  "author": "BrewLite Team",
+  "license": "ISC"
+}
