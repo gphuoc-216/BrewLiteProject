@@ -1519,7 +1519,7 @@
             </div>
 
             <!-- Viewfinder camera box -->
-            <div class="scanner-viewfinder-box" onclick="startCameraStream()" style="cursor: pointer;" title="Chạm để cấp quyền và mở Camera">
+            <div class="scanner-viewfinder-box" onclick="handleViewfinderClick()" style="cursor: pointer;" title="Chạm để mở Camera chụp mã QR">
                 <video id="qrVideo" playsinline webkit-playsinline autoplay muted></video>
                 <canvas id="qrCanvas" style="display:none;"></canvas>
 
@@ -1529,23 +1529,23 @@
                 <div class="corner-bracket bottom-right"></div>
                 <div class="laser-scan-line"></div>
 
-                <!-- Overlay trạng thái camera iOS / Web (Mặc định ẩn nếu đã cấp quyền) -->
-                <div id="cameraStatusOverlay" onclick="requestCameraOnIos(event)" style="position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(11, 15, 25, 0.88); color: #fff; padding: 18px; text-align: center; z-index: 12; backdrop-filter: blur(4px); cursor: pointer;">
+                <!-- Overlay trạng thái camera -->
+                <div id="cameraStatusOverlay" onclick="handleOverlayClick(event)" style="position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(11, 15, 25, 0.88); color: #fff; padding: 18px; text-align: center; z-index: 12; backdrop-filter: blur(4px); cursor: pointer;">
                     <div style="width: 52px; height: 52px; border-radius: 50%; background: rgba(37, 99, 235, 0.2); border: 1.5px solid #3b82f6; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);">
                         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2.3">
                             <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
                             <circle cx="12" cy="13" r="4"/>
                         </svg>
                     </div>
-                    <div style="font-size: 14px; font-weight: 800; color: #ffffff; margin-bottom: 4px;" id="cameraOverlayTitle">Chạm để cấp quyền Camera</div>
-                    <div style="font-size: 11.5px; color: #94a3b8; line-height: 1.4; margin-bottom: 10px;" id="cameraOverlaySub">Chỉ cần cấp quyền lần đầu, các lần sau quét tự động</div>
-                    <button type="button" style="padding: 9px 18px; border-radius: 12px; background: linear-gradient(135deg, #001f70, #0036d6); color: #ffffff; font-size: 13px; font-weight: 800; border: none; cursor: pointer; box-shadow: 0 4px 14px rgba(0, 54, 214, 0.4);" onclick="requestCameraOnIos(event)">
-                        BẬT CAMERA TRỰC TIẾP
+                    <div style="font-size: 14px; font-weight: 800; color: #ffffff; margin-bottom: 4px;" id="cameraOverlayTitle">Chạm để mở Camera chụp mã QR</div>
+                    <div style="font-size: 11.5px; color: #94a3b8; line-height: 1.4; margin-bottom: 12px;" id="cameraOverlaySub">Chạm vào đây để mở Camera quét mã trực tiếp trên điện thoại</div>
+                    <button type="button" style="padding: 10px 20px; border-radius: 12px; background: linear-gradient(135deg, #001f70, #0036d6); color: #ffffff; font-size: 13px; font-weight: 800; border: none; cursor: pointer; box-shadow: 0 4px 14px rgba(0, 54, 214, 0.4);" onclick="handleOverlayClick(event)">
+                        📷 MỞ CAMERA CHỤP MÃ QR
                     </button>
                 </div>
             </div>
 
-            <div class="scanner-prompt-text">Di chuyển camera vào mã QR</div>
+            <div class="scanner-prompt-text">Hướng camera vào mã QR hoặc bấm nút bên dưới</div>
 
             <!-- Nút quét thử QR BrewLite (BL8899) tiện lợi -->
             <button class="btn-test-qr-fast" onclick="simulateBrewLiteScan()">
@@ -1574,13 +1574,11 @@
                 </div>
             </div>
 
-            <!-- Banner cảnh báo & chuyển đổi HTTPS cho thiết bị iOS -->
-            <div id="iosHttpsNotice" style="display: none; margin: 12px 16px 0 16px; background: rgba(30, 41, 59, 0.95); border: 1px solid #334155; border-radius: 14px; padding: 12px; text-align: center;">
-                <div style="font-size: 12px; font-weight: 700; color: #fbbf24; margin-bottom: 4px;">📱 Hướng dẫn mở Camera trên iPhone (iOS):</div>
-                <div style="font-size: 11px; color: #94a3b8; line-height: 1.4; margin-bottom: 8px;">Safari trên iOS bảo mật cao, chỉ cho phép mở Camera trực tiếp qua kết nối HTTPS bảo mật.</div>
-                <a id="btnSwitchHttps" href="#" style="display: inline-block; padding: 7px 14px; background: #2563eb; color: #ffffff; font-size: 12px; font-weight: 800; border-radius: 10px; text-decoration: none;">
-                    🔒 Chuyển sang HTTPS để mở Camera iOS
-                </a>
+            <!-- Gợi ý chụp ảnh mã QR thuần HTTP -->
+            <div style="margin: 10px 16px 0 16px; background: rgba(30, 41, 59, 0.7); border: 1px solid #334155; border-radius: 12px; padding: 10px; text-align: center;">
+                <div style="font-size: 11.5px; color: #94a3b8; line-height: 1.4;">
+                    💡 Chạm vào ô ngắm hoặc bấm <b>Chụp ảnh QR</b> bên dưới để mở Camera máy quét mã trên màn hình.
+                </div>
             </div>
 
             <!-- 3 Nút hành động đáy camera -->
@@ -2162,31 +2160,6 @@
             </div>
         </div>
 
-        <!-- ==================== MODAL: HƯỚNG DẪN CẤP QUYỀN CAMERA IOS ==================== -->
-        <div class="custom-center-modal" id="iosHttpsModal" onclick="closeIosHttpsModal()">
-            <div class="modal-card-body" onclick="event.stopPropagation()">
-                <div style="width: 64px; height: 64px; background: #eff6ff; border: 2px solid #bfdbfe; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px auto;">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                        <circle cx="12" cy="13" r="4"/>
-                    </svg>
-                </div>
-
-                <div style="font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 8px;">Cấp quyền Camera trên iOS</div>
-                <div style="font-size: 13.5px; color: #475569; line-height: 1.55; margin-bottom: 18px;" id="iosHttpsModalMsg">
-                    Trình duyệt Safari trên iPhone yêu cầu kết nối <b>HTTPS</b> bảo mật để hỏi cấp quyền Camera trực tiếp trong ô ngắm. Quý khách vui lòng bấm nút bên dưới để chuyển sang HTTPS!
-                </div>
-
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <button style="width: 100%; height: 46px; background: linear-gradient(135deg, #001f70 0%, #0036d6 100%); color: #ffffff; font-size: 13.5px; font-weight: 800; border-radius: 14px; border: none; cursor: pointer; box-shadow: 0 4px 14px rgba(0, 54, 214, 0.35);" onclick="redirectToHttps()">
-                        CHUYỂN SANG HTTPS ĐỂ BẬT CAMERA
-                    </button>
-                    <button style="width: 100%; height: 42px; background: #f1f5f9; color: #334155; font-size: 13px; font-weight: 700; border-radius: 12px; border: none; cursor: pointer;" onclick="closeIosHttpsModal(); simulateBrewLiteScan();">
-                        QUÉT MÃ CỬA HÀNG BREWLITE NGAY
-                    </button>
-                </div>
-            </div>
-        </div>
 
         <!-- ==================== MODAL: CẢNH BÁO THIẾU SỐ DƯ (GW356) ==================== -->
         <div class="custom-center-modal" id="insufficientModal">
@@ -2911,47 +2884,36 @@
             switchView('viewHome');
         }
 
-        function requestCameraOnIos(e) {
+        function handleViewfinderClick() {
+            if (activeVideoStream) return;
+            triggerCameraCapture();
+        }
+
+        function handleOverlayClick(e) {
             if (e) {
                 e.stopPropagation();
                 e.preventDefault();
             }
+            triggerCameraCapture();
+        }
 
-            const isSecure = window.isSecureContext || location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-
-            if (!isSecure && location.protocol === 'http:' && location.hostname !== 'localhost') {
-                showIosHttpsModal();
-                return;
-            }
-
-            startCameraStream();
+        function requestCameraOnIos(e) {
+            handleOverlayClick(e);
         }
 
         function showIosHttpsModal() {
-            const httpsUrl = `https://${location.hostname}${location.port ? ':' + location.port : ''}${location.pathname}`;
-            const msgEl = document.getElementById('iosHttpsModalMsg');
-            if (msgEl) {
-                msgEl.innerHTML = `Safari trên iPhone yêu cầu kết nối <b>HTTPS</b> bảo mật để hỏi quyền Camera trực tiếp trong ô ngắm.<br><br>Đường dẫn HTTPS:<br><b style="color:#1d4ed8; word-break:break-all;">${httpsUrl}</b><br><br>Quý khách bấm nút <b>CHUYỂN SANG HTTPS</b> bên dưới. Khi Safari hiện màn hình <i>"Kết nối không bảo mật"</i>, chỉ cần bấm <b>Xem chi tiết</b> ➔ <b>Truy cập trang web này</b> để iPhone bật thông báo hỏi cấp quyền Camera!`;
-            }
-            document.getElementById('iosHttpsModal').classList.add('active');
+            triggerCameraCapture();
         }
 
-        function closeIosHttpsModal() {
-            document.getElementById('iosHttpsModal').classList.remove('active');
-        }
+        function closeIosHttpsModal() {}
 
-        function redirectToHttps() {
-            const httpsUrl = `https://${location.hostname}${location.port ? ':' + location.port : ''}${location.pathname}`;
-            window.location.href = httpsUrl;
-        }
+        function redirectToHttps() {}
 
         async function startCameraStream() {
             const video = document.getElementById('qrVideo');
             const overlay = document.getElementById('cameraStatusOverlay');
             const titleEl = document.getElementById('cameraOverlayTitle');
             const subEl = document.getElementById('cameraOverlaySub');
-            const httpsNotice = document.getElementById('iosHttpsNotice');
-            const btnHttps = document.getElementById('btnSwitchHttps');
 
             isScannerLoopActive = true;
 
@@ -2961,74 +2923,55 @@
             }
 
             // Cấu hình video bắt buộc cho iOS Safari WebKit
-            video.muted = true;
-            video.playsInline = true;
-            video.setAttribute('autoplay', '');
-            video.setAttribute('muted', '');
-            video.setAttribute('playsinline', '');
-            video.setAttribute('webkit-playsinline', '');
-
-            // Kiểm tra bảo mật context HTTPS
-            const isSecure = window.isSecureContext || location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-
-            if (!isSecure && location.protocol === 'http:' && location.hostname !== 'localhost') {
-                if (httpsNotice && btnHttps) {
-                    httpsNotice.style.display = 'block';
-                    btnHttps.href = `https://${location.hostname}${location.port ? ':' + location.port : ''}${location.pathname}`;
-                }
-                showIosHttpsModal();
-                return;
+            if (video) {
+                video.muted = true;
+                video.playsInline = true;
+                video.setAttribute('autoplay', '');
+                video.setAttribute('muted', '');
+                video.setAttribute('playsinline', '');
+                video.setAttribute('webkit-playsinline', '');
             }
 
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                console.warn("navigator.mediaDevices is undefined");
-                showIosHttpsModal();
-                return;
-            }
-
-            // Danh sách cấu hình camera thử nghiệm ưu tiên camera sau trên iOS
-            const constraintList = [
-                { video: { facingMode: { exact: "environment" } } },
-                { video: { facingMode: "environment" } },
-                { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } } },
-                { video: true }
-            ];
-
+            // Thử trực tiếp mở Camera Live Stream nếu thiết bị hỗ trợ
             let stream = null;
-            let lastErr = null;
-            for (const constraints of constraintList) {
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia(constraints);
-                    if (stream) break;
-                } catch (e) {
-                    lastErr = e;
-                    console.log("Thử cấu hình camera tiếp theo:", e);
+            if (navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
+                const constraintList = [
+                    { video: { facingMode: { exact: "environment" } } },
+                    { video: { facingMode: "environment" } },
+                    { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } } },
+                    { video: true }
+                ];
+
+                for (const constraints of constraintList) {
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia(constraints);
+                        if (stream) break;
+                    } catch (e) {
+                        console.log("Thử cấu hình camera tiếp theo:", e);
+                    }
                 }
             }
 
             if (stream) {
                 activeVideoStream = stream;
-                video.srcObject = stream;
-                try {
-                    await video.play();
-                } catch (playErr) {
-                    console.warn("video.play() failed:", playErr);
+                if (video) {
+                    video.srcObject = stream;
+                    try {
+                        await video.play();
+                    } catch (playErr) {
+                        console.warn("video.play() failed:", playErr);
+                    }
                 }
-                // Ghi nhớ đã cấp quyền camera lần đầu -> các lần sau vào quét bình thường không cần hỏi lại
                 localStorage.setItem('mb_camera_granted', '1');
                 if (overlay) overlay.style.display = 'none';
-                if (httpsNotice) httpsNotice.style.display = 'none';
                 requestAnimationFrame(scanVideoFrameTick);
                 showToast("Camera đã mở! Hãy hướng mã QR vào ô ngắm");
             } else {
-                if (lastErr && (lastErr.name === 'NotAllowedError' || lastErr.name === 'PermissionDeniedError')) {
-                    localStorage.removeItem('mb_camera_granted');
-                    if (overlay) overlay.style.display = 'flex';
-                    showAccountErrorModal("Quý khách chưa cấp quyền Camera cho trang web. Vui lòng bấm vào biểu tượng aA trên thanh địa chỉ Safari ➔ Cài đặt trang web ➔ Bật Camera: Cho phép");
-                } else if (!hasGrantedBefore) {
-                    if (overlay) overlay.style.display = 'flex';
-                    if (titleEl) titleEl.innerText = "Chạm để cấp quyền Camera";
-                    if (subEl) subEl.innerText = "Chỉ cần cấp quyền lần đầu, các lần sau quét tự động";
+                // Trình duyệt di động trên HTTP chặn Live Stream -> hiển thị nút chụp ảnh camera gốc ngay
+                if (overlay) {
+                    overlay.style.display = 'flex';
+                    if (titleEl) titleEl.innerText = "Chạm để mở Camera chụp mã QR";
+                    if (subEl) subEl.innerText = "Chạy 100% HTTP - Mở camera chụp trực tiếp không cần HTTPS";
                 }
             }
         }
@@ -3104,20 +3047,29 @@
         }
 
         function handleFileQr(e) {
-            const file = e.target.files[0];
+            const file = e.target.files && e.target.files[0];
             if (!file) return;
 
-            showToast("Đang nhận diện mã QR từ ảnh...");
+            showToast("Đang nhận diện mã QR...");
             const reader = new FileReader();
             reader.onload = function(evt) {
                 const img = new Image();
                 img.onload = function() {
+                    const maxDim = 1200;
+                    let w = img.width;
+                    let h = img.height;
+                    if (w > maxDim || h > maxDim) {
+                        const scale = Math.min(maxDim / w, maxDim / h);
+                        w = Math.floor(w * scale);
+                        h = Math.floor(h * scale);
+                    }
+
                     const canvas = document.createElement('canvas');
-                    canvas.width = img.width;
-                    canvas.height = img.height;
+                    canvas.width = w;
+                    canvas.height = h;
                     const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0);
-                    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0, w, h);
+                    const imgData = ctx.getImageData(0, 0, w, h);
 
                     let decoded = null;
                     if (window.jsQR) {
@@ -3127,11 +3079,13 @@
 
                     if (decoded) {
                         onQrScanSuccess(decoded);
-                    } else {
+                    } else if (window.Html5Qrcode) {
                         const html5Qr = new Html5Qrcode("qrCanvas");
                         html5Qr.scanFile(file, true)
                             .then(text => onQrScanSuccess(text))
-                            .catch(() => showToast("Không tìm thấy mã QR trong ảnh!"));
+                            .catch(() => showToast("Không tìm thấy mã QR trong ảnh! Hãy chụp rõ nét hơn"));
+                    } else {
+                        showToast("Không tìm thấy mã QR trong ảnh! Hãy chụp rõ nét hơn");
                     }
                 };
                 img.src = evt.target.result;
@@ -3610,6 +3564,8 @@
             const account = urlParams.get('account') || '99998888';
             const bank = urlParams.get('bank') || (account === '99998888' ? 'VCB' : 'MBB');
 
+            const scanParam = urlParams.get('scan') || urlParams.get('action');
+
             if (!restored && (amount || memo || orderCode)) {
                 const finalMemo = memo || (orderCode ? `BREWLITE ${orderCode}` : 'BREWLITE THANH TOAN');
                 if (account === '99998888') {
@@ -3637,6 +3593,13 @@
                 if (typeof showToast === 'function') {
                     showToast(`Đã nhận diện đơn hàng: ${finalMemo} • ${Number(amount || 0).toLocaleString('vi-VN')}đ`);
                 }
+            } else if (!restored || scanParam === '1' || scanParam === 'scan' || window.location.hash === '#viewScanner') {
+                // Tự động mở ngay màn hình Quét mã QR & kích hoạt Camera để quét mã VietQR trên máy tính
+                setTimeout(() => {
+                    if (typeof openScanner === 'function') {
+                        openScanner();
+                    }
+                }, 150);
             }
         });
     </script>
