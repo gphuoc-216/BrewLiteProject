@@ -58,9 +58,10 @@ export class AuthService {
         accountId: account.id,
         username: account.username,
         role: account.role,
+        profileId: account.customer?.id,
         fullName: account.customer?.fullName,
         email: account.customer?.email,
-        loyaltyPoints: account.customer?.loyaltyPoints,
+        loyaltyPoints: account.customer?.loyaltyPoints || 0,
       },
       ...tokens,
     };
@@ -159,18 +160,18 @@ export class AuthService {
 
     const accessToken = this.jwtService.sign(payload, {
       secret: jwtSecret,
-      expiresIn: '15m',
+      expiresIn: '7d',
     });
 
     const refreshToken = this.jwtService.sign(payload, {
       secret: refreshSecret,
-      expiresIn: '7d',
+      expiresIn: '30d',
     });
 
     return {
       accessToken,
       refreshToken,
-      expiresIn: 900, // 15 mins in seconds
+      expiresIn: 604800, // 7 days in seconds
     };
   }
 }

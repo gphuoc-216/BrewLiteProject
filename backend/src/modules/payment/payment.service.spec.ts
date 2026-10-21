@@ -127,5 +127,96 @@ describe('PaymentService (Thanh Toán Idempotent & Tồn Kho Đồng Thời - Ta
         ),
       ).rejects.toThrow(ConflictException);
     });
+
+    it('bị chặn và ném ConflictException khi xung đột phiên bản version sau 3 lần retry', async () => {
+      mockPrisma.payment.findUnique.mockResolvedValue(null);
+      mockPrisma.order.findUnique.mockResolvedValue({
+        id: 'ord-2',
+        customerId: 'cust-1',
+        status: OrderStatus.PENDING,
+        totalAfterDiscount: 35000,
+        items: [
+          {
+            quantity: 1,
+            variant: {
+              recipes: [
+                {
+                  ingredientId: 'ing-milk',
+                  quantityRequired: 50,
+                  ingredient: { id: 'ing-milk', name: 'Sữa đặc' },
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      mockPrisma.ingredient.findUnique.mockResolvedValue({
+        id: 'ing-milk',
+        name: 'Sữa đặc',
+        stockQuantity: 100,
+        version: 1,
+      });
+      // Giả lập xung đột phiên bản: updateMany trả về count: 0 (có khách hàng khác cập nhật trước)
+      mockPrisma.ingredient.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(
+        service.processPayment(
+          { orderId: 'ord-2', method: PaymentMethod.WALLET },
+          'KEY-RACE-01',
+          { profileId: 'cust-1', role: 'CUSTOMER' },
+        ),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('thanh toán thành công chuyển đơn sang PAID và tích lũy điểm loyalty (+1 điểm / 10.000đ)', async () => {
+      mockPrisma.payment.findUnique.mockResolvedValue(null);
+      mockPrisma.order.findUnique.mockResolvedValue({
+        id: 'ord-3',
+        customerId: 'cust-1',
+        status: OrderStatus.PENDING,
+        totalAfterDiscount: 55000, // 55.000đ -> 5 điểm
+        items: [
+          {
+            quantity: 1,
+            variant: {
+              recipes: [
+                {
+                  ingredientId: 'ing-coffee',
+                  quantityRequired: 20,
+                  ingredient: { id: 'ing-coffee', name: 'Cà phê hạt Robusta' },
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      mockPrisma.ingredient.findUnique.mockResolvedValue({
+        id: 'ing-coffee',
+        name: 'Cà phê hạt Robusta',
+        stockQuantity: 100,
+        version: 1,
+      });
+      mockPrisma.ingredient.updateMany.mockResolvedValue({ count: 1 });
+      mockGateway.processCharge.mockResolvedValue({ success: true, message: 'Giao dịch thành công' });
+      mockPrisma.payment.create.mockResolvedValue({ id: 'pay-success' });
+      mockPrisma.order.update.mockResolvedValue({ id: 'ord-3', status: OrderStatus.PAID });
+
+      const res: any = await service.processPayment(
+        { orderId: 'ord-3', method: PaymentMethod.WALLET },
+        'KEY-SUCCESS-01',
+        { profileId: 'cust-1', role: 'CUSTOMER' },
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.earnedPoints).toBe(5);
+
+      expect(mockPrisma.customer.update).toHaveBeenCalledWith({
+        where: { id: 'cust-1' },
+        data: { loyaltyPoints: { increment: 5 } },
+      });
+    });
   });
 });
+

@@ -1,0 +1,3644 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#001f70">
+    <title>MBBank - Ngân Hàng Quân Đội</title>
+
+    <!-- Thư viện giải mã mã QR chuẩn thời gian thực -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+    <style>
+        :root {
+            --mb-navy: #001f70;
+            --mb-blue: #0036d6;
+            --mb-blue-light: #2563eb;
+            --mb-blue-soft: #eff6ff;
+            --mb-gradient: linear-gradient(135deg, #001f70 0%, #0036d6 55%, #1d4ed8 100%);
+            --mb-red: #e11d48;
+            --mb-gold: #f59e0b;
+            --mb-green: #10b981;
+            --mb-bg: #f4f6fb;
+            --mb-card-bg: #ffffff;
+            --mb-text-main: #0f172a;
+            --mb-text-sub: #64748b;
+            --mb-border: #e2e8f0;
+            --radius-phone: 44px;
+            --radius-card: 20px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: #0b0f19;
+            color: var(--mb-text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        /* Khung hiển thị điện thoại thông minh */
+        .app-viewport {
+            width: 100%;
+            max-width: 440px;
+            height: 100vh;
+            max-height: 940px;
+            background: var(--mb-bg);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 25px 70px rgba(0, 0, 0, 0.75), 0 0 0 10px #1e293b;
+            overflow: hidden;
+            border-radius: var(--radius-phone);
+        }
+
+        @media (max-width: 480px) {
+            body { align-items: flex-start; }
+            .app-viewport {
+                max-width: 100%;
+                height: 100vh;
+                max-height: 100vh;
+                border-radius: 0;
+                box-shadow: none;
+                border: none;
+            }
+        }
+
+
+
+        /* Banner Push Notification (Thông báo biến động số dư) */
+        .push-notification-banner {
+            position: absolute;
+            top: -160px;
+            left: 12px;
+            right: 12px;
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 26px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25);
+            padding: 14px 16px;
+            z-index: 600;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            transition: top 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+        }
+        .push-notification-banner.active {
+            top: 14px;
+        }
+        .push-app-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: var(--mb-navy);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 4px 10px rgba(0, 31, 112, 0.3);
+        }
+        .push-content {
+            flex: 1;
+        }
+        .push-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2px;
+        }
+        .push-app-title {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .push-time {
+            font-size: 11px;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+        .push-body {
+            font-size: 12px;
+            color: #334155;
+            line-height: 1.45;
+            font-weight: 500;
+        }
+
+        /* Các màn hình app (Views) */
+        .app-view {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            overflow-y: auto;
+            overflow-x: hidden;
+            position: relative;
+            background: var(--mb-bg);
+            -webkit-overflow-scrolling: touch;
+        }
+        .app-view.active {
+            display: flex;
+        }
+        .app-view::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* ========================================================
+           VIEW 1: TRANG CHỦ (HOME SCREEN) - 100% NATIVE CSS & SVG
+           ======================================================== */
+        .home-hero-bg {
+            background: var(--mb-gradient);
+            padding: 22px 18px 24px 18px;
+            border-bottom-left-radius: 28px;
+            border-bottom-right-radius: 28px;
+            color: #ffffff;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0, 31, 112, 0.2);
+        }
+
+        .home-top-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .mb-logo-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+        .mb-star-symbol {
+            width: 32px;
+            height: 32px;
+        }
+        .mb-logo-brand-text {
+            font-size: 24px;
+            font-weight: 900;
+            letter-spacing: -0.5px;
+            color: #ffffff;
+        }
+        .header-actions-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .bee-mascot-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 3px 10px rgba(217, 119, 6, 0.4);
+            cursor: pointer;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+        }
+        .header-icon-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+            transition: background 0.2s;
+        }
+        .header-icon-btn:active {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        .header-bell-dot {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--mb-red);
+            border: 1.5px solid #001f70;
+        }
+
+        /* Profile & Glass Balance Card */
+        .home-balance-section {
+            display: flex;
+            gap: 12px;
+            align-items: stretch;
+        }
+        .home-user-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .user-avatar-circle {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+        }
+        .user-verify-dot {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #2563eb;
+            border: 2px solid #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .user-tier-pill {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+
+        .home-glass-balance-card {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 20px;
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            cursor: pointer;
+        }
+        .balance-top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .balance-card-label {
+            font-size: 12.5px;
+            font-weight: 600;
+            opacity: 0.9;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .balance-eye-toggle {
+            cursor: pointer;
+            padding: 4px;
+        }
+        .balance-card-amount {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: 0.3px;
+            margin: 6px 0;
+        }
+        .balance-bot-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+        }
+        .tram-sac-tag {
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            opacity: 0.9;
+        }
+        .badge-den-60tr {
+            background: rgba(254, 240, 138, 0.25);
+            color: #fef08a;
+            border: 1px solid rgba(254, 240, 138, 0.4);
+            border-radius: 8px;
+            padding: 2px 7px;
+            font-weight: 800;
+            font-size: 10px;
+        }
+
+        /* 4 Thao tác chính (Card trắng nổi) */
+        .home-actions-card {
+            margin: -16px 16px 16px 16px;
+            background: #ffffff;
+            border-radius: 22px;
+            padding: 16px 10px 14px 10px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.07);
+            position: relative;
+            z-index: 10;
+        }
+        .home-action-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            cursor: pointer;
+            position: relative;
+        }
+        .action-icon-circle {
+            width: 48px;
+            height: 48px;
+            border-radius: 16px;
+            background: #eff6ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 8px;
+            transition: transform 0.15s, background 0.15s;
+        }
+        .home-action-item:active .action-icon-circle {
+            transform: scale(0.92);
+            background: #dbeafe;
+        }
+        .action-item-text {
+            font-size: 12px;
+            font-weight: 700;
+            color: #1e293b;
+            line-height: 1.25;
+        }
+        .action-corner-tag {
+            position: absolute;
+            top: -8px;
+            font-size: 9px;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: 8px;
+            white-space: nowrap;
+        }
+        .tag-red { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+        .tag-blue { background: #dbeafe; color: #2563eb; border: 1px solid #bfdbfe; }
+
+        /* Banners khuyến mãi cuộn ngang */
+        .home-banners-scroll {
+            display: flex;
+            gap: 12px;
+            padding: 0 16px 16px 16px;
+            overflow-x: auto;
+        }
+        .home-banners-scroll::-webkit-scrollbar { display: none; }
+        .home-banner-card {
+            min-width: 280px;
+            border-radius: 18px;
+            padding: 14px 18px;
+            color: #ffffff;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+            position: relative;
+            overflow: hidden;
+        }
+        .banner-blue {
+            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+        }
+        .banner-purple {
+            background: linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%);
+        }
+        .banner-title {
+            font-size: 14px;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+        .banner-subtitle {
+            font-size: 11.5px;
+            opacity: 0.9;
+        }
+
+        /* Lưới dịch vụ đa dạng */
+        .home-services-box {
+            padding: 0 16px 90px 16px;
+        }
+        .services-box-title {
+            font-size: 15px;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 12px;
+        }
+        .services-grid-8 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px 10px;
+            background: #ffffff;
+            padding: 18px 12px;
+            border-radius: 22px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+        }
+        .service-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            cursor: pointer;
+        }
+        .service-cell-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-bottom: 6px;
+            position: relative;
+        }
+        .service-cell-label {
+            font-size: 11.5px;
+            font-weight: 600;
+            color: #334155;
+            line-height: 1.25;
+        }
+        .service-badge-num {
+            position: absolute;
+            top: -4px;
+            right: -6px;
+            background: #e11d48;
+            color: #fff;
+            font-size: 9px;
+            font-weight: 800;
+            padding: 1px 5px;
+            border-radius: 10px;
+        }
+
+        /* Bottom Floating Dock Navigation */
+        .bottom-nav-dock {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 78px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(226, 232, 240, 0.8);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 0 10px 14px 10px;
+            z-index: 100;
+        }
+        .dock-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 10.5px;
+            font-weight: 700;
+            gap: 4px;
+            flex: 1;
+        }
+        .dock-item.active {
+            color: var(--mb-blue);
+        }
+        .dock-center-qr-btn {
+            position: relative;
+            top: -16px;
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            background: var(--mb-gradient);
+            box-shadow: 0 8px 24px rgba(0, 54, 214, 0.45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 4px solid #ffffff;
+            transition: transform 0.15s;
+        }
+        .dock-center-qr-btn:active {
+            transform: scale(0.92);
+        }
+
+        /* ========================================================
+           VIEW 2: MÀN HÌNH QUÉT MÃ QR (QR SCANNER) - CHUẨN MBBANK
+           ======================================================== */
+        #viewScanner {
+            background: #090d16;
+            color: #ffffff;
+        }
+        .scanner-top-bar {
+            padding: 18px 20px 14px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+        .scanner-back-btn, .scanner-flash-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .scanner-title-text {
+            font-size: 17px;
+            font-weight: 800;
+            color: #ffffff;
+        }
+
+        .scanner-viewfinder-box {
+            position: relative;
+            width: 270px;
+            height: 270px;
+            margin: 20px auto 0 auto;
+            border-radius: 24px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.65);
+        }
+        #qrVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        /* 4 góc kính ngắm */
+        .corner-bracket {
+            position: absolute;
+            width: 26px;
+            height: 26px;
+            border: 4px solid #3b82f6;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .top-left { top: 0; left: 0; border-right: none; border-bottom: none; border-top-left-radius: 16px; }
+        .top-right { top: 0; right: 0; border-left: none; border-bottom: none; border-top-right-radius: 16px; }
+        .bottom-left { bottom: 0; left: 0; border-right: none; border-top: none; border-bottom-left-radius: 16px; }
+        .bottom-right { bottom: 0; right: 0; border-left: none; border-top: none; border-bottom-right-radius: 16px; }
+
+        /* Tia laser quét lên xuống */
+        .laser-scan-line {
+            position: absolute;
+            left: 5%;
+            right: 5%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #38bdf8, #2563eb, transparent);
+            box-shadow: 0 0 14px #38bdf8;
+            animation: laserScan 2s infinite ease-in-out;
+            z-index: 5;
+        }
+        @keyframes laserScan {
+            0% { top: 5%; }
+            50% { top: 92%; }
+            100% { top: 5%; }
+        }
+
+        .scanner-prompt-text {
+            text-align: center;
+            font-size: 13.5px;
+            color: #94a3b8;
+            margin-top: 18px;
+            font-weight: 500;
+        }
+
+        /* Hàng chấp nhận mã QR */
+        .accepted-qr-strip {
+            margin: 22px 20px 10px 20px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+        }
+        .accepted-qr-item {
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* 3 Nút hành động phía dưới camera */
+        .scanner-bottom-actions {
+            margin-top: auto;
+            margin-bottom: 24px;
+            padding: 0 16px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+        .scanner-action-btn {
+            background: rgba(255, 255, 255, 0.12);
+            border-radius: 18px;
+            padding: 14px 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: background 0.15s;
+        }
+        .scanner-action-btn:active {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        .scanner-action-btn span {
+            font-size: 11.5px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        /* Nút Test QR BrewLite nhanh */
+        .btn-test-qr-fast {
+            margin: 10px 20px;
+            padding: 12px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #0284c7, #0369a1);
+            color: #ffffff;
+            font-size: 13px;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(3, 105, 161, 0.4);
+        }
+
+        /* ========================================================
+           VIEW 3: SIÊU CHUYỂN TIỀN (TRANSFER HUB) - CHUẨN MBBANK
+           ======================================================== */
+        .view-header-bar {
+            padding: 18px 18px 14px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #ffffff;
+            border-bottom: 1px solid var(--mb-border);
+        }
+        .header-nav-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .view-header-title {
+            font-size: 17px;
+            font-weight: 800;
+            color: #0f172a;
+        }
+
+        /* 5 Nút tròn chuyển tiền chuẩn MB */
+        .transfer-round-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+            padding: 18px 12px;
+            background: #ffffff;
+        }
+        .round-action-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 7px;
+            cursor: pointer;
+        }
+        .round-action-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: #eff6ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--mb-blue);
+            transition: transform 0.15s;
+        }
+        .round-action-item:active .round-action-icon {
+            transform: scale(0.92);
+        }
+        .round-action-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #334155;
+            line-height: 1.2;
+        }
+
+        /* MBAI Card thông minh */
+        .mbai-card-wrapper {
+            margin: 14px 16px;
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+            border-radius: 20px;
+            padding: 16px;
+            color: #ffffff;
+            box-shadow: 0 8px 24px rgba(49, 46, 129, 0.25);
+        }
+        .mbai-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .mbai-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13.5px;
+            font-weight: 800;
+        }
+        .mbai-actions-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+        .mbai-btn {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 10px 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        /* Danh bạ thụ hưởng gần đây */
+        .recent-contacts-box {
+            padding: 12px 16px 30px 16px;
+        }
+        .recent-section-header {
+            font-size: 14px;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 10px;
+        }
+        .contact-item-card {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+            cursor: pointer;
+            transition: transform 0.15s;
+        }
+        .contact-item-card:active {
+            transform: scale(0.98);
+        }
+        .contact-avatar-pill {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #e0f2fe;
+            color: #0369a1;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        .contact-info-col {
+            flex: 1;
+        }
+        .contact-name-title {
+            font-size: 14.5px;
+            font-weight: 800;
+            color: #0f172a;
+        }
+        .contact-account-sub {
+            font-size: 12px;
+            color: #64748b;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        /* ========================================================
+           VIEW 4: FORM ĐIỀN THÔNG TIN CHUYỂN TIỀN (TRANSFER FORM)
+           ======================================================== */
+        .form-section-card {
+            margin: 12px 16px;
+            background: #ffffff;
+            border-radius: 20px;
+            padding: 16px;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+        }
+        .form-input-label {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #475569;
+            margin-bottom: 6px;
+            display: block;
+        }
+        .form-text-input {
+            width: 100%;
+            padding: 13px 14px;
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 14px;
+            font-size: 15px;
+            font-weight: 700;
+            color: #0f172a;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .form-text-input:focus {
+            border-color: var(--mb-blue);
+            background: #ffffff;
+        }
+
+        /* Bộ chọn ngân hàng */
+        .bank-selector-button {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 10px 14px;
+            cursor: pointer;
+        }
+        .bank-badge-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: var(--mb-navy);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 12px;
+        }
+
+        /* Hàng chip chọn số tiền nhanh */
+        .amount-chips-scroll {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+        .amount-chip-pill {
+            background: #f1f5f9;
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #334155;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.15s;
+        }
+        .amount-chip-pill:hover, .amount-chip-pill:active {
+            background: #dbeafe;
+            color: var(--mb-blue);
+        }
+
+        .btn-confirm-next {
+            margin: 16px;
+            padding: 16px;
+            border-radius: 18px;
+            background: var(--mb-gradient);
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: 800;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 8px 24px rgba(0, 54, 214, 0.35);
+        }
+
+        /* ========================================================
+           VIEW 5: XÁC NHẬN GIAO DỊCH (REVIEW & CONFIRMATION)
+           ======================================================== */
+        .confirm-table-card {
+            margin: 14px 16px;
+            background: #ffffff;
+            border-radius: 20px;
+            padding: 18px 16px;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+        }
+        .confirm-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 10px 0;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 13px;
+        }
+        .confirm-row:last-child {
+            border-bottom: none;
+        }
+        .confirm-label {
+            color: #64748b;
+            font-weight: 600;
+        }
+        .confirm-value {
+            font-weight: 800;
+            color: #0f172a;
+            text-align: right;
+            max-width: 60%;
+        }
+
+        /* Khung Digital OTP */
+        .otp-box-section {
+            margin: 10px 16px;
+            background: #eff6ff;
+            border: 1.5px solid #bfdbfe;
+            border-radius: 18px;
+            padding: 14px;
+            text-align: center;
+        }
+        .otp-code-display {
+            font-size: 26px;
+            font-weight: 900;
+            letter-spacing: 6px;
+            color: var(--mb-blue);
+            margin: 8px 0;
+        }
+
+        /* ========================================================
+           VIEW 6: BIÊN LAI CHUYỂN TIỀN THÀNH CÔNG (RECEIPT)
+           ======================================================== */
+        #viewReceiptSuccess {
+            background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 40%);
+            padding-bottom: 30px;
+        }
+        .receipt-container {
+            padding: 24px 20px 20px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        .receipt-success-badge {
+            width: 68px;
+            height: 68px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4);
+            margin-bottom: 14px;
+            animation: bounceIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes bounceIn {
+            0% { transform: scale(0.4); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .receipt-title-success {
+            font-size: 19px;
+            font-weight: 800;
+            color: #065f46;
+        }
+        .receipt-amount-big {
+            font-size: 28px;
+            font-weight: 900;
+            color: #0f172a;
+            margin: 6px 0;
+        }
+        .receipt-time-text {
+            font-size: 12px;
+            color: #64748b;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        /* Card thụ hưởng trong biên lai */
+        .receipt-details-card {
+            width: 100%;
+            background: #ffffff;
+            border-radius: 22px;
+            padding: 18px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+            border: 1px solid #e2e8f0;
+            text-align: left;
+            margin-bottom: 18px;
+        }
+        .receipt-dest-name-bold {
+            font-size: 16px;
+            font-weight: 800;
+            color: #0f172a;
+            text-transform: uppercase;
+        }
+        .receipt-dest-bank-row {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--mb-blue);
+            margin: 4px 0 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .receipt-divider {
+            height: 1px;
+            background: #f1f5f9;
+            margin: 10px 0;
+        }
+
+        /* 3 Nút chức năng tròn biên lai */
+        .receipt-actions-3 {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-bottom: 24px;
+            width: 100%;
+        }
+        .receipt-round-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+        .round-btn-circle {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: #eff6ff;
+            color: var(--mb-blue);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0, 54, 214, 0.1);
+        }
+        .round-btn-label {
+            font-size: 11.5px;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        .btn-receipt-finish {
+            width: calc(100% - 32px);
+            margin: 0 16px;
+            padding: 15px;
+            border-radius: 16px;
+            background: #e11d48;
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: 800;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(225, 29, 72, 0.35);
+        }
+
+        /* ========================================================
+           MODALS & BOTTOM SHEETS
+           ======================================================== */
+        .bottom-sheet-backdrop {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            align-items: flex-end;
+            backdrop-filter: blur(4px);
+        }
+        .bottom-sheet-backdrop.active {
+            display: flex;
+        }
+        .bottom-sheet-box {
+            width: 100%;
+            max-height: 85%;
+            background: #ffffff;
+            border-top-left-radius: 28px;
+            border-top-right-radius: 28px;
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow-y: auto;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+
+        /* Modal Quản lý số dư & Thiếu số dư */
+        .custom-center-modal {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.65);
+            z-index: 1100;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            backdrop-filter: blur(4px);
+        }
+        .custom-center-modal.active {
+            display: flex;
+        }
+        .modal-card-body {
+            width: 100%;
+            max-width: 360px;
+            background: #ffffff;
+            border-radius: 24px;
+            padding: 22px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn {
+            from { transform: scale(0.85); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        /* Thẻ ngân hàng ảo sang trọng */
+        .virtual-card-chip {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #334155 100%);
+            border-radius: 20px;
+            padding: 20px;
+            color: #ffffff;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+        .virtual-card-chip::before {
+            content: '';
+            position: absolute;
+            top: -50px;
+            right: -50px;
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(245, 158, 11, 0.25), transparent);
+        }
+
+        /* Global Toast */
+        .global-toast {
+            position: absolute;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: rgba(15, 23, 42, 0.92);
+            color: #ffffff;
+            padding: 10px 18px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+            z-index: 2000;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            text-align: center;
+            max-width: 85%;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        }
+        .global-toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-viewport">
+
+
+
+        <!-- ==================== PUSH NOTIFICATION (BIẾN ĐỘNG SỐ DƯ) ==================== -->
+        <div class="push-notification-banner" id="balancePushBanner" onclick="hidePushBanner()">
+            <div class="push-app-icon">
+                <svg viewBox="0 0 100 100" width="24" height="24">
+                    <polygon points="50,5 61,38 95,38 67,58 78,92 50,72 22,92 33,58 5,38 39,38" fill="#e11d48"/>
+                    <polygon points="50,5 61,38 50,72 39,38" fill="#f43f5e" opacity="0.85"/>
+                    <polygon points="95,38 67,58 50,72" fill="#38bdf8" opacity="0.9"/>
+                    <polygon points="5,38 33,58 50,72" fill="#ffffff" opacity="0.9"/>
+                </svg>
+            </div>
+            <div class="push-content">
+                <div class="push-title-row">
+                    <span class="push-app-title">MBBank</span>
+                    <span class="push-time">Bây giờ</span>
+                </div>
+                <div class="push-body" id="pushNotificationBody">
+                    TK 05xxx346|GD: -1,500,000VND |SD: 48,500,000VND |ND: KHACH HANG BREWLITE chuyen tien
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== VIEW 1: TRANG CHỦ (HOME SCREEN) ==================== -->
+        <div class="app-view active" id="viewHome">
+            
+            <!-- Hero Gradient Top -->
+            <div class="home-hero-bg">
+                <!-- Header: Logo, Bee, Search, Bell, Menu -->
+                <div class="home-top-header">
+                    <div class="mb-logo-badge" onclick="showToast('MBBank - Ngân hàng TMCP Quân Đội')">
+                        <svg class="mb-star-symbol" viewBox="0 0 100 100">
+                            <polygon points="50,5 61,38 95,38 67,58 78,92 50,72 22,92 33,58 5,38 39,38" fill="#e11d48"/>
+                            <polygon points="50,5 61,38 50,72 39,38" fill="#f43f5e" opacity="0.85"/>
+                            <polygon points="95,38 67,58 50,72" fill="#0036d6" opacity="0.9"/>
+                            <polygon points="5,38 33,58 50,72" fill="#2563eb" opacity="0.9"/>
+                        </svg>
+                        <span class="mb-logo-brand-text">MB</span>
+                    </div>
+
+                    <div class="header-actions-right">
+                        <div class="bee-mascot-avatar" onclick="showToast('Ong vàng MB: Xin chào bạn!')">
+                            <span style="font-size: 18px;">🐝</span>
+                        </div>
+                        <div class="header-icon-btn" onclick="openMenuSheet()">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.3">
+                                <circle cx="11" cy="11" r="8"/>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                            </svg>
+                        </div>
+                        <div class="header-icon-btn" onclick="showToast('Bạn có thông báo biến động số dư mới nhất!')">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.3">
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                            </svg>
+                            <span class="header-bell-dot"></span>
+                        </div>
+                        <div class="header-icon-btn" onclick="openMenuSheet()">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.3">
+                                <line x1="4" y1="6" x2="20" y2="6"/>
+                                <line x1="4" y1="12" x2="20" y2="12"/>
+                                <line x1="4" y1="18" x2="20" y2="18"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Thông tin người dùng & Card số dư -->
+                <div class="home-balance-section">
+                    <div class="home-user-col">
+                        <div class="user-avatar-circle">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="#0036d6">
+                                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                            </svg>
+                            <div class="user-verify-dot">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="#ffffff">
+                                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="user-tier-pill">Basic</div>
+                    </div>
+
+                    <div class="home-glass-balance-card" onclick="toggleBalanceHidden()">
+                        <div class="balance-top-row">
+                            <div class="balance-card-label">
+                                <span>Tổng số dư VND</span>
+                                <span style="font-size: 15px;">›</span>
+                            </div>
+                            <div class="balance-eye-toggle" onclick="event.stopPropagation(); toggleBalanceHidden();">
+                                <svg id="eyeIconVisible" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" style="display:none;">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                    <circle cx="12" cy="12" r="3"/>
+                                </svg>
+                                <svg id="eyeIconHidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                                    <line x1="1" y1="1" x2="23" y2="23"/>
+                                </svg>
+                            </div>
+                        </div>
+
+                        <div class="balance-card-amount" id="homeBalanceAmount">*** *** VND</div>
+
+                        <div class="balance-bot-row">
+                            <span class="tram-sac-tag">TRẠM SẠC TÀI CHÍNH</span>
+                            <span class="badge-den-60tr">ĐẾN 60TR</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4 Thao tác chính -->
+            <div class="home-actions-card">
+                <!-- Chuyển tiền -->
+                <div class="home-action-item" onclick="navToTransferHub()">
+                    <div class="action-icon-circle">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0036d6" stroke-width="2.3">
+                            <path d="M7 16V4m0 0L3 8m4-4l4 4m6 4v12m0 0l4-4m-4 4l-4-4"/>
+                        </svg>
+                    </div>
+                    <span class="action-item-text">Chuyển tiền</span>
+                </div>
+
+                <!-- Nạp tiền điện thoại -->
+                <div class="home-action-item" onclick="openTopupSheet()">
+                    <div class="action-icon-circle">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0036d6" stroke-width="2.3">
+                            <rect x="5" y="2" width="14" height="20" rx="3"/>
+                            <line x1="12" y1="18" x2="12.01" y2="18"/>
+                        </svg>
+                    </div>
+                    <span class="action-item-text">Nạp tiền<br>điện thoại</span>
+                </div>
+
+                <!-- Tiền gửi -->
+                <div class="home-action-item" onclick="openSavingsSheet()">
+                    <span class="action-corner-tag tag-red">🧧 TÀI LỘC</span>
+                    <div class="action-icon-circle">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0036d6" stroke-width="2.3">
+                            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+                        </svg>
+                    </div>
+                    <span class="action-item-text">Tiền gửi</span>
+                </div>
+
+                <!-- Vay nhanh -->
+                <div class="home-action-item" onclick="openLoanSheet()">
+                    <span class="action-corner-tag tag-blue">NHƯ GIÓ 💨</span>
+                    <div class="action-icon-circle">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0036d6" stroke-width="2.3">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/>
+                            <path d="M12 6v2m0 8v2"/>
+                        </svg>
+                    </div>
+                    <span class="action-item-text">Vay nhanh</span>
+                </div>
+            </div>
+
+            <!-- Banners khuyến mãi -->
+            <div class="home-banners-scroll">
+                <div class="home-banner-card banner-blue" onclick="openSavingsSheet()">
+                    <div style="font-size: 11px; font-weight:800; color:#93c5fd; margin-bottom: 2px;">★ MBBANK SPECIAL</div>
+                    <div class="banner-title">ƯU ĐÃI CUỐI TUẦN LỘC LÁ</div>
+                    <div class="banner-subtitle">Lãi suất gửi tiết kiệm đến 8.2%/năm</div>
+                </div>
+                <div class="home-banner-card banner-purple" onclick="openPromoSheet()">
+                    <div style="font-size: 11px; font-weight:800; color:#ddd6fe; margin-bottom: 2px;">★ ƯU ĐÃI DU LỊCH & ĐẶT PHÒNG</div>
+                    <div class="banner-title">BREWLITE COFFEE CASHBACK</div>
+                    <div class="banner-subtitle">Hoàn tiền 15% khi thanh toán VietQR Napas 247</div>
+                </div>
+            </div>
+
+            <!-- Lưới dịch vụ đa dạng -->
+            <div class="home-services-box">
+                <div class="services-box-title">Mua sắm - Giải trí - Đầu tư</div>
+                <div class="services-grid-8">
+                    <div class="service-cell" onclick="openServiceDetailSheet('Vua Xổ Số', 'Dịch vụ quay số may mắn trúng thưởng mỗi ngày cùng MBBank.')">
+                        <div class="service-cell-icon" style="background:#fef3c7;">🎱</div>
+                        <span class="service-cell-label">Vua Xổ Số</span>
+                    </div>
+                    <div class="service-cell" onclick="openServiceDetailSheet('Vietlott SMS', 'Mua vé số Vietlott Power 6/55 & Mega 6/45 chính thức qua MB.')">
+                        <div class="service-cell-icon" style="background:#fee2e2;">🎟️</div>
+                        <span class="service-cell-label">Vietlott SMS</span>
+                    </div>
+                    <div class="service-cell" onclick="openServiceDetailSheet('IRIS Thẻ Game', 'Nạp thẻ Garena, Zing, Vcoin chiết khấu lên đến 5%.')">
+                        <div class="service-cell-icon" style="background:#f3e8ff;">🎮</div>
+                        <span class="service-cell-label">IRIS Thẻ Game</span>
+                    </div>
+                    <div class="service-cell" onclick="openServiceDetailSheet('Vé máy bay', 'Đặt vé máy bay Vietnam Airlines, Vietjet Air, Bamboo Airways.')">
+                        <div class="service-cell-icon" style="background:#e0f2fe;">✈️</div>
+                        <span class="service-cell-label">Vé máy bay</span>
+                    </div>
+                    <div class="service-cell" onclick="openTopupSheet()">
+                        <div class="service-cell-icon" style="background:#fae8ff;">📱</div>
+                        <span class="service-cell-label">Nạp ĐT</span>
+                    </div>
+                    <div class="service-cell" onclick="openServiceDetailSheet('Data 4G', 'Gói cước data 4G/5G tốc độ cao Viettel, Vina, Mobi chỉ từ 5.000đ/ngày.')">
+                        <div class="service-cell-icon" style="background:#e0e7ff;">⚡</div>
+                        <span class="service-cell-label">Data 4G</span>
+                    </div>
+                    <div class="service-cell" onclick="openServiceDetailSheet('Thanh toán hóa đơn', 'Thanh toán tiền Điện EVN, Nước sạch, Cước Internet, Truyền hình cáp.')">
+                        <div class="service-cell-icon" style="background:#eff6ff;">🧾</div>
+                        <span class="service-cell-label">Hóa đơn</span>
+                    </div>
+                    <div class="service-cell" onclick="openMenuSheet()">
+                        <div class="service-cell-icon" style="background:#f1f5f9;">
+                            🎛️
+                            <span class="service-badge-num">97</span>
+                        </div>
+                        <span class="service-cell-label">Xem thêm</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Floating Dock -->
+            <div class="bottom-nav-dock">
+                <div class="dock-item active" onclick="navToHome()">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                    </svg>
+                    <span>Trang chủ</span>
+                </div>
+                <div class="dock-item" onclick="openCardSheet()">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                        <rect x="2" y="5" width="20" height="14" rx="3"/>
+                        <line x1="2" y1="10" x2="22" y2="10"/>
+                    </svg>
+                    <span>Thẻ</span>
+                </div>
+
+                <!-- Nút tròn Quét QR nổi ở chính giữa -->
+                <div class="dock-center-qr-btn" onclick="openScanner()">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.3">
+                        <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+                        <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+                        <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+                        <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+                        <circle cx="6.5" cy="6.5" r="1.5" fill="#ffffff"/>
+                        <circle cx="17.5" cy="6.5" r="1.5" fill="#ffffff"/>
+                        <circle cx="6.5" cy="17.5" r="1.5" fill="#ffffff"/>
+                        <circle cx="17.5" cy="17.5" r="1.5" fill="#ffffff"/>
+                    </svg>
+                </div>
+
+                <div class="dock-item" onclick="openPromoSheet()">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                        <polyline points="20 12 20 22 4 22 4 12"/>
+                        <rect x="2" y="7" width="20" height="5" rx="1"/>
+                        <line x1="12" y1="22" x2="12" y2="7"/>
+                    </svg>
+                    <span>Ưu đãi</span>
+                </div>
+                <div class="dock-item" onclick="openMenuSheet()">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="6" cy="6" r="2.2"/>
+                        <circle cx="18" cy="6" r="2.2"/>
+                        <circle cx="6" cy="18" r="2.2"/>
+                        <circle cx="18" cy="18" r="2.2"/>
+                    </svg>
+                    <span>Thêm</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ==================== VIEW 2: QUÉT MÃ QR (QR SCANNER) ==================== -->
+        <div class="app-view" id="viewScanner">
+            <!-- Header bar -->
+            <div class="scanner-top-bar">
+                <div class="scanner-back-btn" onclick="closeScanner()">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5">
+                        <polyline points="15 18 9 12 15 6"/>
+                    </svg>
+                </div>
+                <span class="scanner-title-text">Quét mã QR</span>
+                <div class="scanner-flash-btn" onclick="toggleFlashlight()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.3">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Viewfinder camera box -->
+            <div class="scanner-viewfinder-box" onclick="startCameraStream()" style="cursor: pointer;" title="Chạm để cấp quyền và mở Camera">
+                <video id="qrVideo" playsinline webkit-playsinline autoplay muted></video>
+                <canvas id="qrCanvas" style="display:none;"></canvas>
+
+                <div class="corner-bracket top-left"></div>
+                <div class="corner-bracket top-right"></div>
+                <div class="corner-bracket bottom-left"></div>
+                <div class="corner-bracket bottom-right"></div>
+                <div class="laser-scan-line"></div>
+
+                <!-- Overlay trạng thái camera iOS / Web (Mặc định ẩn nếu đã cấp quyền) -->
+                <div id="cameraStatusOverlay" onclick="requestCameraOnIos(event)" style="position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(11, 15, 25, 0.88); color: #fff; padding: 18px; text-align: center; z-index: 12; backdrop-filter: blur(4px); cursor: pointer;">
+                    <div style="width: 52px; height: 52px; border-radius: 50%; background: rgba(37, 99, 235, 0.2); border: 1.5px solid #3b82f6; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2.3">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                            <circle cx="12" cy="13" r="4"/>
+                        </svg>
+                    </div>
+                    <div style="font-size: 14px; font-weight: 800; color: #ffffff; margin-bottom: 4px;" id="cameraOverlayTitle">Chạm để cấp quyền Camera</div>
+                    <div style="font-size: 11.5px; color: #94a3b8; line-height: 1.4; margin-bottom: 10px;" id="cameraOverlaySub">Chỉ cần cấp quyền lần đầu, các lần sau quét tự động</div>
+                    <button type="button" style="padding: 9px 18px; border-radius: 12px; background: linear-gradient(135deg, #001f70, #0036d6); color: #ffffff; font-size: 13px; font-weight: 800; border: none; cursor: pointer; box-shadow: 0 4px 14px rgba(0, 54, 214, 0.4);" onclick="requestCameraOnIos(event)">
+                        BẬT CAMERA TRỰC TIẾP
+                    </button>
+                </div>
+            </div>
+
+            <div class="scanner-prompt-text">Di chuyển camera vào mã QR</div>
+
+            <!-- Nút quét thử QR BrewLite (BL8899) tiện lợi -->
+            <button class="btn-test-qr-fast" onclick="simulateBrewLiteScan()">
+                <span>⚡ Quét thử QR Đơn Hàng BREWLITE COFFEE (BL8899)</span>
+            </button>
+
+            <!-- Nút quét thử QR BrewLite Coffee tiện lợi -->
+            <button class="btn-test-qr-fast" onclick="simulateBrewLiteScan()" style="margin-top: 8px; background: linear-gradient(135deg, #78350f, #b45309); border-color: #f59e0b;">
+                <span>☕ Quét thử QR Cà Phê BREWLITE (Tự Động Nhận Mã Đơn)</span>
+            </button>
+
+            <!-- Hàng chứng nhận chuẩn VietQR / MB -->
+            <div style="text-align: center; margin: 16px 0 6px 0;">
+                <span style="font-size: 12px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Chấp nhận mọi mã QR</span>
+                <span style="font-size: 11px; color: #60a5fa; display: block; margin-top: 2px;">(Chạm vào đây để quét tự động)</span>
+            </div>
+            <div class="accepted-qr-strip" onclick="simulateBrewLiteScan()" style="cursor: pointer;" title="Chạm để quét mã QR">
+                <div class="accepted-qr-item" style="color:#60a5fa;" onclick="simulateBrewLiteScan()">
+                    <span>★ MB QR</span>
+                </div>
+                <div class="accepted-qr-item" style="color:#34d399;" onclick="simulateBrewLiteScan()">
+                    <span>✔ VietQR Napas247</span>
+                </div>
+                <div class="accepted-qr-item" style="color:#fbbf24;" onclick="simulateBrewLiteScan()">
+                    <span>💳 VNPAY-QR</span>
+                </div>
+            </div>
+
+            <!-- Banner cảnh báo & chuyển đổi HTTPS cho thiết bị iOS -->
+            <div id="iosHttpsNotice" style="display: none; margin: 12px 16px 0 16px; background: rgba(30, 41, 59, 0.95); border: 1px solid #334155; border-radius: 14px; padding: 12px; text-align: center;">
+                <div style="font-size: 12px; font-weight: 700; color: #fbbf24; margin-bottom: 4px;">📱 Hướng dẫn mở Camera trên iPhone (iOS):</div>
+                <div style="font-size: 11px; color: #94a3b8; line-height: 1.4; margin-bottom: 8px;">Safari trên iOS bảo mật cao, chỉ cho phép mở Camera trực tiếp qua kết nối HTTPS bảo mật.</div>
+                <a id="btnSwitchHttps" href="#" style="display: inline-block; padding: 7px 14px; background: #2563eb; color: #ffffff; font-size: 12px; font-weight: 800; border-radius: 10px; text-decoration: none;">
+                    🔒 Chuyển sang HTTPS để mở Camera iOS
+                </a>
+            </div>
+
+            <!-- 3 Nút hành động đáy camera -->
+            <div class="scanner-bottom-actions">
+                <div class="scanner-action-btn" onclick="openMyQrModal()">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2">
+                        <rect x="3" y="3" width="18" height="18" rx="3"/>
+                        <path d="M7 7h3v3H7zM14 7h3v3h-3zM7 14h3v3H7z"/>
+                    </svg>
+                    <span>QR của tôi</span>
+                </div>
+
+                <div class="scanner-action-btn" onclick="triggerCameraCapture()">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                        <circle cx="12" cy="13" r="4"/>
+                    </svg>
+                    <span>Chụp ảnh QR</span>
+                </div>
+
+                <div class="scanner-action-btn" onclick="triggerImageUpload()">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                    <span>Tải ảnh lên</span>
+                </div>
+            </div>
+
+            <!-- Input upload ẩn -->
+            <input type="file" id="fileInputGallery" accept="image/*" style="display:none;" onchange="handleFileQr(event)">
+            <input type="file" id="fileInputCamera" accept="image/*" capture="environment" style="display:none;" onchange="handleFileQr(event)">
+        </div>
+
+        <!-- ==================== VIEW 3: SIÊU CHUYỂN TIỀN (TRANSFER HUB) ==================== -->
+        <div class="app-view" id="viewTransferHub">
+            <div class="view-header-bar">
+                <div class="header-nav-btn" onclick="navToHome()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2.5">
+                        <polyline points="15 18 9 12 15 6"/>
+                    </svg>
+                </div>
+                <span class="view-header-title">Siêu chuyển tiền</span>
+                <div class="header-nav-btn" onclick="navToHome()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2.5">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- 5 Nút tròn chuẩn MBBank -->
+            <div class="transfer-round-grid">
+                <div class="round-action-item" onclick="openBlankTransferForm()">
+                    <div class="round-action-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+                            <rect x="3" y="5" width="18" height="14" rx="3"/>
+                            <line x1="7" y1="15" x2="17" y2="15"/>
+                        </svg>
+                    </div>
+                    <span class="round-action-label">Số tài khoản</span>
+                </div>
+
+                <div class="round-action-item" onclick="openContactTransferModal('Số điện thoại')">
+                    <div class="round-action-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+                            <rect x="5" y="2" width="14" height="20" rx="3"/>
+                            <line x1="12" y1="18" x2="12.01" y2="18"/>
+                        </svg>
+                    </div>
+                    <span class="round-action-label">Số điện thoại</span>
+                </div>
+
+                <div class="round-action-item" onclick="openContactTransferModal('Số thẻ Napas / Visa')">
+                    <div class="round-action-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+                            <rect x="2" y="5" width="20" height="14" rx="3"/>
+                            <line x1="2" y1="10" x2="22" y2="10"/>
+                        </svg>
+                    </div>
+                    <span class="round-action-label">Số thẻ</span>
+                </div>
+
+                <div class="round-action-item" onclick="quickTransferTo('99998888', 'BREWLITE COFFEE', 'Vietcombank (VCB)', 'VCB', 'Ngân hàng TMCP Ngoại thương Việt Nam')">
+                    <div class="round-action-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                    </div>
+                    <span class="round-action-label">Mẫu chuyển</span>
+                </div>
+
+                <div class="round-action-item" onclick="showToast('Chuyển tiền quốc tế SWIFT MBBank')">
+                    <div class="round-action-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="2" y1="12" x2="22" y2="12"/>
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                        </svg>
+                    </div>
+                    <span class="round-action-label">Quốc tế</span>
+                </div>
+            </div>
+
+            <!-- Tiện ích chuyển tiền Napas 247 -->
+            <div class="mbai-card-wrapper">
+                <div class="mbai-header-row">
+                    <div class="mbai-badge">
+                        <span style="font-size: 18px;">⚡</span>
+                        <span>Chuyển tiền nhanh 24/7</span>
+                    </div>
+                    <div style="font-size: 11px; background: rgba(255,255,255,0.2); padding: 3px 8px; border-radius: 8px;">Napas 247 • Miễn phí</div>
+                </div>
+
+                <div class="mbai-actions-row">
+                    <div class="mbai-btn" onclick="openScanner()">
+                        <span style="font-size: 16px;">📷</span>
+                        <span>Quét QR</span>
+                    </div>
+                    <div class="mbai-btn" onclick="triggerCameraCapture()">
+                        <span style="font-size: 16px;">📸</span>
+                        <span>Chụp ảnh</span>
+                    </div>
+                    <div class="mbai-btn" onclick="triggerImageUpload()">
+                        <span style="font-size: 16px;">🖼️</span>
+                        <span>Tải ảnh</span>
+                    </div>
+                    <div class="mbai-btn" onclick="pasteFromClipboard()">
+                        <span style="font-size: 16px;">📋</span>
+                        <span>Dán STK</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Danh bạ người nhận gần đây -->
+            <div class="recent-contacts-box">
+                <div class="recent-section-header">Người nhận gần đây</div>
+
+                <!-- Contact duy nhất: BREWLITE COFFEE -->
+                <div class="contact-item-card" onclick="quickTransferTo('99998888', 'BREWLITE COFFEE', 'Vietcombank (VCB)', 'VCB', 'Ngân hàng TMCP Ngoại thương Việt Nam')">
+                    <div class="contact-avatar-pill" style="background:#fef3c7; color:#b45309;">☕</div>
+                    <div class="contact-info-col">
+                        <div class="contact-name-title">BREWLITE COFFEE</div>
+                        <div class="contact-account-sub">99998888 • Vietcombank (VCB)</div>
+                    </div>
+                    <span style="font-size: 18px; color:#94a3b8;">›</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== VIEW 4: FORM CHUYỂN TIỀN (TRANSFER FORM) ==================== -->
+        <div class="app-view" id="viewTransferForm">
+            <div class="view-header-bar">
+                <div class="header-nav-btn" onclick="navToTransferHub()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2.5">
+                        <polyline points="15 18 9 12 15 6"/>
+                    </svg>
+                </div>
+                <span class="view-header-title">Chuyển tiền tới tài khoản</span>
+                <div style="width: 36px;"></div>
+            </div>
+
+            <!-- Tài khoản nguồn -->
+            <div class="form-section-card" style="background: var(--mb-gradient); color:#ffffff;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 11.5px; opacity: 0.85; font-weight:700;">TÀI KHOẢN NGUỒN</span>
+                    <span style="font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 8px;">MBBank</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+                    <div style="font-size: 17px; font-weight: 800;">0589822346</div>
+                    <div style="font-size: 11px; font-weight: 800; background: rgba(255,255,255,0.2); padding: 3px 8px; border-radius: 8px;">VND</div>
+                </div>
+                <div style="font-size: 13px; opacity: 0.9; margin-top: 2px;">KHACH HANG BREWLITE</div>
+                <div style="font-size: 12.5px; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.2); display: flex; justify-content: space-between;">
+                    <span style="opacity: 0.8;">Số dư khả dụng:</span>
+                    <span style="font-weight: 800; color: #fef08a;" id="userFormAvailableBalance">50.000.000 VND</span>
+                </div>
+            </div>
+
+            <!-- Tài khoản thụ hưởng -->
+            <div class="form-section-card">
+                <span class="form-input-label">Ngân hàng thụ hưởng</span>
+                <div class="bank-selector-button" onclick="openBankSelectorSheet()">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="bank-badge-logo" id="selectedBankBadge" style="background:#e2e8f0; color:#64748b;">🏦</div>
+                        <div>
+                            <div style="font-size: 14.5px; font-weight: 800; color: #64748b;" id="selectedBankTitle">Chọn ngân hàng thụ hưởng</div>
+                            <div style="font-size: 11.5px; color: #94a3b8;" id="selectedBankSubtitle">Chuyển nhanh Napas 247</div>
+                        </div>
+                    </div>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+
+                <div style="margin-top: 14px;">
+                    <span class="form-input-label">Số tài khoản thụ hưởng</span>
+                    <input type="text" id="destAccountInput" class="form-text-input" placeholder="Nhập số tài khoản thụ hưởng" oninput="onAccountInputChange()" onblur="onAccountInputBlur()" onkeydown="if(event.key==='Enter'){event.preventDefault(); this.blur();}">
+                </div>
+
+                <div style="margin-top: 14px;">
+                    <span class="form-input-label">Tên người thụ hưởng</span>
+                    <input type="text" id="destNameInput" class="form-text-input" placeholder="" readonly tabindex="-1" style="background:#f1f5f9; text-transform:uppercase; font-weight:800; cursor:default;">
+                </div>
+            </div>
+
+            <!-- Số tiền & Nội dung -->
+            <div class="form-section-card">
+                <span class="form-input-label">Số tiền chuyển (VND)</span>
+                <div style="position: relative;">
+                    <input type="number" id="transferAmountInput" class="form-text-input" placeholder="0" style="font-size: 20px; font-weight: 800; color: var(--mb-blue); padding-right: 50px;">
+                    <span style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-weight: 800; color: #64748b;">VND</span>
+                </div>
+
+                <!-- Chips chọn nhanh số tiền -->
+                <div class="amount-chips-scroll">
+                    <div class="amount-chip-pill" onclick="setFastAmount(50000)">50.000đ</div>
+                    <div class="amount-chip-pill" onclick="setFastAmount(100000)">100.000đ</div>
+                    <div class="amount-chip-pill" onclick="setFastAmount(200000)">200.000đ</div>
+                    <div class="amount-chip-pill" onclick="setFastAmount(500000)">500.000đ</div>
+                    <div class="amount-chip-pill" onclick="setFastAmount(1500000)">1.500.000đ</div>
+                    <div class="amount-chip-pill" onclick="setFastAmount(3850000)">3.850.000đ</div>
+                </div>
+
+                <div style="margin-top: 14px;">
+                    <span class="form-input-label">Nội dung chuyển tiền</span>
+                    <input type="text" id="transferMsgInput" class="form-text-input" placeholder="KHACH HANG BREWLITE chuyen tien">
+                </div>
+            </div>
+
+            <button class="btn-confirm-next" onclick="goToConfirmationScreen()">
+                <span>TIẾP TỤC</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+        </div>
+
+        <!-- ==================== VIEW 5: XÁC NHẬN GIAO DỊCH (CONFIRMATION) ==================== -->
+        <div class="app-view" id="viewConfirm">
+            <div class="view-header-bar">
+                <div class="header-nav-btn" onclick="switchView('viewTransferForm')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2.5">
+                        <polyline points="15 18 9 12 15 6"/>
+                    </svg>
+                </div>
+                <span class="view-header-title">Xác nhận chuyển tiền</span>
+                <div style="width: 36px;"></div>
+            </div>
+
+            <div class="confirm-table-card">
+                <div class="confirm-row">
+                    <span class="confirm-label">Số tiền chuyển:</span>
+                    <span class="confirm-value" style="font-size: 18px; color: var(--mb-blue);" id="confirmAmtVal">1.500.000 VND</span>
+                </div>
+                <div class="confirm-row">
+                    <span class="confirm-label">Phí giao dịch:</span>
+                    <span class="confirm-value" style="color: #10b981;">0 VND (Miễn phí)</span>
+                </div>
+                <div class="confirm-row">
+                    <span class="confirm-label">Người thụ hưởng:</span>
+                    <span class="confirm-value" id="confirmNameVal">BREWLITE COFFEE</span>
+                </div>
+                <div class="confirm-row">
+                    <span class="confirm-label">Ngân hàng thụ hưởng:</span>
+                    <span class="confirm-value" id="confirmBankVal">MBBank (MB)</span>
+                </div>
+                <div class="confirm-row">
+                    <span class="confirm-label">Số tài khoản nhận:</span>
+                    <span class="confirm-value" id="confirmAccVal">99998888</span>
+                </div>
+                <div class="confirm-row">
+                    <span class="confirm-label">Tài khoản trích tiền:</span>
+                    <span class="confirm-value">0589822346 (VND)</span>
+                </div>
+                <div class="confirm-row">
+                    <span class="confirm-label">Nội dung chuyển tiền:</span>
+                    <span class="confirm-value" id="confirmMsgVal">KHACH HANG BREWLITE chuyen tien</span>
+                </div>
+            </div>
+
+            <!-- Khung Digital OTP -->
+            <div class="otp-box-section">
+                <div style="font-size: 12px; font-weight: 700; color: #1e40af;">XÁC THỰC DIGITAL OTP MBBANK</div>
+                <div class="otp-code-display" id="displayOtpCode">839 217</div>
+                <div style="font-size: 11px; color: #64748b;">Mã OTP được bảo mật và tự động điền</div>
+            </div>
+
+            <button class="btn-confirm-next" onclick="executeFinalTransfer()">
+                <span>XÁC NHẬN CHUYỂN TIỀN</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+        </div>
+
+        <!-- ==================== VIEW 6: BIÊN LAI THÀNH CÔNG (RECEIPT) ==================== -->
+        <div class="app-view" id="viewReceiptSuccess">
+            <div class="receipt-container">
+                <div class="receipt-success-badge">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                </div>
+
+                <div class="receipt-title-success">Chuyển tiền thành công</div>
+                <div class="receipt-amount-big" id="receiptBigAmount">-1,500,000 VND</div>
+                <div class="receipt-time-text" id="receiptTimeText">17:35 - 11/10/2026</div>
+
+                <!-- Card thụ hưởng -->
+                <div class="receipt-details-card">
+                    <div class="receipt-dest-name-bold" id="receiptDestName">BREWLITE COFFEE</div>
+                    <div class="receipt-dest-bank-row">
+                        <span>🏦</span>
+                        <span id="receiptDestBank">MBBank (Ngân hàng TMCP Quân đội)</span>
+                    </div>
+                    <div style="font-size: 13.5px; font-weight: 700; color: #334155; margin-bottom: 4px;">
+                        STK: <span id="receiptDestAcc">99998888</span>
+                    </div>
+                    <div class="receipt-divider"></div>
+                    <div style="font-size: 12.5px; color: #64748b; line-height: 1.45;">
+                        <b>Nội dung:</b> <span id="receiptDestMsg">KHACH HANG BREWLITE chuyen tien</span><br>
+                        <b>Mã giao dịch:</b> <span id="receiptTransCode" style="font-family: monospace; font-weight:700;">FT2610118392</span>
+                    </div>
+                </div>
+
+                <div style="font-size: 12.5px; color: #64748b; margin-bottom: 20px;">
+                    Cảm ơn bạn đã sử dụng dịch vụ của MBBank
+                </div>
+
+                <!-- 3 Nút tròn chức năng -->
+                <div class="receipt-actions-3">
+                    <div class="receipt-round-btn" onclick="showToast('Đã sao chép liên kết chia sẻ biên lai!')">
+                        <div class="round-btn-circle">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+                                <circle cx="18" cy="5" r="3"/>
+                                <circle cx="6" cy="12" r="3"/>
+                                <circle cx="18" cy="19" r="3"/>
+                                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                            </svg>
+                        </div>
+                        <span class="round-btn-label">Chia sẻ</span>
+                    </div>
+
+                    <div class="receipt-round-btn" onclick="showToast('Đã lưu ảnh biên lai vào thư viện!')">
+                        <div class="round-btn-circle">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                        </div>
+                        <span class="round-btn-label">Lưu ảnh</span>
+                    </div>
+
+                    <div class="receipt-round-btn" onclick="showToast('Đã lưu mẫu chuyển tiền thường dùng!')">
+                        <div class="round-btn-circle">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                                <polyline points="17 21 17 13 7 13 7 21"/>
+                                <polyline points="7 3 7 8 15 8"/>
+                            </svg>
+                        </div>
+                        <span class="round-btn-label">Lưu mẫu</span>
+                    </div>
+                </div>
+
+                <button class="btn-receipt-finish" onclick="finishAndBackToHome()">
+                    Thực hiện giao dịch khác
+                </button>
+            </div>
+        </div>
+
+        <!-- ==================== BOTTOM SHEET: NẠP TIỀN ĐIỆN THOẠI ==================== -->
+        <div class="bottom-sheet-backdrop" id="topupSheetBackdrop" onclick="closeTopupSheet()">
+            <div class="bottom-sheet-box" onclick="event.stopPropagation()">
+                <div style="width: 40px; height: 5px; background: #cbd5e1; border-radius: 4px; margin: 0 auto 12px auto;"></div>
+                <div style="font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 12px;">Nạp tiền điện thoại</div>
+                
+                <span class="form-input-label">Số điện thoại</span>
+                <input type="text" id="topupPhoneInput" class="form-text-input" placeholder="Nhập số điện thoại cần nạp" value="0912345678" style="margin-bottom: 14px;">
+
+                <span class="form-input-label">Chọn mệnh giá</span>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px;">
+                    <button class="amount-chip-pill" style="padding: 12px 6px; font-size: 13px;" onclick="executeTopup(10000)">10.000đ</button>
+                    <button class="amount-chip-pill" style="padding: 12px 6px; font-size: 13px;" onclick="executeTopup(20000)">20.000đ</button>
+                    <button class="amount-chip-pill" style="padding: 12px 6px; font-size: 13px;" onclick="executeTopup(50000)">50.000đ</button>
+                    <button class="amount-chip-pill" style="padding: 12px 6px; font-size: 13px;" onclick="executeTopup(100000)">100.000đ</button>
+                    <button class="amount-chip-pill" style="padding: 12px 6px; font-size: 13px;" onclick="executeTopup(200000)">200.000đ</button>
+                    <button class="amount-chip-pill" style="padding: 12px 6px; font-size: 13px;" onclick="executeTopup(500000)">500.000đ</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== BOTTOM SHEET: TIỀN GỬI TIẾT KIỆM ==================== -->
+        <div class="bottom-sheet-backdrop" id="savingsSheetBackdrop" onclick="closeSavingsSheet()">
+            <div class="bottom-sheet-box" onclick="event.stopPropagation()">
+                <div style="width: 40px; height: 5px; background: #cbd5e1; border-radius: 4px; margin: 0 auto 12px auto;"></div>
+                <div style="font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 8px;">Tiền gửi tiết kiệm MB</div>
+                <div style="font-size: 12.5px; color: #64748b; margin-bottom: 14px;">Lãi suất ưu đãi lên đến <b>8.2%/năm</b>. Mở sổ online nhận ngay quà tài lộc 🧧.</div>
+                
+                <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:14px; padding:12px; margin-bottom:14px;">
+                    <div style="font-size:12px; color:#1e40af; font-weight:700;">GÓI TIẾT KIỆM SỐ MB8888</div>
+                    <div style="font-size:18px; font-weight:800; color:#1d4ed8; margin:4px 0;">8.2% / năm</div>
+                    <div style="font-size:11.5px; color:#64748b;">Kỳ hạn 12 tháng • Trả lãi cuối kỳ • Rút gốc linh hoạt</div>
+                </div>
+
+                <button class="btn-confirm-next" style="margin: 6px 0;" onclick="showToast('Đã mở sổ tiết kiệm thành công! Chúc bạn tài lộc phát tài.'); closeSavingsSheet();">
+                    <span>MỞ SỔ TIẾT KIỆM NGAY</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ==================== BOTTOM SHEET: VAY NHANH ==================== -->
+        <div class="bottom-sheet-backdrop" id="loanSheetBackdrop" onclick="closeLoanSheet()">
+            <div class="bottom-sheet-box" onclick="event.stopPropagation()">
+                <div style="width: 40px; height: 5px; background: #cbd5e1; border-radius: 4px; margin: 0 auto 12px auto;"></div>
+                <div style="font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 8px;">Vay tiêu dùng siêu tốc MB</div>
+                <div style="font-size: 12.5px; color: #64748b; margin-bottom: 14px;">Hạn mức phê duyệt tức thì không cần chứng minh thu nhập.</div>
+                
+                <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:14px; padding:12px; margin-bottom:14px;">
+                    <div style="font-size:12px; color:#991b1b; font-weight:700;">HẠN MỨC ĐÃ PHÊ DUYỆT</div>
+                    <div style="font-size:20px; font-weight:800; color:#dc2626; margin:4px 0;">60.000.000 VND</div>
+                    <div style="font-size:11.5px; color:#64748b;">Lãi suất chỉ từ 0.8%/tháng • Giải ngân trong 1 phút</div>
+                </div>
+
+                <button class="btn-confirm-next" style="margin: 6px 0; background: linear-gradient(135deg, #dc2626, #b91c1c);" onclick="showToast('Hồ sơ vay đã được gửi duyệt thành công!'); closeLoanSheet();">
+                    <span>RÚT TIỀN VỀ TÀI KHOẢN</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ==================== BOTTOM SHEET: QUẢN LÝ THẺ ==================== -->
+        <div class="bottom-sheet-backdrop" id="cardSheetBackdrop" onclick="closeCardSheet()">
+            <div class="bottom-sheet-box" onclick="event.stopPropagation()">
+                <div style="width: 40px; height: 5px; background: #cbd5e1; border-radius: 4px; margin: 0 auto 12px auto;"></div>
+                <div style="font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 12px;">Quản lý thẻ MB Hi Collection</div>
+                
+                <!-- Thẻ ảo sang trọng -->
+                <div class="virtual-card-chip">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:18px; font-weight:900;">★ MB</span>
+                        <span style="font-size:12px; font-weight:700; color:#fbbf24;">VISA PLATINUM</span>
+                    </div>
+                    <div style="font-size:17px; font-weight:700; letter-spacing:3px; margin:24px 0 14px 0;">
+                        9704 22•• •••• 1234
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:11px; opacity:0.85;">
+                        <span>KHACH HANG BREWLITE</span>
+                        <span>EXP: 10/29</span>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:8px;">
+                    <button style="flex:1; padding:12px; border-radius:12px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-weight:700; cursor:pointer;" onclick="showToast('Đã khóa tính năng chi tiêu online!')">
+                        Khóa thẻ
+                    </button>
+                    <button style="flex:1; padding:12px; border-radius:12px; background:var(--mb-blue); color:#fff; border:none; font-weight:700; cursor:pointer;" onclick="showToast('Hạn mức thẻ: 100.000.000 VND')">
+                        Đổi mã PIN
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== BOTTOM SHEET: ƯU ĐÃI ==================== -->
+        <div class="bottom-sheet-backdrop" id="promoSheetBackdrop" onclick="closePromoSheet()">
+            <div class="bottom-sheet-box" onclick="event.stopPropagation()">
+                <div style="width: 40px; height: 5px; background: #cbd5e1; border-radius: 4px; margin: 0 auto 12px auto;"></div>
+                <div style="font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 12px;">Ưu đãi đặc quyền MBBank</div>
+                
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    <div style="background:#fef3c7; border-radius:14px; padding:12px; border:1px solid #fde68a; cursor:pointer;" onclick="showToast('Đã lưu mã giảm giá BREWLITE COFFEE!')">
+                        <div style="font-size:13px; font-weight:800; color:#b45309;">☕ BREWLITE COFFEE - GIẢM 15%</div>
+                        <div style="font-size:11.5px; color:#78350f;">Giảm trực tiếp 15% cho mọi đơn cà phê & thức uống thanh toán qua VietQR MBBank.</div>
+                    </div>
+                    <div style="background:#f0fdf4; border-radius:14px; padding:12px; border:1px solid #bbf7d0; cursor:pointer;" onclick="showToast('Đã lưu mã hoàn tiền 50k!')">
+                        <div style="font-size:13px; font-weight:800; color:#15803d;">🛍️ HOÀN TIỀN 50.000Đ</div>
+                        <div style="font-size:11.5px; color:#166534;">Áp dụng cho hóa đơn từ 500.000đ khi quét mã thanh toán Napas 247.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== BOTTOM SHEET: MENU TIỆN ÍCH ==================== -->
+        <div class="bottom-sheet-backdrop" id="menuSheetBackdrop" onclick="closeMenuSheet()">
+            <div class="bottom-sheet-box" onclick="event.stopPropagation()">
+                <div style="width: 40px; height: 5px; background: #cbd5e1; border-radius: 4px; margin: 0 auto 12px auto;"></div>
+                <div style="font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 12px;">Tiện ích MBBank</div>
+                
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    <div style="padding:12px; background:#f8fafc; border-radius:12px; font-size:13.5px; font-weight:700; color:#1e293b; cursor:pointer;" onclick="showToast('Smart OTP MBBank đang kích hoạt')">
+                        🔐 Quản lý Smart OTP / Digital OTP
+                    </div>
+                    <div style="padding:12px; background:#f8fafc; border-radius:12px; font-size:13.5px; font-weight:700; color:#1e293b; cursor:pointer;" onclick="showToast('Tỷ giá USD: 25.420 VND | EUR: 27.650 VND')">
+                        💱 Tra cứu Tỷ giá & Lãi suất
+                    </div>
+                    <div style="padding:12px; background:#f8fafc; border-radius:12px; font-size:13.5px; font-weight:700; color:#1e293b; cursor:pointer;" onclick="showToast('Hotline MBBank: 1900 545426')">
+                        📞 Hotline hỗ trợ khách hàng 24/7
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== BOTTOM SHEET: CHI TIẾT DỊCH VỤ ==================== -->
+        <div class="bottom-sheet-backdrop" id="serviceDetailBackdrop" onclick="closeServiceDetailSheet()">
+            <div class="bottom-sheet-box" onclick="event.stopPropagation()">
+                <div style="width: 40px; height: 5px; background: #cbd5e1; border-radius: 4px; margin: 0 auto 12px auto;"></div>
+                <div style="font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 6px;" id="serviceSheetTitle">Dịch vụ</div>
+                <div style="font-size: 13px; color: #64748b; margin-bottom: 16px;" id="serviceSheetDesc">Mô tả dịch vụ</div>
+                
+                <button class="btn-confirm-next" style="margin: 0;" onclick="showToast('Thao tác dịch vụ thành công!'); closeServiceDetailSheet();">
+                    <span>TRẢI NGHIỆM NGAY</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ==================== BOTTOM SHEET: CHỌN NGÂN HÀNG ==================== -->
+        <div class="bottom-sheet-backdrop" id="bankSheetBackdrop" onclick="closeBankSelectorSheet()">
+            <div class="bottom-sheet-box" onclick="event.stopPropagation()">
+                <div style="width: 40px; height: 5px; background: #cbd5e1; border-radius: 4px; margin: 0 auto 12px auto;"></div>
+                <div style="font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 12px;">Chọn ngân hàng thụ hưởng</div>
+                
+                <input type="text" id="bankSearchInput" class="form-text-input" placeholder="Tìm tên ngân hàng hoặc mã viết tắt..." oninput="filterBankList()" style="margin-bottom: 12px; padding: 10px 14px; font-size: 13.5px;">
+
+                <div id="bankListContainer" style="overflow-y: auto; max-height: 340px; display: flex; flex-direction: column; gap: 6px;">
+                    <!-- Sẽ render bằng JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== MODAL: MÃ QR CỦA TÔI ==================== -->
+        <div class="custom-center-modal" id="myQrModal">
+            <div class="modal-card-body">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+                    <span style="font-size: 17px; font-weight: 800; color: var(--mb-navy);">Mã QR của tôi</span>
+                    <span style="font-size: 20px; color: #94a3b8; cursor: pointer;" onclick="closeMyQrModal()">✕</span>
+                </div>
+                <div style="font-size: 12.5px; color: #64748b; margin-bottom: 14px;">Quét để chuyển tiền nhanh Napas 247</div>
+
+                <div style="padding: 10px; background: #ffffff; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); display: inline-block;">
+                    <img src="https://api.vietqr.io/image/970422-0589822346-compact2.png?accountName=KHACH%20HANG%20BREWLITE" 
+                         alt="VietQR MBBank" 
+                         style="width: 220px; height: 220px; object-fit: contain; border-radius: 10px;"
+                         onerror="this.src='https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=00020101021238540010A00000072701240006970422011005898223460208QRIBFTTA5204000053037045802VN5916KHACH HANG BREWLITE6007DA NANG6304E8A9';">
+                </div>
+
+                <div style="margin-top: 12px;">
+                    <div style="font-size: 15px; font-weight: 800; color: #0f172a;">KHACH HANG BREWLITE</div>
+                    <div style="font-size: 13.5px; font-weight: 700; color: var(--mb-blue); margin-top: 2px;">0589822346 • MBBank</div>
+                </div>
+
+                <div style="display: flex; gap: 8px; margin-top: 16px;">
+                    <button style="flex: 1; padding: 10px; border-radius: 12px; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-weight: 700; cursor: pointer;" onclick="copyMyStk()">
+                        Sao chép STK
+                    </button>
+                    <button style="flex: 1; padding: 10px; border-radius: 12px; background: var(--mb-blue); color: #ffffff; border: none; font-weight: 700; cursor: pointer;" onclick="showToast('Đã lưu mã QR vào thư viện!')">
+                        Lưu mã QR
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== MODAL: THÔNG BÁO LỖI TÀI KHOẢN (MBBANK OFFICIAL ALERT) ==================== -->
+        <div class="custom-center-modal" id="accountErrorModal" onclick="closeAccountErrorModal()">
+            <div class="modal-card-body" onclick="event.stopPropagation()">
+                <!-- Icon cảnh báo chuẩn app ngân hàng MBBank -->
+                <div style="width: 64px; height: 64px; background: #fef2f2; border: 2px solid #fee2e2; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px auto; box-shadow: 0 6px 16px rgba(220, 38, 38, 0.12);">
+                    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="8" x2="12" y2="12"/>
+                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                </div>
+
+                <div style="font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 8px; letter-spacing: -0.2px;">Thông báo</div>
+                <div style="font-size: 14px; color: #475569; line-height: 1.55; margin-bottom: 22px; font-weight: 500; word-break: break-word;" id="accountErrorMsg">
+                    Không tìm thấy thông tin tài khoản người thụ hưởng tại ngân hàng đã chọn. Quý khách vui lòng kiểm tra lại số tài khoản hoặc ngân hàng.
+                </div>
+
+                <button style="width: 100%; height: 48px; background: linear-gradient(135deg, #001f70 0%, #0036d6 100%); color: #ffffff; font-size: 14.5px; font-weight: 800; border-radius: 14px; border: none; cursor: pointer; box-shadow: 0 6px 18px rgba(0, 54, 214, 0.35); letter-spacing: 0.5px; text-transform: uppercase;" onclick="closeAccountErrorModal()">
+                    ĐỒNG Ý
+                </button>
+            </div>
+        </div>
+
+        <!-- ==================== MODAL: HƯỚNG DẪN CẤP QUYỀN CAMERA IOS ==================== -->
+        <div class="custom-center-modal" id="iosHttpsModal" onclick="closeIosHttpsModal()">
+            <div class="modal-card-body" onclick="event.stopPropagation()">
+                <div style="width: 64px; height: 64px; background: #eff6ff; border: 2px solid #bfdbfe; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px auto;">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                        <circle cx="12" cy="13" r="4"/>
+                    </svg>
+                </div>
+
+                <div style="font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 8px;">Cấp quyền Camera trên iOS</div>
+                <div style="font-size: 13.5px; color: #475569; line-height: 1.55; margin-bottom: 18px;" id="iosHttpsModalMsg">
+                    Trình duyệt Safari trên iPhone yêu cầu kết nối <b>HTTPS</b> bảo mật để hỏi cấp quyền Camera trực tiếp trong ô ngắm. Quý khách vui lòng bấm nút bên dưới để chuyển sang HTTPS!
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <button style="width: 100%; height: 46px; background: linear-gradient(135deg, #001f70 0%, #0036d6 100%); color: #ffffff; font-size: 13.5px; font-weight: 800; border-radius: 14px; border: none; cursor: pointer; box-shadow: 0 4px 14px rgba(0, 54, 214, 0.35);" onclick="redirectToHttps()">
+                        CHUYỂN SANG HTTPS ĐỂ BẬT CAMERA
+                    </button>
+                    <button style="width: 100%; height: 42px; background: #f1f5f9; color: #334155; font-size: 13px; font-weight: 700; border-radius: 12px; border: none; cursor: pointer;" onclick="closeIosHttpsModal(); simulateBrewLiteScan();">
+                        QUÉT MÃ CỬA HÀNG BREWLITE NGAY
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== MODAL: CẢNH BÁO THIẾU SỐ DƯ (GW356) ==================== -->
+        <div class="custom-center-modal" id="insufficientModal">
+            <div class="modal-card-body">
+                <div style="width: 60px; height: 60px; background: #fee2e2; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px auto;">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="8" x2="12" y2="12"/>
+                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                </div>
+
+                <div style="font-size: 17px; font-weight: 800; color: #0f172a;">Giao dịch không thành công</div>
+                <div style="font-size: 13px; color: #475569; margin: 8px 0 14px 0; line-height: 1.45;">
+                    Số dư tài khoản thanh toán không đủ để thực hiện giao dịch này. Quý khách vui lòng kiểm tra lại số dư hoặc nạp thêm tiền.
+                </div>
+
+                <div style="background: #f8fafc; border-radius: 14px; padding: 12px; margin-bottom: 16px; text-align: left; font-size: 12px; border: 1px solid #e2e8f0;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span style="color:#64748b;">Số tiền cần chuyển:</span>
+                        <span style="font-weight:800; color:#dc2626;" id="errReqAmt">3.850.000 VND</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span style="color:#64748b;">Số dư khả dụng:</span>
+                        <span style="font-weight:800; color:#0f172a;" id="errCurBal">500.000 VND</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; padding-top:4px; border-top:1px dashed #cbd5e1;">
+                        <span style="color:#64748b;">Mã lỗi hệ thống:</span>
+                        <span style="font-weight:700; color:var(--mb-blue);">GW356 - SỐ DƯ KHÔNG ĐỦ</span>
+                    </div>
+                </div>
+
+                <button style="width: 100%; padding: 13px; background: #f1f5f9; color: #475569; font-weight: 800; border-radius: 12px; border: none; cursor: pointer;" onclick="closeInsufficientModal()">
+                    ĐÓNG
+                </button>
+            </div>
+        </div>
+
+        <!-- Global Toast Notification -->
+        <div class="global-toast" id="globalToast">Thông báo</div>
+
+    </div>
+
+    <!-- ==================== JAVASCRIPT & BUSINESS LOGIC ==================== -->
+    <script>
+        // Danh sách ngân hàng Việt Nam chính thức
+        const VIETNAM_BANKS = [
+            { code: 'MB', name: 'MBBank (MB)', sub: 'Ngân hàng TMCP Quân đội' },
+            { code: 'VCB', name: 'Vietcombank (VCB)', sub: 'Ngân hàng TMCP Ngoại thương Việt Nam' },
+            { code: 'CTG', name: 'VietinBank (CTG)', sub: 'Ngân hàng TMCP Công thương Việt Nam' },
+            { code: 'BIDV', name: 'BIDV', sub: 'Ngân hàng TMCP Đầu tư và Phát triển VN' },
+            { code: 'VBA', name: 'Agribank (VBA)', sub: 'Ngân hàng Nông nghiệp & PTNT Việt Nam' },
+            { code: 'TCB', name: 'Techcombank (TCB)', sub: 'Ngân hàng TMCP Kỹ thương Việt Nam' },
+            { code: 'VPB', name: 'VPBank (VPB)', sub: 'Ngân hàng TMCP Việt Nam Thịnh Vượng' },
+            { code: 'ACB', name: 'ACB', sub: 'Ngân hàng TMCP Á Châu' },
+            { code: 'TPB', name: 'TPBank (TPB)', sub: 'Ngân hàng TMCP Tiên Phong' },
+            { code: 'STB', name: 'Sacombank (STB)', sub: 'Ngân hàng TMCP Sài Gòn Thương Tín' },
+            { code: 'HDB', name: 'HDBank (HDB)', sub: 'Ngân hàng TMCP Phát triển TP.HCM' },
+            { code: 'VIB', name: 'VIB', sub: 'Ngân hàng TMCP Quốc tế Việt Nam' }
+        ];
+
+        // Hàm gọi API thanh toán trung tâm (tự động thử các đường dẫn trên Apache)
+        async function fetchApiPayment(queryString) {
+            const urls = [
+                '/api_payment.php?' + queryString,
+                '../api_payment.php?' + queryString,
+                'api_payment.php?' + queryString,
+                '../../api_payment.php?' + queryString
+            ];
+            for (const u of urls) {
+                try {
+                    const res = await fetch(u + '&_t=' + Date.now());
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data) return data;
+                    }
+                } catch (e) {}
+            }
+            return null;
+        }
+
+        // Quản lý số dư người dùng (Đồng bộ thời gian thực qua Server Apache cho mọi thiết bị iPhone / PC)
+        const DEFAULT_START_BALANCE = 50000000;
+        let cachedServerBalance = null;
+
+        function getUserBalance() {
+            if (cachedServerBalance !== null) return cachedServerBalance;
+            const saved = localStorage.getItem('mb_user_balance');
+            return saved !== null ? parseInt(saved, 10) : DEFAULT_START_BALANCE;
+        }
+
+        function saveUserBalance(amt) {
+            cachedServerBalance = amt;
+            localStorage.setItem('mb_user_balance', amt);
+            renderAllBalanceElements();
+            // Đồng bộ ngay lên Server XAMPP cho mọi máy tính & điện thoại cùng mạng
+            fetchApiPayment('action=set_balance&balance=' + amt);
+        }
+
+        // Tự động đồng bộ số dư từ Server về thiết bị định kỳ (mỗi 1.5 giây cho mọi thiết bị)
+        async function syncBalanceFromServer() {
+            try {
+                const data = await fetchApiPayment('action=get_balance');
+                if (data && data.success && typeof data.balance === 'number') {
+                    if (cachedServerBalance !== data.balance) {
+                        cachedServerBalance = data.balance;
+                        localStorage.setItem('mb_user_balance', data.balance);
+                        renderAllBalanceElements();
+                    }
+                }
+            } catch (err) {}
+        }
+        syncBalanceFromServer();
+        setInterval(syncBalanceFromServer, 1500);
+
+        let isBalanceHidden = true;
+        let activeVideoStream = null;
+        let isScannerLoopActive = false;
+        let isFlashOn = false;
+
+        // Dữ liệu giao dịch hiện tại
+        let currentTargetBank = 'MBBank (MB)';
+        let currentTargetAccount = '';
+        let currentTargetName = '';
+        let currentTargetAmount = 0;
+        let currentTargetMsg = '';
+
+        // Cập nhật đồng hồ thời gian thực
+        function updateClock() {
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const el = document.getElementById('statusClock');
+            if (el) el.innerText = `${h}:${m}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Render số dư trên mọi màn hình
+        function renderAllBalanceElements() {
+            const curBal = getUserBalance();
+            const formatted = curBal.toLocaleString('vi-VN') + ' VND';
+
+            const homeBal = document.getElementById('homeBalanceAmount');
+            if (homeBal) {
+                homeBal.innerText = isBalanceHidden ? '*** *** VND' : formatted;
+            }
+
+            const formBal = document.getElementById('userFormAvailableBalance');
+            if (formBal) {
+                formBal.innerText = formatted;
+            }
+
+            const eyeOpen = document.getElementById('eyeIconVisible');
+            const eyeClosed = document.getElementById('eyeIconHidden');
+            if (eyeOpen && eyeClosed) {
+                eyeOpen.style.display = isBalanceHidden ? 'none' : 'block';
+                eyeClosed.style.display = isBalanceHidden ? 'block' : 'none';
+            }
+        }
+        renderAllBalanceElements();
+
+        function toggleBalanceHidden() {
+            isBalanceHidden = !isBalanceHidden;
+            renderAllBalanceElements();
+            showToast(isBalanceHidden ? "Đã ẩn số dư tài khoản" : `Số dư: ${getUserBalance().toLocaleString('vi-VN')} VND`);
+        }
+
+        // Global Toast
+        function showToast(msg) {
+            const toast = document.getElementById('globalToast');
+            toast.innerText = msg;
+            toast.classList.add('show');
+            clearTimeout(window._toastTimer);
+            window._toastTimer = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2500);
+        }
+
+        // Âm thanh Ting Ting báo thanh toán bằng Web Audio API
+        function playTingSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const now = ctx.currentTime;
+                const osc1 = ctx.createOscillator();
+                const gain1 = ctx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(1046.5, now);
+                gain1.gain.setValueAtTime(0.3, now);
+                gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+                osc1.connect(gain1);
+                gain1.connect(ctx.destination);
+                osc1.start(now);
+                osc1.stop(now + 0.5);
+
+                const osc2 = ctx.createOscillator();
+                const gain2 = ctx.createGain();
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(2093, now + 0.12);
+                gain2.gain.setValueAtTime(0.35, now + 0.12);
+                gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.9);
+                osc2.connect(gain2);
+                gain2.connect(ctx.destination);
+                osc2.start(now + 0.12);
+                osc2.stop(now + 0.9);
+            } catch (e) {
+                console.log("AudioContext playback:", e);
+            }
+        }
+
+        // ==================== LƯU TRỮ VÀ KHÔI PHỤC TRẠNG THÁI GIAO DIỆN KHI F5 ====================
+        function saveAppState() {
+            try {
+                const activeViewEl = document.querySelector('.app-view.active');
+                const activeViewId = activeViewEl ? activeViewEl.id : ((window.location.hash || '').replace('#', '') || 'viewHome');
+
+                const state = {
+                    activeView: activeViewId,
+                    currentTargetBank: currentTargetBank || '',
+                    currentTargetAccount: currentTargetAccount || '',
+                    currentTargetName: currentTargetName || '',
+                    currentTargetAmount: currentTargetAmount || 0,
+                    currentTargetMsg: currentTargetMsg || '',
+                    form: {
+                        account: document.getElementById('destAccountInput') ? document.getElementById('destAccountInput').value : '',
+                        name: document.getElementById('destNameInput') ? document.getElementById('destNameInput').value : '',
+                        amount: document.getElementById('transferAmountInput') ? document.getElementById('transferAmountInput').value : '',
+                        msg: document.getElementById('transferMsgInput') ? document.getElementById('transferMsgInput').value : '',
+                        bankBadge: document.getElementById('selectedBankBadge') ? document.getElementById('selectedBankBadge').innerText : '',
+                        bankTitle: document.getElementById('selectedBankTitle') ? document.getElementById('selectedBankTitle').innerText : '',
+                        bankSubtitle: document.getElementById('selectedBankSubtitle') ? document.getElementById('selectedBankSubtitle').innerText : '',
+                    },
+                    confirm: {
+                        amt: document.getElementById('confirmAmtVal') ? document.getElementById('confirmAmtVal').innerText : '',
+                        name: document.getElementById('confirmNameVal') ? document.getElementById('confirmNameVal').innerText : '',
+                        bank: document.getElementById('confirmBankVal') ? document.getElementById('confirmBankVal').innerText : '',
+                        acc: document.getElementById('confirmAccVal') ? document.getElementById('confirmAccVal').innerText : '',
+                        msg: document.getElementById('confirmMsgVal') ? document.getElementById('confirmMsgVal').innerText : '',
+                        otp: document.getElementById('displayOtpCode') ? document.getElementById('displayOtpCode').innerText : ''
+                    },
+                    receipt: {
+                        amt: document.getElementById('receiptBigAmount') ? document.getElementById('receiptBigAmount').innerText : '',
+                        time: document.getElementById('receiptTimeText') ? document.getElementById('receiptTimeText').innerText : '',
+                        name: document.getElementById('receiptDestName') ? document.getElementById('receiptDestName').innerText : '',
+                        bank: document.getElementById('receiptDestBank') ? document.getElementById('receiptDestBank').innerText : '',
+                        acc: document.getElementById('receiptDestAcc') ? document.getElementById('receiptDestAcc').innerText : '',
+                        msg: document.getElementById('receiptDestMsg') ? document.getElementById('receiptDestMsg').innerText : '',
+                        transCode: document.getElementById('receiptTransCode') ? document.getElementById('receiptTransCode').innerText : ''
+                    }
+                };
+                const jsonStr = JSON.stringify(state);
+                sessionStorage.setItem('mb_app_state', jsonStr);
+                localStorage.setItem('mb_app_state', jsonStr);
+            } catch (e) {
+                console.warn('saveAppState error:', e);
+            }
+        }
+
+        function restoreAppState() {
+            try {
+                // 1. Kiểm tra hash trên thanh URL trước (ví dụ #viewTransferHub, #viewTransferForm, #viewConfirm...)
+                const hashView = (window.location.hash || '').replace('#', '');
+                
+                // 2. Lấy dữ liệu đã lưu từ sessionStorage hoặc localStorage
+                let state = null;
+                const raw = sessionStorage.getItem('mb_app_state') || localStorage.getItem('mb_app_state');
+                if (raw) {
+                    try { state = JSON.parse(raw); } catch (e) {}
+                }
+
+                // Xác định view cần kích hoạt: Ưu tiên Hash URL -> state.activeView
+                let targetViewId = null;
+                if (hashView && document.getElementById(hashView)) {
+                    targetViewId = hashView;
+                } else if (state && state.activeView && document.getElementById(state.activeView)) {
+                    targetViewId = state.activeView;
+                }
+
+                // Khôi phục các biến chuyển tiền và dữ liệu
+                if (state) {
+                    if (state.currentTargetBank) currentTargetBank = state.currentTargetBank;
+                    if (state.currentTargetAccount) currentTargetAccount = state.currentTargetAccount;
+                    if (state.currentTargetName) currentTargetName = state.currentTargetName;
+                    if (state.currentTargetAmount) currentTargetAmount = state.currentTargetAmount;
+                    if (state.currentTargetMsg) currentTargetMsg = state.currentTargetMsg;
+
+                    // Khôi phục giá trị form
+                    if (state.form) {
+                        const accEl = document.getElementById('destAccountInput');
+                        const nameEl = document.getElementById('destNameInput');
+                        const amtEl = document.getElementById('transferAmountInput');
+                        const msgEl = document.getElementById('transferMsgInput');
+                        const badgeEl = document.getElementById('selectedBankBadge');
+                        const titleEl = document.getElementById('selectedBankTitle');
+                        const subEl = document.getElementById('selectedBankSubtitle');
+
+                        if (accEl && state.form.account !== undefined) accEl.value = state.form.account;
+                        if (nameEl && state.form.name !== undefined) nameEl.value = state.form.name;
+                        if (amtEl && state.form.amount !== undefined) amtEl.value = state.form.amount;
+                        if (msgEl && state.form.msg !== undefined) msgEl.value = state.form.msg;
+
+                        if (state.form.bankTitle && state.form.bankTitle !== 'Chọn ngân hàng thụ hưởng') {
+                            if (badgeEl) {
+                                badgeEl.innerText = state.form.bankBadge || '🏦';
+                                badgeEl.style.background = '#001f70';
+                                badgeEl.style.color = '#ffffff';
+                            }
+                            if (titleEl) {
+                                titleEl.innerText = state.form.bankTitle;
+                                titleEl.style.color = '#0f172a';
+                            }
+                            if (subEl) subEl.innerText = state.form.bankSubtitle || '';
+                        }
+                    }
+
+                    // Khôi phục màn hình xác nhận
+                    if (state.confirm) {
+                        if (state.confirm.amt) document.getElementById('confirmAmtVal').innerText = state.confirm.amt;
+                        if (state.confirm.name) document.getElementById('confirmNameVal').innerText = state.confirm.name;
+                        if (state.confirm.bank) document.getElementById('confirmBankVal').innerText = state.confirm.bank;
+                        if (state.confirm.acc) document.getElementById('confirmAccVal').innerText = state.confirm.acc;
+                        if (state.confirm.msg) document.getElementById('confirmMsgVal').innerText = state.confirm.msg;
+                        if (state.confirm.otp) document.getElementById('displayOtpCode').innerText = state.confirm.otp;
+                    }
+
+                    // Khôi phục biên lai thành công
+                    if (state.receipt) {
+                        if (state.receipt.amt) document.getElementById('receiptBigAmount').innerText = state.receipt.amt;
+                        if (state.receipt.time) document.getElementById('receiptTimeText').innerText = state.receipt.time;
+                        if (state.receipt.name) document.getElementById('receiptDestName').innerText = state.receipt.name;
+                        if (state.receipt.bank) document.getElementById('receiptDestBank').innerText = state.receipt.bank;
+                        if (state.receipt.acc) document.getElementById('receiptDestAcc').innerText = state.receipt.acc;
+                        if (state.receipt.msg) document.getElementById('receiptDestMsg').innerText = state.receipt.msg;
+                        if (state.receipt.transCode) document.getElementById('receiptTransCode').innerText = state.receipt.transCode;
+                    }
+                }
+
+                // Chuyển đúng view người dùng đang đứng trước khi F5
+                if (targetViewId && targetViewId !== 'viewHome') {
+                    switchView(targetViewId, false);
+                    if (typeof onAccountInputChange === 'function') {
+                        onAccountInputChange();
+                    }
+                    return true;
+                }
+                return false;
+            } catch (e) {
+                console.warn('restoreAppState error:', e);
+                return false;
+            }
+        }
+
+        // Điều hướng các view
+        function switchView(viewId, doSave = true) {
+            document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
+            const target = document.getElementById(viewId);
+            if (target) {
+                target.classList.add('active');
+                target.scrollTop = 0;
+            }
+
+            // Đồng bộ hash URL để khi F5 trình duyệt giữ nguyên 100%
+            try {
+                if (window.location.hash !== '#' + viewId) {
+                    history.replaceState(null, '', '#' + viewId);
+                }
+            } catch (e) {}
+
+            const statusBar = document.getElementById('statusBar');
+            if (statusBar) {
+                if (viewId === 'viewScanner') {
+                    statusBar.className = 'ios-status-bar status-light';
+                } else {
+                    statusBar.className = 'ios-status-bar status-dark';
+                }
+            }
+            renderAllBalanceElements();
+            if (doSave) {
+                saveAppState();
+            }
+        }
+
+        function navToHome() {
+            stopCameraStream();
+            switchView('viewHome');
+        }
+
+        function navToTransferHub() {
+            stopCameraStream();
+            switchView('viewTransferHub');
+        }
+
+        function openBlankTransferForm() {
+            stopCameraStream();
+            document.getElementById('destAccountInput').value = '';
+            document.getElementById('destNameInput').value = '';
+            document.getElementById('transferAmountInput').value = '';
+            document.getElementById('transferMsgInput').value = 'KHACH HANG BREWLITE chuyen tien';
+            resetBankSelector();
+            switchView('viewTransferForm');
+        }
+
+        function resetBankSelector() {
+            const badge = document.getElementById('selectedBankBadge');
+            badge.innerText = '🏦';
+            badge.style.background = '#e2e8f0';
+            badge.style.color = '#64748b';
+            const title = document.getElementById('selectedBankTitle');
+            title.innerText = 'Chọn ngân hàng thụ hưởng';
+            title.style.color = '#64748b';
+            document.getElementById('selectedBankSubtitle').innerText = 'Chuyển nhanh Napas 247';
+            currentTargetBank = '';
+        }
+
+        function quickTransferTo(stk, name, bankName, bankCode, bankSub) {
+            document.getElementById('destAccountInput').value = stk;
+            document.getElementById('destNameInput').value = name;
+            document.getElementById('transferAmountInput').value = '';
+            document.getElementById('transferMsgInput').value = 'KHACH HANG BREWLITE chuyen tien';
+            selectBank(bankCode || (stk === '99998888' ? 'VCB' : 'MB'), bankName, bankSub || (stk === '99998888' ? 'Ngân hàng TMCP Ngoại thương Việt Nam' : 'Ngân hàng TMCP Quân đội'));
+            switchView('viewTransferForm');
+        }
+
+        // Bottom Sheets tương tác
+        function openTopupSheet() {
+            document.getElementById('topupSheetBackdrop').classList.add('active');
+        }
+        function closeTopupSheet() {
+            document.getElementById('topupSheetBackdrop').classList.remove('active');
+        }
+        function executeTopup(amount) {
+            const phone = document.getElementById('topupPhoneInput').value.trim() || '0912345678';
+            const curBal = getUserBalance();
+            if (amount > curBal) {
+                showInsufficientFundsModal(amount, curBal);
+                return;
+            }
+            saveUserBalance(curBal - amount);
+            playTingSound();
+            closeTopupSheet();
+            showBalancePushBanner(`TK 05xxx346|GD: -${amount.toLocaleString('vi-VN')}VND |SD: ${(curBal - amount).toLocaleString('vi-VN')}VND |NAP TIEN DT: ${phone}`);
+            showToast(`Nạp ${amount.toLocaleString('vi-VN')}đ cho số ${phone} thành công!`);
+        }
+
+        function openSavingsSheet() {
+            document.getElementById('savingsSheetBackdrop').classList.add('active');
+        }
+        function closeSavingsSheet() {
+            document.getElementById('savingsSheetBackdrop').classList.remove('active');
+        }
+
+        function openLoanSheet() {
+            document.getElementById('loanSheetBackdrop').classList.add('active');
+        }
+        function closeLoanSheet() {
+            document.getElementById('loanSheetBackdrop').classList.remove('active');
+        }
+
+        function openCardSheet() {
+            document.getElementById('cardSheetBackdrop').classList.add('active');
+        }
+        function closeCardSheet() {
+            document.getElementById('cardSheetBackdrop').classList.remove('active');
+        }
+
+        function openPromoSheet() {
+            document.getElementById('promoSheetBackdrop').classList.add('active');
+        }
+        function closePromoSheet() {
+            document.getElementById('promoSheetBackdrop').classList.remove('active');
+        }
+
+        function openMenuSheet() {
+            document.getElementById('menuSheetBackdrop').classList.add('active');
+        }
+        function closeMenuSheet() {
+            document.getElementById('menuSheetBackdrop').classList.remove('active');
+        }
+
+        function openServiceDetailSheet(title, desc) {
+            document.getElementById('serviceSheetTitle').innerText = title;
+            document.getElementById('serviceSheetDesc').innerText = desc;
+            document.getElementById('serviceDetailBackdrop').classList.add('active');
+        }
+        function closeServiceDetailSheet() {
+            document.getElementById('serviceDetailBackdrop').classList.remove('active');
+        }
+
+        function openContactTransferModal(type) {
+            const inputVal = prompt(`Nhập ${type} người nhận:`);
+            if (inputVal) {
+                openBlankTransferForm();
+                document.getElementById('destAccountInput').value = inputVal;
+                onAccountInputChange();
+            }
+        }
+
+        // Bottom Sheet: Chọn ngân hàng
+        function openBankSelectorSheet() {
+            const container = document.getElementById('bankListContainer');
+            container.innerHTML = '';
+            VIETNAM_BANKS.forEach(b => {
+                const item = document.createElement('div');
+                item.style.cssText = 'display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:14px; background:#f8fafc; cursor:pointer;';
+                item.innerHTML = `
+                    <div style="width:36px; height:36px; border-radius:10px; background:#001f70; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px;">${b.code}</div>
+                    <div style="flex:1;">
+                        <div style="font-size:14px; font-weight:800; color:#0f172a;">${b.name}</div>
+                        <div style="font-size:11.5px; color:#64748b;">${b.sub}</div>
+                    </div>
+                `;
+                item.onclick = () => selectBank(b.code, b.name, b.sub);
+                container.appendChild(item);
+            });
+            document.getElementById('bankSheetBackdrop').classList.add('active');
+        }
+
+        function closeBankSelectorSheet() {
+            document.getElementById('bankSheetBackdrop').classList.remove('active');
+        }
+
+        function selectBank(code, name, sub) {
+            const badge = document.getElementById('selectedBankBadge');
+            badge.innerText = code;
+            badge.style.background = '#001f70';
+            badge.style.color = '#ffffff';
+            const title = document.getElementById('selectedBankTitle');
+            title.innerText = name;
+            title.style.color = '#0f172a';
+            document.getElementById('selectedBankSubtitle').innerText = sub;
+            currentTargetBank = name;
+            closeBankSelectorSheet();
+            onAccountInputChange();
+
+            // Nếu người dùng đã gõ STK trước đó thì kiểm tra ngay tương thích ngân hàng
+            const rawAcc = document.getElementById('destAccountInput').value;
+            const acc = rawAcc.replace(/[\s\-\.]/g, '').trim();
+            if (acc) {
+                const isVCB = name.includes('Vietcombank') || name.includes('VCB');
+                if (acc === '99998888') {
+                    if (!isVCB) {
+                        showAccountErrorModal("Tài khoản 99998888 không tồn tại tại ngân hàng " + name + ". Số tài khoản của BREWLITE COFFEE thuộc ngân hàng Vietcombank (VCB).");
+                    }
+                } else if (acc !== '99998888' && acc !== '0589822346') {
+                    showAccountErrorModal("Không tìm thấy thông tin tài khoản người thụ hưởng tại ngân hàng " + name + ". Quý khách vui lòng kiểm tra lại số tài khoản.");
+                }
+            }
+        }
+
+        function filterBankList() {
+            const q = document.getElementById('bankSearchInput').value.toLowerCase().trim();
+            const container = document.getElementById('bankListContainer');
+            container.innerHTML = '';
+            VIETNAM_BANKS.filter(b => b.name.toLowerCase().includes(q) || b.code.toLowerCase().includes(q) || b.sub.toLowerCase().includes(q))
+                .forEach(b => {
+                    const item = document.createElement('div');
+                    item.style.cssText = 'display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:14px; background:#f8fafc; cursor:pointer;';
+                    item.innerHTML = `
+                        <div style="width:36px; height:36px; border-radius:10px; background:#001f70; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px;">${b.code}</div>
+                        <div style="flex:1;">
+                            <div style="font-size:14px; font-weight:800; color:#0f172a;">${b.name}</div>
+                            <div style="font-size:11.5px; color:#64748b;">${b.sub}</div>
+                        </div>
+                    `;
+                    item.onclick = () => selectBank(b.code, b.name, b.sub);
+                    container.appendChild(item);
+                });
+        }
+
+        function setFastAmount(val) {
+            document.getElementById('transferAmountInput').value = val;
+            if (typeof saveAppState === 'function') saveAppState();
+        }
+
+        let isErrorModalOpen = false;
+
+        // TỰ ĐỘNG NHẬN DIỆN SỐ TÀI KHOẢN & ĐIỀN NỘI DUNG CHUẨN MBBANK
+        function onAccountInputChange() {
+            const rawAcc = document.getElementById('destAccountInput').value;
+            const acc = rawAcc.replace(/[\s\-\.]/g, '').trim();
+            const nameEl = document.getElementById('destNameInput');
+            const msgEl = document.getElementById('transferMsgInput');
+
+            if (!acc) {
+                nameEl.value = '';
+                nameEl.placeholder = '';
+                nameEl.style.background = '#f1f5f9';
+                nameEl.style.borderColor = '#e2e8f0';
+                nameEl.style.color = '#0f172a';
+                return;
+            }
+
+            // Nếu người dùng chưa chọn ngân hàng mà nhập số tài khoản
+            if (!currentTargetBank && acc.length >= 1) {
+                nameEl.value = '';
+                nameEl.placeholder = 'Vui lòng chọn ngân hàng trước...';
+                return;
+            }
+
+            // Khi chưa nhập đủ độ dài tối thiểu của STK ngân hàng (dưới 6 số)
+            if (acc.length < 6) {
+                nameEl.value = '';
+                nameEl.placeholder = 'Đang nhập số tài khoản...';
+                nameEl.style.background = '#f1f5f9';
+                nameEl.style.borderColor = '#e2e8f0';
+                nameEl.style.color = '#64748b';
+                return;
+            }
+
+            // Kiểm tra ngân hàng đang được chọn:
+            const isVCB = currentTargetBank && (currentTargetBank.includes('Vietcombank') || currentTargetBank.includes('VCB'));
+            const isMB = currentTargetBank && (currentTargetBank.includes('MBBank') || currentTargetBank.includes('MB'));
+
+            // Trường hợp 1: STK 99998888 (Tài khoản cửa hàng BrewLite Coffee)
+            if (acc === '99998888') {
+                if (isVCB) {
+                    // Chọn ĐÚNG Vietcombank thì tra cứu thành công
+                    nameEl.value = 'BREWLITE COFFEE';
+                    nameEl.style.background = '#f0fdf4';
+                    nameEl.style.borderColor = '#22c55e';
+                    nameEl.style.color = '#15803d';
+                    nameEl.style.fontWeight = '800';
+                    if (!msgEl.value || msgEl.value === 'Chuyen tien MB') {
+                        msgEl.value = 'KHACH HANG BREWLITE chuyen tien';
+                    }
+                } else {
+                    // Chọn SAI ngân hàng
+                    nameEl.value = 'TÀI KHOẢN KHÔNG TỒN TẠI (GW288)';
+                    nameEl.style.background = '#fef2f2';
+                    nameEl.style.borderColor = '#ef4444';
+                    nameEl.style.color = '#dc2626';
+                    nameEl.style.fontWeight = '700';
+                }
+            // Trường hợp 2: STK 0589822346 (Tài khoản khách hàng thành viên)
+            } else if (acc === '0589822346') {
+                if (isMB) {
+                    nameEl.value = 'KHACH HANG BREWLITE';
+                    nameEl.style.background = '#f0fdf4';
+                    nameEl.style.borderColor = '#22c55e';
+                    nameEl.style.color = '#15803d';
+                    nameEl.style.fontWeight = '800';
+                    if (!msgEl.value) msgEl.value = 'KHACH HANG BREWLITE chuyen tien';
+                } else {
+                    nameEl.value = 'TÀI KHOẢN KHÔNG TỒN TẠI (GW288)';
+                    nameEl.style.background = '#fef2f2';
+                    nameEl.style.borderColor = '#ef4444';
+                    nameEl.style.color = '#dc2626';
+                    nameEl.style.fontWeight = '700';
+                }
+            // Trường hợp 3: Nhập bất kỳ STK nào khác (Mô phỏng sai STK thực tế)
+            } else {
+                nameEl.value = 'TÀI KHOẢN KHÔNG TỒN TẠI (GW288)';
+                nameEl.style.background = '#fef2f2';
+                nameEl.style.borderColor = '#ef4444';
+                nameEl.style.color = '#dc2626';
+                nameEl.style.fontWeight = '700';
+            }
+        }
+
+        // KHI TAB QUA Ô KHÁC HOẶC RỜI Ô NHẬP STK (ONBLUR)
+        function onAccountInputBlur() {
+            setTimeout(() => {
+                if (isErrorModalOpen) return;
+                const bankSheet = document.getElementById('bankSheetBackdrop');
+                if (bankSheet && bankSheet.classList.contains('active')) return;
+
+                const rawAcc = document.getElementById('destAccountInput').value;
+                const acc = rawAcc.replace(/[\s\-\.]/g, '').trim();
+                if (!acc) return; // Nếu xóa trắng thì không báo
+
+                const isVCB = currentTargetBank && (currentTargetBank.includes('Vietcombank') || currentTargetBank.includes('VCB'));
+                const isMB = currentTargetBank && (currentTargetBank.includes('MBBank') || currentTargetBank.includes('MB'));
+
+                if (!currentTargetBank) {
+                    showAccountErrorModal("Quý khách chưa chọn Ngân hàng thụ hưởng. Vui lòng chọn Ngân hàng trước khi nhập số tài khoản.");
+                    openBankSelectorSheet();
+                    return;
+                }
+
+                if (acc === '99998888') {
+                    if (!isVCB) {
+                        showAccountErrorModal("Tài khoản 99998888 không tồn tại tại ngân hàng " + currentTargetBank + ". Số tài khoản của BREWLITE COFFEE thuộc ngân hàng Vietcombank (VCB). Vui lòng chọn lại ngân hàng thụ hưởng (Mã lỗi: GW288).");
+                    }
+                } else if (acc === '0589822346') {
+                    if (!isMB) {
+                        showAccountErrorModal("Tài khoản 0589822346 thuộc ngân hàng Quân đội (MBBank). Vui lòng chọn ngân hàng thụ hưởng MBBank (Mã lỗi: GW288).");
+                    }
+                } else {
+                    // Nhập sai bất kỳ STK nào khác
+                    showAccountErrorModal("Không tìm thấy thông tin tài khoản người thụ hưởng (" + acc + ") tại ngân hàng " + currentTargetBank + ". Quý khách vui lòng kiểm tra lại số tài khoản (Mã lỗi: GW288).");
+                }
+            }, 120);
+        }
+
+        function showAccountErrorModal(msg) {
+            if (isErrorModalOpen) return;
+            isErrorModalOpen = true;
+            document.getElementById('accountErrorMsg').innerText = msg;
+            document.getElementById('accountErrorModal').classList.add('active');
+            if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+        }
+        function closeAccountErrorModal() {
+            document.getElementById('accountErrorModal').classList.remove('active');
+            setTimeout(() => {
+                isErrorModalOpen = false;
+            }, 200);
+        }
+
+        // ==================== ENGINE QUÉT QR REAL-TIME ====================
+        function openScanner() {
+            switchView('viewScanner');
+            const overlay = document.getElementById('cameraStatusOverlay');
+            // Nếu đã từng cấp quyền thành công -> ẩn ngay overlay để quét bình thường
+            if (localStorage.getItem('mb_camera_granted') === '1' && overlay) {
+                overlay.style.display = 'none';
+            }
+            startCameraStream();
+        }
+
+        function closeScanner() {
+            stopCameraStream();
+            switchView('viewHome');
+        }
+
+        function requestCameraOnIos(e) {
+            if (e) {
+                e.stopPropagation();
+                e.preventDefault();
+            }
+
+            const isSecure = window.isSecureContext || location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+
+            if (!isSecure && location.protocol === 'http:' && location.hostname !== 'localhost') {
+                showIosHttpsModal();
+                return;
+            }
+
+            startCameraStream();
+        }
+
+        function showIosHttpsModal() {
+            const httpsUrl = `https://${location.hostname}${location.port ? ':' + location.port : ''}${location.pathname}`;
+            const msgEl = document.getElementById('iosHttpsModalMsg');
+            if (msgEl) {
+                msgEl.innerHTML = `Safari trên iPhone yêu cầu kết nối <b>HTTPS</b> bảo mật để hỏi quyền Camera trực tiếp trong ô ngắm.<br><br>Đường dẫn HTTPS:<br><b style="color:#1d4ed8; word-break:break-all;">${httpsUrl}</b><br><br>Quý khách bấm nút <b>CHUYỂN SANG HTTPS</b> bên dưới. Khi Safari hiện màn hình <i>"Kết nối không bảo mật"</i>, chỉ cần bấm <b>Xem chi tiết</b> ➔ <b>Truy cập trang web này</b> để iPhone bật thông báo hỏi cấp quyền Camera!`;
+            }
+            document.getElementById('iosHttpsModal').classList.add('active');
+        }
+
+        function closeIosHttpsModal() {
+            document.getElementById('iosHttpsModal').classList.remove('active');
+        }
+
+        function redirectToHttps() {
+            const httpsUrl = `https://${location.hostname}${location.port ? ':' + location.port : ''}${location.pathname}`;
+            window.location.href = httpsUrl;
+        }
+
+        async function startCameraStream() {
+            const video = document.getElementById('qrVideo');
+            const overlay = document.getElementById('cameraStatusOverlay');
+            const titleEl = document.getElementById('cameraOverlayTitle');
+            const subEl = document.getElementById('cameraOverlaySub');
+            const httpsNotice = document.getElementById('iosHttpsNotice');
+            const btnHttps = document.getElementById('btnSwitchHttps');
+
+            isScannerLoopActive = true;
+
+            const hasGrantedBefore = localStorage.getItem('mb_camera_granted') === '1';
+            if (hasGrantedBefore && overlay) {
+                overlay.style.display = 'none';
+            }
+
+            // Cấu hình video bắt buộc cho iOS Safari WebKit
+            video.muted = true;
+            video.playsInline = true;
+            video.setAttribute('autoplay', '');
+            video.setAttribute('muted', '');
+            video.setAttribute('playsinline', '');
+            video.setAttribute('webkit-playsinline', '');
+
+            // Kiểm tra bảo mật context HTTPS
+            const isSecure = window.isSecureContext || location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+
+            if (!isSecure && location.protocol === 'http:' && location.hostname !== 'localhost') {
+                if (httpsNotice && btnHttps) {
+                    httpsNotice.style.display = 'block';
+                    btnHttps.href = `https://${location.hostname}${location.port ? ':' + location.port : ''}${location.pathname}`;
+                }
+                showIosHttpsModal();
+                return;
+            }
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                console.warn("navigator.mediaDevices is undefined");
+                showIosHttpsModal();
+                return;
+            }
+
+            // Danh sách cấu hình camera thử nghiệm ưu tiên camera sau trên iOS
+            const constraintList = [
+                { video: { facingMode: { exact: "environment" } } },
+                { video: { facingMode: "environment" } },
+                { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } } },
+                { video: true }
+            ];
+
+            let stream = null;
+            let lastErr = null;
+            for (const constraints of constraintList) {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    if (stream) break;
+                } catch (e) {
+                    lastErr = e;
+                    console.log("Thử cấu hình camera tiếp theo:", e);
+                }
+            }
+
+            if (stream) {
+                activeVideoStream = stream;
+                video.srcObject = stream;
+                try {
+                    await video.play();
+                } catch (playErr) {
+                    console.warn("video.play() failed:", playErr);
+                }
+                // Ghi nhớ đã cấp quyền camera lần đầu -> các lần sau vào quét bình thường không cần hỏi lại
+                localStorage.setItem('mb_camera_granted', '1');
+                if (overlay) overlay.style.display = 'none';
+                if (httpsNotice) httpsNotice.style.display = 'none';
+                requestAnimationFrame(scanVideoFrameTick);
+                showToast("Camera đã mở! Hãy hướng mã QR vào ô ngắm");
+            } else {
+                if (lastErr && (lastErr.name === 'NotAllowedError' || lastErr.name === 'PermissionDeniedError')) {
+                    localStorage.removeItem('mb_camera_granted');
+                    if (overlay) overlay.style.display = 'flex';
+                    showAccountErrorModal("Quý khách chưa cấp quyền Camera cho trang web. Vui lòng bấm vào biểu tượng aA trên thanh địa chỉ Safari ➔ Cài đặt trang web ➔ Bật Camera: Cho phép");
+                } else if (!hasGrantedBefore) {
+                    if (overlay) overlay.style.display = 'flex';
+                    if (titleEl) titleEl.innerText = "Chạm để cấp quyền Camera";
+                    if (subEl) subEl.innerText = "Chỉ cần cấp quyền lần đầu, các lần sau quét tự động";
+                }
+            }
+        }
+
+        function stopCameraStream() {
+            isScannerLoopActive = false;
+            if (activeVideoStream) {
+                activeVideoStream.getTracks().forEach(t => t.stop());
+                activeVideoStream = null;
+            }
+            const video = document.getElementById('qrVideo');
+            if (video) video.srcObject = null;
+            const overlay = document.getElementById('cameraStatusOverlay');
+            // Nếu đã từng cấp quyền -> GIỮ NGUYÊN ẨN OVERLAY để lần sau bấm quét là mở camera ngay lập tức
+            const hasGrantedBefore = localStorage.getItem('mb_camera_granted') === '1';
+            if (overlay) {
+                overlay.style.display = hasGrantedBefore ? 'none' : 'flex';
+            }
+        }
+
+        function scanVideoFrameTick() {
+            if (!isScannerLoopActive) return;
+            const video = document.getElementById('qrVideo');
+            const canvas = document.getElementById('qrCanvas');
+
+            if (video && video.readyState >= 2 && video.videoWidth > 0) {
+                // Downscale nhẹ để chạy siêu mượt 60fps trên điện thoại
+                const maxDim = 640;
+                let w = video.videoWidth;
+                let h = video.videoHeight;
+                if (w > maxDim || h > maxDim) {
+                    const scale = Math.min(maxDim / w, maxDim / h);
+                    w = Math.floor(w * scale);
+                    h = Math.floor(h * scale);
+                }
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, w, h);
+                const imageData = ctx.getImageData(0, 0, w, h);
+
+                if (window.jsQR) {
+                    const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "attemptBoth" });
+                    if (code && code.data) {
+                        onQrScanSuccess(code.data);
+                        return;
+                    }
+                }
+            }
+            requestAnimationFrame(scanVideoFrameTick);
+        }
+
+        async function toggleFlashlight() {
+            if (!activeVideoStream) {
+                showToast("Đèn pin chỉ hoạt động khi mở Camera");
+                return;
+            }
+            try {
+                const track = activeVideoStream.getVideoTracks()[0];
+                isFlashOn = !isFlashOn;
+                await track.applyConstraints({ advanced: [{ torch: isFlashOn }] });
+                showToast(isFlashOn ? "Đã bật đèn pin" : "Đã tắt đèn pin");
+            } catch (e) {
+                showToast("Thiết bị không hỗ trợ bật đèn flash");
+            }
+        }
+
+        function triggerImageUpload() {
+            document.getElementById('fileInputGallery').click();
+        }
+        function triggerCameraCapture() {
+            document.getElementById('fileInputCamera').click();
+        }
+
+        function handleFileQr(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            showToast("Đang nhận diện mã QR từ ảnh...");
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+                    let decoded = null;
+                    if (window.jsQR) {
+                        const code = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: "attemptBoth" });
+                        if (code && code.data) decoded = code.data;
+                    }
+
+                    if (decoded) {
+                        onQrScanSuccess(decoded);
+                    } else {
+                        const html5Qr = new Html5Qrcode("qrCanvas");
+                        html5Qr.scanFile(file, true)
+                            .then(text => onQrScanSuccess(text))
+                            .catch(() => showToast("Không tìm thấy mã QR trong ảnh!"));
+                    }
+                };
+                img.src = evt.target.result;
+            };
+            reader.readAsDataURL(file);
+            e.target.value = '';
+        }
+
+        // Quét thử BrewLite
+        async function simulateBrewLiteScan() {
+            try {
+                const res = await fetch('/api_payment.php?action=get_invoice&code=BL8899&t=' + Date.now());
+                const data = await res.json();
+                if (data.success && data.invoice && data.invoice.vietqr_emv) {
+                    onQrScanSuccess(data.invoice.vietqr_emv);
+                    return;
+                }
+            } catch (e) {}
+            onQrScanSuccess("00020101021238520010A000000727012200069704360108999988880208QRIBFTTA5303704540738500005802VN62090805BL88996304");
+        }
+
+        // Quét thử BrewLite Coffee
+        function simulateBrewLiteScan() {
+            const code = localStorage.getItem('brewlite_pending_order') || 'BL8899';
+            const raw = `https://img.vietqr.io/image/MB-0589822346-compact2.png?amount=65000&addInfo=BREWLITE%20${code}&accountName=BREWLITE%20COFFEE`;
+            onQrScanSuccess(raw);
+        }
+
+        const BANK_BINS = {
+            '970436': { code: 'VCB', name: 'Vietcombank (VCB)', sub: 'Ngân hàng TMCP Ngoại thương Việt Nam' },
+            '970422': { code: 'MB', name: 'MBBank (MB)', sub: 'Ngân hàng TMCP Quân đội' },
+            '970415': { code: 'CTG', name: 'VietinBank (CTG)', sub: 'Ngân hàng TMCP Công thương Việt Nam' },
+            '970418': { code: 'BID', name: 'BIDV', sub: 'Ngân hàng TMCP Đầu tư và Phát triển Việt Nam' },
+            '970405': { code: 'VBA', name: 'Agribank (VBA)', sub: 'Ngân hàng Nông nghiệp & Phát triển Nông thôn' },
+            '970407': { code: 'TCB', name: 'Techcombank (TCB)', sub: 'Ngân hàng TMCP Kỹ thương Việt Nam' },
+            '970423': { code: 'TPB', name: 'TPBank (TPB)', sub: 'Ngân hàng TMCP Tiên Phong' },
+            '970403': { code: 'STB', name: 'Sacombank (STB)', sub: 'Ngân hàng TMCP Sài Gòn Thương Tín' },
+            '970437': { code: 'HDB', name: 'HDBank (HDB)', sub: 'Ngân hàng TMCP Phát triển TP.HCM' },
+            '970441': { code: 'VIB', name: 'VIB', sub: 'Ngân hàng TMCP Quốc tế Việt Nam' },
+            '970432': { code: 'VPB', name: 'VPBank (VPB)', sub: 'Ngân hàng TMCP Việt Nam Thịnh Vượng' },
+            '970416': { code: 'ACB', name: 'ACB', sub: 'Ngân hàng TMCP Á Châu' }
+        };
+
+        function parseSubTLV(str) {
+            const res = {};
+            if (!str || typeof str !== 'string') return res;
+            let idx = 0;
+            while (idx < str.length) {
+                const tag = str.substr(idx, 2);
+                const len = parseInt(str.substr(idx + 2, 2), 10);
+                if (isNaN(len) || len < 0 || idx + 4 + len > str.length) break;
+                res[tag] = str.substr(idx + 4, len);
+                idx += 4 + len;
+            }
+            return res;
+        }
+
+        function parseEmvTLV(raw) {
+            if (!raw || typeof raw !== 'string' || !raw.startsWith('000201')) return null;
+            const tags = {};
+            let idx = 0;
+            while (idx < raw.length - 4) {
+                const tag = raw.substr(idx, 2);
+                const len = parseInt(raw.substr(idx + 2, 2), 10);
+                if (isNaN(len) || len < 0 || idx + 4 + len > raw.length) break;
+                tags[tag] = raw.substr(idx + 4, len);
+                idx += 4 + len;
+            }
+            return tags;
+        }
+
+        async function onQrScanSuccess(qrText) {
+            stopCameraStream();
+            const isOk = await parseVietQrData(qrText);
+            if (isOk) {
+                showToast("Quét mã QR thành công!");
+                if (navigator.vibrate) navigator.vibrate(100);
+                switchView('viewTransferForm');
+            } else {
+                showAccountErrorModal("Mã QR bạn vừa quét không phải là mã thanh toán ngân hàng hoặc VietQR hợp lệ. Vui lòng quét mã QR thanh toán của BrewLite Coffee hoặc mã QR ngân hàng chuẩn.");
+            }
+        }
+
+        // Parse VietQR / EMVCo / Text chuẩn xác theo từng mã QR - Tuyệt đối không nhận diện bừa
+        async function parseVietQrData(raw) {
+            if (!raw || typeof raw !== 'string') return false;
+            raw = raw.trim();
+
+            let bank = "";
+            let bankCode = "";
+            let bankSub = "";
+            let account = "";
+            let name = "";
+            let amount = "";
+            let msg = "";
+            let isRecognized = false;
+
+            // 1. CHUẨN EMVCO VIETQR (Bắt đầu bằng 000201...)
+            if (raw.startsWith("000201")) {
+                const tags = parseEmvTLV(raw);
+                if (tags && tags['38']) {
+                    isRecognized = true;
+                    const sub38 = parseSubTLV(tags['38']);
+                    if (sub38['01']) {
+                        const sub01 = parseSubTLV(sub38['01']);
+                        const bin = sub01['00'] || '';
+                        account = sub01['01'] || '';
+
+                        if (BANK_BINS[bin]) {
+                            bankCode = BANK_BINS[bin].code;
+                            bank = BANK_BINS[bin].name;
+                            bankSub = BANK_BINS[bin].sub;
+                        } else if (bin === '970436' || account === '99998888') {
+                            bankCode = 'VCB';
+                            bank = 'Vietcombank (VCB)';
+                            bankSub = 'Ngân hàng TMCP Ngoại thương Việt Nam';
+                        }
+                    }
+
+                    // Lấy chính xác số tiền từ Tag 54 của mã QR được quét (nếu có)
+                    if (tags['54'] && parseInt(tags['54'], 10) > 0) {
+                        amount = tags['54'];
+                    }
+
+                    // Lấy nội dung / mã hóa đơn từ Tag 62
+                    if (tags['62']) {
+                        const sub62 = parseSubTLV(tags['62']);
+                        if (sub62['08']) msg = sub62['08'];
+                    }
+
+                    // Tên người thụ hưởng nếu có trong Tag 59
+                    if (tags['59']) name = tags['59'];
+                }
+            }
+
+            // 2. LINK ẢNH / URL VIETQR (img.vietqr.io hoặc tham số amount= & addInfo=)
+            if (!isRecognized && (raw.includes("vietqr.io") || raw.includes("vietqr.net") || (raw.includes("amount=") && raw.includes("addInfo=")))) {
+                isRecognized = true;
+                const mBankAcc = raw.match(/\/image\/([A-Za-z0-9]+)-([0-9]+)/);
+                if (mBankAcc) {
+                    bankCode = mBankAcc[1].toUpperCase();
+                    account = mBankAcc[2];
+                    const foundBank = BANK_OPTIONS.find(b => b.code.toUpperCase() === bankCode);
+                    if (foundBank) {
+                        bank = foundBank.name;
+                        bankSub = foundBank.sub;
+                    } else if (bankCode === 'VCB') {
+                        bank = 'Vietcombank (VCB)';
+                        bankSub = 'Ngân hàng TMCP Ngoại thương Việt Nam';
+                    }
+                }
+                const mAmt = raw.match(/amount=(\d+)/);
+                if (mAmt && mAmt[1] && parseInt(mAmt[1], 10) > 0) {
+                    amount = mAmt[1];
+                }
+                const mInfo = raw.match(/addInfo=([^&]+)/);
+                if (mInfo && mInfo[1]) {
+                    msg = decodeURIComponent(mInfo[1]);
+                }
+                const mName = raw.match(/accountName=([^&]+)/);
+                if (mName && mName[1]) {
+                    name = decodeURIComponent(mName[1]).replace(/\+/g, ' ');
+                }
+            }
+
+            // 3. MÃ QR NỘI BỘ MBBANK (KHACH HANG BREWLITE 0589822346)
+            if (!isRecognized && raw.includes("0589822346")) {
+                isRecognized = true;
+                bank = "MBBank (MB)";
+                bankCode = "MB";
+                bankSub = "Ngân hàng TMCP Quân đội";
+                account = "0589822346";
+                name = "KHACH HANG BREWLITE";
+                msg = "KHACH HANG BREWLITE chuyen tien";
+            }
+
+            // 4. MÃ QR BREWLITE COFFEE (STK 0589822346 hoặc có chữ BREWLITE)
+            if (!isRecognized && (raw.toUpperCase().includes("BREWLITE") || raw.includes("0589822346"))) {
+                isRecognized = true;
+                bank = "MBBank (MB)";
+                bankCode = "MB";
+                bankSub = "Ngân hàng TMCP Quân đội";
+                account = "0589822346";
+                name = "BREWLITE COFFEE";
+            }
+
+            // 5. MÃ QR BREWLITE CHỨA STK 99998888
+            if (!isRecognized && (raw.includes("99998888") || raw.toUpperCase().includes("BREWLITE"))) {
+                isRecognized = true;
+                bank = "Vietcombank (VCB)";
+                bankCode = "VCB";
+                bankSub = "Ngân hàng TMCP Ngoại thương Việt Nam";
+                account = "99998888";
+                name = "BREWLITE COFFEE";
+            }
+
+            // NẾU KHÔNG NHẬN DIỆN ĐƯỢC THÔNG TIN NGÂN HÀNG HỢP LỆ -> TỪ CHỐI, KHÔNG NHẬN DIỆN BỪA
+            if (!isRecognized || (!account && !bankCode)) {
+                return false;
+            }
+
+            // Xác thực tên thụ hưởng chính xác nếu là BrewLite (bắt buộc Vietcombank 99998888)
+            if (account === '99998888') {
+                bank = "Vietcombank (VCB)";
+                bankCode = "VCB";
+                bankSub = "Ngân hàng TMCP Ngoại thương Việt Nam";
+                name = "BREWLITE COFFEE";
+            }
+
+            // Tra cứu hóa đơn thực tế trên server máy chủ (đồng bộ ngay khi Admin sửa giá tiền trên admin.html)
+            const matchCode = (raw.toUpperCase().match(/HD\d+/) || msg.toUpperCase().match(/HD\d+/) || [''])[0];
+            if (matchCode) {
+                msg = "KHACH HANG BREWLITE chuyen tien " + matchCode;
+                try {
+                    const invData = await fetchApiPayment('action=get_invoice&code=' + matchCode);
+                    if (invData && invData.success && invData.invoice) {
+                        // Ưu tiên số tiền thực tế mới nhất do Admin vừa cập nhật trên server
+                        if (invData.invoice.amount) {
+                            amount = String(invData.invoice.amount);
+                        }
+                        if (invData.invoice.hotel) name = invData.invoice.hotel;
+                        if (invData.invoice.stk) account = invData.invoice.stk;
+                    }
+                } catch (e) {
+                    console.log("Invoice live sync note:", e);
+                }
+            }
+
+            selectBank(bankCode, bank, bankSub);
+            document.getElementById('destAccountInput').value = account;
+            document.getElementById('destNameInput').value = name;
+            // ĐIỀN ĐÚNG GIÁ TIỀN: Nếu mã QR có số tiền thì điền đúng số tiền đó, nếu không có số tiền thì để trống
+            document.getElementById('transferAmountInput').value = amount ? amount : '';
+            document.getElementById('transferMsgInput').value = msg || ('KHACH HANG BREWLITE chuyen tien' + (matchCode ? ' ' + matchCode : ''));
+
+            if (amount) {
+                showToast(`Đã nhận diện: ${parseInt(amount, 10).toLocaleString('vi-VN')}đ • ${name}`);
+            } else {
+                showToast(`Đã nhận diện: ${name} (Nhập số tiền cần chuyển)`);
+            }
+
+            return true;
+        }
+
+        async function pasteFromClipboard() {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (text && text.trim()) {
+                    const ok = await parseVietQrData(text.trim());
+                    if (ok) {
+                        showToast("Đã nhận diện thông tin từ bộ nhớ tạm");
+                        switchView('viewTransferForm');
+                    } else {
+                        showAccountErrorModal("Dữ liệu trong bộ nhớ tạm không phải là mã thanh toán ngân hàng hoặc VietQR hợp lệ.");
+                    }
+                } else {
+                    showToast("Bộ nhớ tạm trống!");
+                }
+            } catch (e) {
+                showToast("Dán thông tin: 99998888 BREWLITE COFFEE");
+                quickTransferTo('99998888', 'BREWLITE COFFEE', 'Vietcombank (VCB)', 'VCB', 'Ngân hàng TMCP Ngoại thương Việt Nam');
+            }
+        }
+
+        // Modal QR của tôi
+        function openMyQrModal() {
+            document.getElementById('myQrModal').classList.add('active');
+        }
+        function closeMyQrModal() {
+            document.getElementById('myQrModal').classList.remove('active');
+        }
+        function copyMyStk() {
+            if (navigator.clipboard) navigator.clipboard.writeText('0589822346');
+            showToast("Đã sao chép STK: 0589822346");
+        }
+
+        // Modal cảnh báo thiếu tiền
+        function showInsufficientFundsModal(req, cur) {
+            document.getElementById('errReqAmt').innerText = req.toLocaleString('vi-VN') + ' VND';
+            document.getElementById('errCurBal').innerText = cur.toLocaleString('vi-VN') + ' VND';
+            document.getElementById('insufficientModal').classList.add('active');
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        }
+        function closeInsufficientModal() {
+            document.getElementById('insufficientModal').classList.remove('active');
+        }
+
+        // ==================== QUY TRÌNH CHUYỂN TIỀN & XÁC NHẬN ====================
+        function goToConfirmationScreen() {
+            const acc = document.getElementById('destAccountInput').value.trim();
+            const name = document.getElementById('destNameInput').value.trim();
+            const amtStr = document.getElementById('transferAmountInput').value.trim();
+            const msg = document.getElementById('transferMsgInput').value.trim();
+
+            if (!currentTargetBank) {
+                showAccountErrorModal("Vui lòng chọn ngân hàng thụ hưởng!");
+                return;
+            }
+            if (!acc) {
+                showAccountErrorModal("Vui lòng nhập số tài khoản người nhận!");
+                return;
+            }
+            if (!name || name.includes('KHÔNG TỒN TẠI')) {
+                showAccountErrorModal("Không tìm thấy thông tin tài khoản người thụ hưởng (" + acc + ") tại ngân hàng " + currentTargetBank + ". Giao dịch không thể thực hiện (Mã lỗi: GW288).");
+                return;
+            }
+            if (!amtStr || parseInt(amtStr, 10) <= 0) {
+                showToast("Vui lòng nhập số tiền hợp lệ!");
+                return;
+            }
+
+            const amtNum = parseInt(amtStr, 10);
+            const curBal = getUserBalance();
+
+            // Kiểm tra số dư khả dụng
+            if (amtNum > curBal) {
+                showInsufficientFundsModal(amtNum, curBal);
+                return;
+            }
+
+            currentTargetAccount = acc;
+            currentTargetName = (acc === '99998888' ? 'BREWLITE COFFEE' : (name || 'DON VI THU HUONG')).toUpperCase();
+            currentTargetAmount = amtNum;
+            currentTargetMsg = msg || 'KHACH HANG BREWLITE chuyen tien';
+
+            // Điền thông tin vào màn hình xác nhận
+            document.getElementById('confirmAmtVal').innerText = amtNum.toLocaleString('vi-VN') + ' VND';
+            document.getElementById('confirmNameVal').innerText = currentTargetName;
+            document.getElementById('confirmBankVal').innerText = currentTargetBank;
+            document.getElementById('confirmAccVal').innerText = currentTargetAccount;
+            document.getElementById('confirmMsgVal').innerText = currentTargetMsg;
+
+            // Sinh mã OTP 6 số ngẫu nhiên
+            const randomOtp = Math.floor(100000 + Math.random() * 900000);
+            document.getElementById('displayOtpCode').innerText = `${String(randomOtp).slice(0,3)} ${String(randomOtp).slice(3)}`;
+
+            switchView('viewConfirm');
+        }
+
+        function executeFinalTransfer() {
+            const transCode = 'FT261011' + Math.floor(1000 + Math.random() * 9000);
+            const now = new Date();
+            const d = String(now.getDate()).padStart(2, '0');
+            const mo = String(now.getMonth() + 1).padStart(2, '0');
+            const y = now.getFullYear();
+            const yShort = String(y).slice(-2);
+            const h = String(now.getHours()).padStart(2, '0');
+            const mi = String(now.getMinutes()).padStart(2, '0');
+            const timeStr = `${h}:${mi}`;
+            const dateStr = `${d}/${mo}/${y}`;
+            const dateShortStr = `${d}/${mo}/${yShort}`;
+
+            // 1. Trừ tiền tài khoản & lưu localStorage
+            const curBal = getUserBalance();
+            const newBal = Math.max(0, curBal - currentTargetAmount);
+            saveUserBalance(newBal);
+
+            // 2. Điền thông tin vào Biên lai (Receipt)
+            document.getElementById('receiptBigAmount').innerText = `-${currentTargetAmount.toLocaleString('vi-VN')} VND`;
+            document.getElementById('receiptTimeText').innerText = `${timeStr} - ${dateStr}`;
+            document.getElementById('receiptDestName').innerText = currentTargetName;
+            document.getElementById('receiptDestBank').innerText = currentTargetBank;
+            document.getElementById('receiptDestAcc').innerText = currentTargetAccount;
+            document.getElementById('receiptDestMsg').innerText = currentTargetMsg;
+            document.getElementById('receiptTransCode').innerText = transCode;
+
+            // 3. Phát âm thanh Ting Ting & Rung haptic
+            playTingSound();
+            if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+
+            // 4. Hiển thị Banner Biến động số dư iOS
+            const destShort = currentTargetName.length > 16 ? currentTargetName.slice(0, 16) : currentTargetName;
+            const pushText = `TK 05xxx346|GD: -${currentTargetAmount.toLocaleString('vi-VN')}VND ${dateShortStr} ${timeStr} |SD: ${newBal.toLocaleString('vi-VN')}VND |DEN: ${destShort}...`;
+            showBalancePushBanner(pushText);
+
+            // 5. Chuyển sang màn hình Biên lai
+            switchView('viewReceiptSuccess');
+
+            // 6. ĐỒNG BỘ THANH TOÁN TỰ ĐỘNG (LƯU LOCALSTORAGE & WEBHOOK BACKEND)
+            const activeBookingCode = localStorage.getItem('brewlite_pending_order') || 'BREWLITE';
+            const billCodeMatch = (currentTargetMsg.toUpperCase().match(/ORD-[A-Z0-9]+/) || currentTargetMsg.toUpperCase().match(/BL\d+/) || currentTargetMsg.toUpperCase().match(/HD\d+/) || [''])[0];
+            const finalInvoiceCode = billCodeMatch || activeBookingCode;
+
+            const paymentPayload = {
+                invoice_code: finalInvoiceCode,
+                amount: currentTargetAmount,
+                content: currentTargetMsg,
+                time: Date.now(),
+                sender: '0589822346',
+                bank: 'MBBank',
+                trans_id: transCode
+            };
+
+            // Lưu vào localStorage để cả tab BrewLite nhận ngay lập tức
+            localStorage.setItem("last_mb_payment", JSON.stringify(paymentPayload));
+            localStorage.setItem("brewlite_mb_payment", JSON.stringify(paymentPayload));
+
+            // Gửi API đến backend thanh toán BrewLite
+            const syncUrls = [
+                '../api_payment.php?action=pay',
+                '../../api_payment.php?action=pay',
+                '/api_payment.php?action=pay',
+                '../brewlite/api/api_payment.php'
+            ];
+
+            syncUrls.forEach(url => {
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(paymentPayload)
+                }).then(r => r.json()).then(res => {
+                    console.log("Sync payment success (" + url + "):", res);
+                }).catch(() => {});
+            });
+        }
+
+        let pushBannerTimer = null;
+        function showBalancePushBanner(text) {
+            const banner = document.getElementById('balancePushBanner');
+            const body = document.getElementById('pushNotificationBody');
+            if (body) body.innerText = text;
+            if (banner) {
+                banner.classList.add('active');
+                if (pushBannerTimer) clearTimeout(pushBannerTimer);
+                pushBannerTimer = setTimeout(() => {
+                    banner.classList.remove('active');
+                }, 6000);
+            }
+        }
+        function hidePushBanner() {
+            const banner = document.getElementById('balancePushBanner');
+            if (banner) banner.classList.remove('active');
+            if (pushBannerTimer) clearTimeout(pushBannerTimer);
+        }
+
+        function finishAndBackToHome() {
+            hidePushBanner();
+            try {
+                sessionStorage.removeItem('mb_app_state');
+                localStorage.removeItem('mb_app_state');
+                history.replaceState(null, '', window.location.pathname + window.location.search);
+            } catch (e) {}
+            document.getElementById('destAccountInput').value = '';
+            document.getElementById('destNameInput').value = '';
+            document.getElementById('transferAmountInput').value = '';
+            document.getElementById('transferMsgInput').value = 'KHACH HANG BREWLITE chuyen tien';
+            resetBankSelector();
+            navToHome();
+            showToast("Đã hoàn tất giao dịch");
+        }
+
+        // Tự động khôi phục giao diện khi F5 & nhận diện tham số URL từ trang Checkout BrewLite
+        window.addEventListener('DOMContentLoaded', () => {
+            // Lắng nghe sự kiện người dùng gõ để lưu trạng thái tức thì
+            ['destAccountInput', 'transferAmountInput', 'transferMsgInput'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('input', () => {
+                        if (typeof saveAppState === 'function') saveAppState();
+                    });
+                    el.addEventListener('change', () => {
+                        if (typeof saveAppState === 'function') saveAppState();
+                    });
+                }
+            });
+
+            // 1. Thử khôi phục trạng thái bước làm việc trước đó nếu người dùng F5
+            const restored = (typeof restoreAppState === 'function') ? restoreAppState() : false;
+
+            // 2. Nếu chưa có phiên làm việc lưu trước đó, kiểm tra tham số URL từ trang Checkout BrewLite
+            const urlParams = new URLSearchParams(window.location.search);
+            const amount = urlParams.get('amount');
+            const memo = urlParams.get('memo');
+            const orderCode = urlParams.get('orderCode');
+            const name = urlParams.get('name') || 'BREWLITE COFFEE';
+            const account = urlParams.get('account') || '99998888';
+            const bank = urlParams.get('bank') || (account === '99998888' ? 'VCB' : 'MBB');
+
+            if (!restored && (amount || memo || orderCode)) {
+                const finalMemo = memo || (orderCode ? `BREWLITE ${orderCode}` : 'BREWLITE THANH TOAN');
+                if (account === '99998888') {
+                    selectBank('VCB', 'Vietcombank (VCB)', 'Ngân hàng TMCP Ngoại thương Việt Nam');
+                } else if (typeof selectBank === 'function') {
+                    selectBank(bank, 'MBBank (MBB)', 'Ngân hàng TMCP Quân Đội');
+                }
+                const accInput = document.getElementById('destAccountInput');
+                const nameInput = document.getElementById('destNameInput');
+                const amtInput = document.getElementById('transferAmountInput');
+                const msgInput = document.getElementById('transferMsgInput');
+
+                if (accInput) accInput.value = account;
+                if (nameInput) nameInput.value = name;
+                if (amtInput && amount) amtInput.value = amount;
+                if (msgInput) msgInput.value = finalMemo;
+
+                // Tự động chuyển thẳng vào màn hình Chuyển tiền đã điền sẵn thông tin
+                if (typeof switchView === 'function') {
+                    switchView('viewTransferForm');
+                }
+                if (typeof saveAppState === 'function') {
+                    saveAppState();
+                }
+                if (typeof showToast === 'function') {
+                    showToast(`Đã nhận diện đơn hàng: ${finalMemo} • ${Number(amount || 0).toLocaleString('vi-VN')}đ`);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

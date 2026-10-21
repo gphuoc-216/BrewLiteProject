@@ -42,3 +42,8 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# Testing & IDE artifacts
+.playwright-mcp/
+*.zip
+example_screenshot.png

@@ -88,4 +88,45 @@ describe('PromotionsService (Khuyến Mãi & Giảm Giá - Task 10)', () => {
 
     await expect(service.validatePromotion('SOLDOUT', 50000)).rejects.toThrow(BadRequestException);
   });
+
+  it('từ chối áp dụng khi đơn hàng chưa đạt giá trị tối thiểu (minOrderValue theo chuẩn Shopee/TikTok)', async () => {
+    mockPrisma.promotion.findUnique.mockResolvedValue({
+      id: 'promo-5',
+      code: 'MIN70K',
+      name: 'Giảm 20K cho đơn từ 70K',
+      discountType: PromotionType.FIXED,
+      discountValue: 20000,
+      quantity: 100,
+      usedCount: 0,
+      startDate: new Date(Date.now() - 100000),
+      endDate: new Date(Date.now() + 100000),
+      status: 'ACTIVE',
+      minOrderValue: 70000,
+    });
+
+    // Đơn 50.000đ < 70.000đ -> Bị từ chối
+    await expect(service.validatePromotion('MIN70K', 50000)).rejects.toThrow(BadRequestException);
+  });
+
+  it('áp dụng mức trần giảm giá tối đa (maxDiscount) khi giảm theo phần trăm', async () => {
+    mockPrisma.promotion.findUnique.mockResolvedValue({
+      id: 'promo-6',
+      code: 'MEGA50',
+      name: 'Giảm 50% tối đa 30K',
+      discountType: PromotionType.PERCENT,
+      discountValue: 50,
+      quantity: 100,
+      usedCount: 0,
+      startDate: new Date(Date.now() - 100000),
+      endDate: new Date(Date.now() + 100000),
+      status: 'ACTIVE',
+      maxDiscount: 30000,
+    });
+
+    // Đơn 200.000đ * 50% = 100.000đ -> Giới hạn trần maxDiscount 30.000đ
+    const result = await service.validatePromotion('MEGA50', 200000);
+    expect(result.discountAmount).toBe(30000);
+    expect(result.finalTotal).toBe(170000);
+  });
 });
+

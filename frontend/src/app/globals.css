@@ -1,30 +1,102 @@
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Lora:ital,wght@0,500;0,600;0,700;1,500;1,600&subset=vietnamese&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-fraunces: 'Lora', 'Be Vietnam Pro', Georgia, 'Times New Roman', serif;
+  --font-display: 'Lora', 'Be Vietnam Pro', Georgia, 'Times New Roman', serif;
+  --font-be-vietnam-pro: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* Nền và bề mặt */
+  --bg: #F4EFE7;
+  --surface: #FBF8F3;
+  --surface-2: #EFE8DC;
+
+  /* Đường nét & Viền */
+  --line: #E0D6C5;
+  --line-strong: #CDBFA9;
+
+  /* Mực & Văn bản */
+  --ink: #261E18;
+  --ink-2: #5A4D42;
+  --ink-3: #74665A;
+
+  /* Điểm nhấn Đất Nung */
+  --accent: #A9461F;
+  --accent-hover: #8C3716;
+  --accent-soft: #F1DDD0;
+  --on-accent: #FFF8F1;
+
+  /* Espresso */
+  --espresso: #2B211A;
+  --espresso-text: #F4EFE7;
+  --espresso-muted: #C9BBA8;
+  --espresso-line: #3D3027;
+  --espresso-deep: #241B15;
+
+  /* Trạng thái */
+  --success: #2F6B4F;
+  --success-bg: #DCEBE2;
+  --warning: #7A4F0E;
+  --warning-bg: #F3E4C3;
+  --danger: #A12C2C;
+  --danger-bg: #F3D9D6;
+  --info: #2E5E7E;
+  --info-bg: #DAE7EE;
 }
 
 body {
-  background-color: #faf6f0;
-  color: #381f14;
-  font-family: var(--font-body);
+  background-color: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body), var(--font-be-vietnam-pro), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
+
+.font-display {
+  font-family: var(--font-display) !important;
+  font-feature-settings: 'kern' 1, 'liga' 1;
+  text-rendering: optimizeLegibility;
+}
+
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #f3e8dc;
+  background: var(--surface-2);
 }
 ::-webkit-scrollbar-thumb {
-  background: #c4946e;
-  border-radius: 3px;
+  background: var(--line-strong);
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #a8754f;
+  background: var(--ink-3);
+}
+
+::selection {
+  background-color: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* Focus outline */
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

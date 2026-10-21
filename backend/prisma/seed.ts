@@ -4,9 +4,18 @@ import * as bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Starting BrewLite database seeding...');
+  console.log('🌱 Starting BrewLite database seeding check...');
 
-  // 1. Dọn sạch dữ liệu cũ theo đúng thứ tự khóa ngoại
+  // Kiểm tra nếu database đã có tài khoản admin -> Không xóa đè dữ liệu của người dùng
+  const existingAdmin = await prisma.account.findUnique({
+    where: { username: 'admin' },
+  });
+  if (existingAdmin) {
+    console.log('✅ Database đã được khởi tạo trước đó. Giữ nguyên toàn bộ tài khoản và đơn hàng của người dùng.');
+    return;
+  }
+
+  // 1. Dọn sạch dữ liệu cũ theo đúng thứ tự khóa ngoại (chỉ khi DB hoàn toàn mới)
   await prisma.orderStatusHistory.deleteMany();
   await prisma.review.deleteMany();
   await prisma.payment.deleteMany();

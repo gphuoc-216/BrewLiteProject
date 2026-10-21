@@ -1,49 +1,53 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { fetchApi } from '../../lib/api';
-import { useAuthStore } from '../../store/useAuthStore';
-import { ChefHat, Coffee, Clock, CheckCircle2, ArrowRight, Play, Check, RefreshCw, AlertCircle } from 'lucide-react';
+import { fetchApi, getErrorMessage } from '../../lib/api';
+import { Button, PageHeader, Toast, Skeleton } from '../../components/ui';
+import { RefreshCw, Clock } from 'lucide-react';
+import { OrderRecord, OrderItemRecord } from '@/types';
+import { ORDER_STATUS } from '@/lib/orderStatus';
+import { useRequireRole } from '@/hooks/useRequireRole';
 
 export default function StaffKanbanPage() {
-  const router = useRouter();
-  const { user } = useAuthStore();
+  const { ready } = useRequireRole(['STAFF', 'ADMIN']);
 
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string>('');
+  const [toastMsg, setToastMsg] = useState<{ message: string; type: 'success' | 'danger' } | null>(null);
 
   const loadOrders = async () => {
     try {
-      const data = await fetchApi('/staff/orders');
+      const data: OrderRecord[] = await fetchApi('/staff/orders');
       setOrders(data || []);
-    } catch (err: any) {
-      console.error('Lỗi tải đơn Barista:', err);
+      const now = new Date();
+      setLastUpdated(
+        `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
+      );
+    } catch (err: unknown) {
+      console.error('Lỗi tải đơn Barista:', getErrorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (!user || (user.role !== 'STAFF' && user.role !== 'ADMIN')) {
-      router.push('/login?redirect=/staff');
-      return;
-    }
+    if (!ready) return;
 
     loadOrders();
-    // Tự động làm mới mỗi 5 giây (Kanban Realtime Polling)
-    const interval = setInterval(loadOrders, 5000);
+    const interval = setInterval(loadOrders, 10000);
     return () => clearInterval(interval);
-  }, [user]);
+  }, [ready]);
 
   const handleAcceptOrder = async (orderId: string) => {
     try {
       setActionLoading(orderId);
       await fetchApi(`/staff/orders/${orderId}/accept`, { method: 'POST' });
+      setToastMsg({ message: `Đã tiếp nhận đơn #${orderId.slice(0, 8).toUpperCase()}`, type: 'success' });
       loadOrders();
-    } catch (err: any) {
-      alert(err.message || 'Lỗi nhận đơn');
+    } catch (err: unknown) {
+      setToastMsg({ message: getErrorMessage(err), type: 'danger' });
     } finally {
       setActionLoading(null);
     }
@@ -53,9 +57,10 @@ export default function StaffKanbanPage() {
     try {
       setActionLoading(orderId);
       await fetchApi(`/staff/orders/${orderId}/ready`, { method: 'POST' });
+      setToastMsg({ message: `Đơn #${orderId.slice(0, 8).toUpperCase()} đã pha xong. Chờ giao khách.`, type: 'success' });
       loadOrders();
-    } catch (err: any) {
-      alert(err.message || 'Lỗi chuyển trạng thái');
+    } catch (err: unknown) {
+      setToastMsg({ message: getErrorMessage(err), type: 'danger' });
     } finally {
       setActionLoading(null);
     }
@@ -65,13 +70,23 @@ export default function StaffKanbanPage() {
     try {
       setActionLoading(orderId);
       await fetchApi(`/staff/orders/${orderId}/complete`, { method: 'POST' });
+      setToastMsg({ message: `Đã bàn giao đơn #${orderId.slice(0, 8).toUpperCase()} cho khách.`, type: 'success' });
       loadOrders();
-    } catch (err: any) {
-      alert(err.message || 'Lỗi hoàn tất');
+    } catch (err: unknown) {
+      setToastMsg({ message: getErrorMessage(err), type: 'danger' });
     } finally {
       setActionLoading(null);
     }
   };
+
+  if (!ready) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
 
   const paidOrders = orders.filter((o) => o.status === 'PAID');
   const preparingOrders = orders.filter((o) => o.status === 'PREPARING');
@@ -79,172 +94,197 @@ export default function StaffKanbanPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white rounded-3xl p-6 border border-coffee-200 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center">
-            <ChefHat className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black text-coffee-950">Bảng Kanban Quầy Pha Chế (Barista)</h1>
-            <p className="text-xs text-coffee-600">Tự động cập nhật mỗi 5 giây. Nhận đơn, pha chế và bàn giao nước.</p>
-          </div>
-        </div>
+      {toastMsg && (
+        <Toast
+          message={toastMsg.message}
+          type={toastMsg.type}
+          onClose={() => setToastMsg(null)}
+        />
+      )}
 
-        <button
-          onClick={loadOrders}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-coffee-100 hover:bg-coffee-200 text-coffee-800 font-bold text-xs transition-colors self-start sm:self-auto"
-        >
-          <RefreshCw className="w-4 h-4" />
-          <span>Làm mới tức thì</span>
-        </button>
-      </div>
+      <PageHeader
+        title="Quầy pha chế"
+        description="Bảng Kanban theo dõi và thực hiện đơn hàng theo thời gian thực (FIFO)."
+        action={
+          <div className="flex items-center gap-3">
+            {lastUpdated && (
+              <span className="text-[11px] text-ink-3 flex items-center gap-1 tabular-nums">
+                <Clock className="w-3 h-3" strokeWidth={1.5} />
+                Cập nhật: {lastUpdated}
+              </span>
+            )}
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={loading}
+              onClick={loadOrders}
+              className="gap-1.5"
+            >
+              <RefreshCw className="w-3.5 h-3.5" strokeWidth={1.75} />
+              <span>Làm mới</span>
+            </Button>
+          </div>
+        }
+      />
 
       {/* 3-Column Kanban Board */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Column 1: Chờ pha (PAID) */}
-        <div className="bg-white/80 rounded-3xl p-5 border border-blue-200 shadow-sm flex flex-col space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-blue-100">
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-blue-500 animate-pulse" />
-              <h3 className="font-black text-coffee-950 text-sm">Chờ pha chế (PAID)</h3>
-            </div>
-            <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-bold text-xs">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+        {/* Column 1: Chờ pha */}
+        <div className="border border-line rounded bg-surface-2 overflow-hidden border-t-2 border-t-ink">
+          <div className="p-3 border-b border-line flex items-center justify-between bg-surface">
+            <h2 className="text-xs font-semibold text-ink">{ORDER_STATUS.PAID.baristaTitle || 'Chờ pha chế'}</h2>
+            <span className="text-xs px-2 py-0.5 rounded bg-surface-2 font-semibold text-ink tabular-nums">
               {paidOrders.length}
             </span>
           </div>
 
-          <div className="space-y-3 flex-1 overflow-y-auto max-h-[600px]">
-            {paidOrders.length === 0 ? (
-              <div className="text-center py-8 text-xs text-coffee-400 italic">Không có đơn chờ pha</div>
-            ) : (
-              paidOrders.map((order) => (
-                <div key={order.id} className="bg-white rounded-2xl p-4 border border-coffee-200 shadow-sm space-y-3 hover:border-blue-300 transition-colors">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <span className="font-mono font-black text-sm text-coffee-900">#{order.id.slice(0, 8).toUpperCase()}</span>
-                      <div className="text-[11px] text-coffee-500 font-medium">{order.customer?.fullName}</div>
-                    </div>
-                    <span className="text-[10px] text-coffee-400 font-mono">
-                      {new Date(order.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-
-                  <div className="space-y-1.5 py-1 text-xs">
-                    {order.items?.map((it: any) => (
-                      <div key={it.id} className="text-coffee-800">
-                        <span className="font-bold text-coffee-950">{it.quantity}x</span> {it.variant.product.name} (Size {it.variant.size})
-                        {it.variant.topping && <span className="text-[11px] text-coffee-500 block pl-4">• {it.variant.topping}</span>}
-                      </div>
-                    ))}
-                  </div>
-
-                  <button
-                    onClick={() => handleAcceptOrder(order.id)}
-                    disabled={actionLoading === order.id}
-                    className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow transition-all disabled:opacity-50"
-                  >
-                    <Play className="w-3.5 h-3.5 fill-white" />
-                    <span>Nhận đơn pha chế</span>
-                  </button>
+          <div className="p-3 space-y-3 min-h-[300px]">
+            {paidOrders.map((order) => (
+              <div key={order.id} className="p-3.5 bg-surface border border-line rounded space-y-2.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-mono font-bold text-ink">
+                    #{order.id.slice(0, 8).toUpperCase()}
+                  </span>
+                  <span className="text-ink-3 tabular-nums">
+                    {new Date(order.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
                 </div>
-              ))
+
+                <div className="space-y-1 text-xs">
+                  {order.items?.map((it: OrderItemRecord) => (
+                    <div key={it.id} className="leading-snug">
+                      <span className="font-bold text-ink text-sm">
+                        {it.quantity}x {it.variant?.product?.name || 'Món uống'}
+                      </span>
+                      <span className="block text-xs text-ink-2 font-medium">
+                        Size {it.variant?.size} {it.variant?.topping && `· Topping: ${it.variant.topping}`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <Button
+                  variant="primary"
+                  size="sm"
+                  loading={actionLoading === order.id}
+                  onClick={() => handleAcceptOrder(order.id)}
+                  className="w-full text-xs font-semibold"
+                >
+                  Nhận pha đơn này
+                </Button>
+              </div>
+            ))}
+
+            {paidOrders.length === 0 && (
+              <p className="text-xs text-ink-3 text-center py-8">Không có đơn chờ pha.</p>
             )}
           </div>
         </div>
 
-        {/* Column 2: Đang pha (PREPARING) */}
-        <div className="bg-white/80 rounded-3xl p-5 border border-purple-200 shadow-sm flex flex-col space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-purple-100">
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-purple-500 animate-pulse" />
-              <h3 className="font-black text-coffee-950 text-sm">Đang pha chế (PREPARING)</h3>
-            </div>
-            <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 font-bold text-xs">
+        {/* Column 2: Đang pha */}
+        <div className="border border-line rounded bg-surface-2 overflow-hidden border-t-2 border-t-accent">
+          <div className="p-3 border-b border-line flex items-center justify-between bg-surface">
+            <h2 className="text-xs font-semibold text-ink">{ORDER_STATUS.PREPARING.baristaTitle || 'Đang pha chế'}</h2>
+            <span className="text-xs px-2 py-0.5 rounded bg-surface-2 font-semibold text-ink tabular-nums">
               {preparingOrders.length}
             </span>
           </div>
 
-          <div className="space-y-3 flex-1 overflow-y-auto max-h-[600px]">
-            {preparingOrders.length === 0 ? (
-              <div className="text-center py-8 text-xs text-coffee-400 italic">Chưa có ly nào đang pha</div>
-            ) : (
-              preparingOrders.map((order) => (
-                <div key={order.id} className="bg-white rounded-2xl p-4 border border-purple-200 shadow-sm space-y-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <span className="font-mono font-black text-sm text-coffee-900">#{order.id.slice(0, 8).toUpperCase()}</span>
-                      <div className="text-[11px] text-coffee-500 font-medium">{order.customer?.fullName}</div>
-                    </div>
-                    <span className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 font-bold text-[10px]">Đang pha</span>
-                  </div>
-
-                  <div className="space-y-1.5 py-1 text-xs">
-                    {order.items?.map((it: any) => (
-                      <div key={it.id} className="text-coffee-800">
-                        <span className="font-bold text-coffee-950">{it.quantity}x</span> {it.variant.product.name} (Size {it.variant.size})
-                      </div>
-                    ))}
-                  </div>
-
-                  <button
-                    onClick={() => handleMarkReady(order.id)}
-                    disabled={actionLoading === order.id}
-                    className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow transition-all disabled:opacity-50"
-                  >
-                    <Coffee className="w-3.5 h-3.5" />
-                    <span>Pha xong (Sẵn sàng)</span>
-                  </button>
+          <div className="p-3 space-y-3 min-h-[300px]">
+            {preparingOrders.map((order) => (
+              <div key={order.id} className="p-3.5 bg-surface border border-line rounded space-y-2.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-mono font-bold text-ink">
+                    #{order.id.slice(0, 8).toUpperCase()}
+                  </span>
+                  <span className="text-ink-3 tabular-nums">
+                    {new Date(order.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
                 </div>
-              ))
+
+                <div className="space-y-1 text-xs">
+                  {order.items?.map((it: OrderItemRecord) => (
+                    <div key={it.id} className="leading-snug">
+                      <span className="font-bold text-ink text-sm">
+                        {it.quantity}x {it.variant?.product?.name || 'Món uống'}
+                      </span>
+                      <span className="block text-xs text-ink-2 font-medium">
+                        Size {it.variant?.size} {it.variant?.topping && `· Topping: ${it.variant.topping}`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {order.staff?.fullName && (
+                  <p className="text-[11px] text-ink-3">
+                    Barista: <span className="font-medium text-ink">{order.staff.fullName}</span>
+                  </p>
+                )}
+
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  loading={actionLoading === order.id}
+                  onClick={() => handleMarkReady(order.id)}
+                  className="w-full text-xs font-semibold border-line-strong hover:bg-surface-2"
+                >
+                  Đã pha xong
+                </Button>
+              </div>
+            ))}
+
+            {preparingOrders.length === 0 && (
+              <p className="text-xs text-ink-3 text-center py-8">Chưa có đơn đang pha.</p>
             )}
           </div>
         </div>
 
-        {/* Column 3: Sẵn sàng giao (READY) */}
-        <div className="bg-white/80 rounded-3xl p-5 border border-emerald-200 shadow-sm flex flex-col space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-emerald-100">
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-emerald-500" />
-              <h3 className="font-black text-coffee-950 text-sm">Sẵn sàng giao (READY)</h3>
-            </div>
-            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-xs">
+        {/* Column 3: Sẵn sàng lấy */}
+        <div className="border border-line rounded bg-surface-2 overflow-hidden border-t-2 border-t-success">
+          <div className="p-3 border-b border-line flex items-center justify-between bg-surface">
+            <h2 className="text-xs font-semibold text-ink">{ORDER_STATUS.READY.baristaTitle || 'Sẵn sàng lấy tại quầy'}</h2>
+            <span className="text-xs px-2 py-0.5 rounded bg-surface-2 font-semibold text-ink tabular-nums">
               {readyOrders.length}
             </span>
           </div>
 
-          <div className="space-y-3 flex-1 overflow-y-auto max-h-[600px]">
-            {readyOrders.length === 0 ? (
-              <div className="text-center py-8 text-xs text-coffee-400 italic">Không có đơn chờ khách lấy</div>
-            ) : (
-              readyOrders.map((order) => (
-                <div key={order.id} className="bg-white rounded-2xl p-4 border border-emerald-200 shadow-sm space-y-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <span className="font-mono font-black text-sm text-coffee-900">#{order.id.slice(0, 8).toUpperCase()}</span>
-                      <div className="text-[11px] text-coffee-500 font-medium">{order.customer?.fullName}</div>
-                    </div>
-                    <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold text-[10px]">Chờ khách</span>
-                  </div>
-
-                  <div className="space-y-1.5 py-1 text-xs">
-                    {order.items?.map((it: any) => (
-                      <div key={it.id} className="text-coffee-800">
-                        <span className="font-bold text-coffee-950">{it.quantity}x</span> {it.variant.product.name} (Size {it.variant.size})
-                      </div>
-                    ))}
-                  </div>
-
-                  <button
-                    onClick={() => handleCompleteOrder(order.id)}
-                    disabled={actionLoading === order.id}
-                    className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow transition-all disabled:opacity-50"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                    <span>Bàn giao cho khách (COMPLETED)</span>
-                  </button>
+          <div className="p-3 space-y-3 min-h-[300px]">
+            {readyOrders.map((order) => (
+              <div key={order.id} className="p-3.5 bg-surface border border-line rounded space-y-2.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-mono font-bold text-ink">
+                    #{order.id.slice(0, 8).toUpperCase()}
+                  </span>
+                  <span className="text-xs font-semibold text-success">Chờ khách lấy</span>
                 </div>
-              ))
+
+                <div className="space-y-1 text-xs">
+                  {order.items?.map((it: OrderItemRecord) => (
+                    <div key={it.id} className="leading-snug">
+                      <span className="font-bold text-ink text-sm">
+                        {it.quantity}x {it.variant?.product?.name || 'Món uống'}
+                      </span>
+                      <span className="block text-xs text-ink-2">
+                        Size {it.variant?.size} {it.variant?.topping && `· Topping: ${it.variant.topping}`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  loading={actionLoading === order.id}
+                  onClick={() => handleCompleteOrder(order.id)}
+                  className="w-full text-xs font-semibold text-success hover:bg-success-soft"
+                >
+                  Xác nhận khách đã nhận
+                </Button>
+              </div>
+            ))}
+
+            {readyOrders.length === 0 && (
+              <p className="text-xs text-ink-3 text-center py-8">Không có đơn đang chờ lấy.</p>
             )}
           </div>
         </div>

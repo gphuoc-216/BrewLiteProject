@@ -1,386 +1,953 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { fetchApi } from '../../lib/api';
-import { useAuthStore } from '../../store/useAuthStore';
-import { Shield, TrendingUp, Package, Star, Ticket, Users, AlertTriangle, Eye, EyeOff, Plus, RefreshCw } from 'lucide-react';
+import Image from 'next/image';
+import { fetchApi, getErrorMessage } from '../../lib/api';
+import {
+  Button,
+  PageHeader,
+  Card,
+  Input,
+  Badge,
+  Modal,
+  Toast,
+  EmptyState,
+  Skeleton,
+} from '../../components/ui';
+import {
+  BarChart3,
+  Coffee,
+  Package,
+  Ticket,
+  MessageSquare,
+  Users,
+  Plus,
+  RefreshCw,
+  Lock,
+  Unlock,
+  Eye,
+  EyeOff,
+  AlertTriangle,
+} from 'lucide-react';
+import {
+  AdminOverview,
+  RevenuePoint,
+  TopProduct,
+  IngredientRecord,
+  SupplierRecord,
+  ReviewRecord,
+  PromotionRecord,
+  ProductItem,
+  AccountRecord,
+} from '@/types';
+import {
+  MOCK_ADMIN_OVERVIEW,
+  MOCK_REVENUE_POINTS,
+  MOCK_TOP_PRODUCTS,
+  MOCK_INGREDIENTS,
+  MOCK_SUPPLIERS,
+  MOCK_REVIEWS,
+  MOCK_PROMOTIONS,
+  MOCK_ACCOUNTS,
+} from '@/lib/mock/adminMock';
+import { useRequireRole } from '@/hooks/useRequireRole';
+
+type AdminTab = 'overview' | 'products' | 'inventory' | 'promotions' | 'reviews' | 'users';
+
+const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === 'true';
 
 export default function AdminDashboardPage() {
-  const router = useRouter();
-  const { user } = useAuthStore();
-
-  const [activeTab, setActiveTab] = useState<'stats' | 'inventory' | 'reviews' | 'promotions'>('stats');
-  const [overview, setOverview] = useState<any>(null);
-  const [revenueStats, setRevenueStats] = useState<any[]>([]);
-  const [topProducts, setTopProducts] = useState<any[]>([]);
-  const [ingredients, setIngredients] = useState<any[]>([]);
-  const [reviews, setReviews] = useState<any[]>([]);
-  const [promotions, setPromotions] = useState<any[]>([]);
+  const { ready } = useRequireRole(['ADMIN']);
+  const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [loading, setLoading] = useState(true);
 
-  // Form nhập kho nhanh
-  const [importIngId, setImportIngId] = useState('');
-  const [importQty, setImportQty] = useState('');
+  // Per-tab error state
+  const [tabErrors, setTabErrors] = useState<Record<AdminTab, string | null>>({
+    overview: null,
+    products: null,
+    inventory: null,
+    promotions: null,
+    reviews: null,
+    users: null,
+  });
+
+  // Data states
+  const [overview, setOverview] = useState<AdminOverview | null>(null);
+  const [revenueStats, setRevenueStats] = useState<RevenuePoint[]>([]);
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [ingredients, setIngredients] = useState<IngredientRecord[]>([]);
+  const [suppliers, setSuppliers] = useState<SupplierRecord[]>([]);
+  const [reviews, setReviews] = useState<ReviewRecord[]>([]);
+  const [promotions, setPromotions] = useState<PromotionRecord[]>([]);
+  const [productsList, setProductsList] = useState<ProductItem[]>([]);
+  const [accountsList, setAccountsList] = useState<AccountRecord[]>([]);
+
+  // Modals
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [selectedIngredientId, setSelectedIngredientId] = useState<string>('');
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string>('');
+  const [importQuantity, setImportQuantity] = useState<string>('');
+  const [importUnitPrice, setImportUnitPrice] = useState<string>('');
   const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+
+  const [productModalOpen, setProductModalOpen] = useState(false);
+  const [newProductName, setNewProductName] = useState('');
+  const [newProductCategory, setNewProductCategory] = useState('COFFEE');
+  const [newProductPrice, setNewProductPrice] = useState('35000');
+
+  const [promoModalOpen, setPromoModalOpen] = useState(false);
+  const [newPromoCode, setNewPromoCode] = useState('');
+  const [newPromoName, setNewPromoName] = useState('');
+  const [newPromoValue, setNewPromoValue] = useState('15');
+  const [newPromoType, setNewPromoType] = useState<'PERCENT' | 'FIXED'>('PERCENT');
+
+  const [toastMsg, setToastMsg] = useState<{ message: string; type: 'success' | 'danger' } | null>(null);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [ov, rev, top, ing, revs, promos] = await Promise.all([
+
+      const results = await Promise.allSettled([
         fetchApi('/admin/stats/overview'),
         fetchApi('/admin/stats/revenue'),
         fetchApi('/admin/stats/top-products'),
         fetchApi('/admin/ingredients'),
+        fetchApi('/admin/suppliers'),
         fetchApi('/admin/reviews'),
         fetchApi('/admin/promotions'),
+        fetchApi('/products'),
+        fetchApi('/admin/accounts'),
       ]);
 
-      setOverview(ov);
-      setRevenueStats(rev || []);
-      setTopProducts(top || []);
-      setIngredients(ing || []);
-      setReviews(revs || []);
-      setPromotions(promos || []);
-      if (ing?.length > 0) setImportIngId(ing[0].id);
-    } catch (err: any) {
-      console.error('Lỗi tải dữ liệu Admin:', err);
+      const [
+        resOverview,
+        resRevenue,
+        resTop,
+        resIng,
+        resSups,
+        resRevs,
+        resPromos,
+        resProds,
+        resAccs,
+      ] = results;
+
+      const newErrors: Record<AdminTab, string | null> = {
+        overview: null,
+        products: null,
+        inventory: null,
+        promotions: null,
+        reviews: null,
+        users: null,
+      };
+
+      // 1. Overview
+      if (resOverview.status === 'fulfilled' && resOverview.value) {
+        setOverview(resOverview.value as AdminOverview);
+      } else if (USE_MOCK) {
+        setOverview(MOCK_ADMIN_OVERVIEW);
+      } else {
+        setOverview(null);
+        newErrors.overview = 'Không thể tải chỉ số tổng quan.';
+      }
+
+      // Revenue
+      if (resRevenue.status === 'fulfilled' && resRevenue.value) {
+        setRevenueStats(resRevenue.value as RevenuePoint[]);
+      } else if (USE_MOCK) {
+        setRevenueStats(MOCK_REVENUE_POINTS);
+      } else {
+        setRevenueStats([]);
+      }
+
+      // Top Products
+      if (resTop.status === 'fulfilled' && resTop.value) {
+        setTopProducts(resTop.value as TopProduct[]);
+      } else if (USE_MOCK) {
+        setTopProducts(MOCK_TOP_PRODUCTS);
+      } else {
+        setTopProducts([]);
+      }
+
+      // 2. Inventory (Ingredients + Suppliers)
+      if (resIng.status === 'fulfilled' && resIng.value) {
+        const ings = resIng.value as IngredientRecord[];
+        setIngredients(ings);
+        if (ings.length > 0) setSelectedIngredientId(ings[0].id);
+      } else if (USE_MOCK) {
+        setIngredients(MOCK_INGREDIENTS);
+        if (MOCK_INGREDIENTS.length > 0) setSelectedIngredientId(MOCK_INGREDIENTS[0].id);
+      } else {
+        setIngredients([]);
+        newErrors.inventory = 'Không thể tải danh sách nguyên liệu và tồn kho.';
+      }
+
+      if (resSups.status === 'fulfilled' && resSups.value) {
+        const sups = resSups.value as SupplierRecord[];
+        setSuppliers(sups);
+        if (sups.length > 0) setSelectedSupplierId(sups[0].id);
+      } else if (USE_MOCK) {
+        setSuppliers(MOCK_SUPPLIERS);
+        if (MOCK_SUPPLIERS.length > 0) setSelectedSupplierId(MOCK_SUPPLIERS[0].id);
+      } else {
+        setSuppliers([]);
+      }
+
+      // 3. Reviews
+      if (resRevs.status === 'fulfilled' && resRevs.value) {
+        setReviews(resRevs.value as ReviewRecord[]);
+      } else if (USE_MOCK) {
+        setReviews(MOCK_REVIEWS);
+      } else {
+        setReviews([]);
+        newErrors.reviews = 'Không thể tải danh sách đánh giá từ khách hàng.';
+      }
+
+      // 4. Promotions
+      if (resPromos.status === 'fulfilled' && resPromos.value) {
+        setPromotions(resPromos.value as PromotionRecord[]);
+      } else if (USE_MOCK) {
+        setPromotions(MOCK_PROMOTIONS);
+      } else {
+        setPromotions([]);
+        newErrors.promotions = 'Không thể tải danh sách mã khuyến mãi.';
+      }
+
+      // 5. Products
+      if (resProds.status === 'fulfilled' && resProds.value) {
+        const pVal = resProds.value as { items?: ProductItem[] } | ProductItem[];
+        const items = pVal && 'items' in pVal && Array.isArray(pVal.items)
+          ? pVal.items
+          : Array.isArray(pVal)
+          ? pVal
+          : [];
+        setProductsList(items);
+      } else {
+        setProductsList([]);
+        newErrors.products = 'Không thể tải danh mục món uống.';
+      }
+
+      // 6. Users / Accounts
+      if (resAccs.status === 'fulfilled' && resAccs.value) {
+        setAccountsList(resAccs.value as AccountRecord[]);
+      } else if (USE_MOCK) {
+        setAccountsList(MOCK_ACCOUNTS);
+      } else {
+        setAccountsList([]);
+        newErrors.users = 'Không thể tải danh sách nhân sự và tài khoản.';
+      }
+
+      setTabErrors(newErrors);
+    } catch (err: unknown) {
+      console.error('Lỗi tải dữ liệu Admin:', getErrorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (!user || user.role !== 'ADMIN') {
-      router.push('/login?redirect=/admin');
+    if (!ready) return;
+    loadData();
+  }, [ready]);
+
+  // Xử lý tạo phiếu nhập kho với kiểm tra hợp lệ
+  const handleCreateImport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setImportError(null);
+
+    const qty = Number(importQuantity);
+    const unitPrice = Number(importUnitPrice);
+
+    if (!selectedSupplierId) {
+      setImportError('Vui lòng chọn nhà cung cấp.');
       return;
     }
-    loadData();
-  }, [user]);
-
-  const handleToggleReviewStatus = async (reviewId: string, currentStatus: string) => {
-    try {
-      const endpoint = currentStatus === 'VISIBLE' ? `/admin/reviews/${reviewId}/hide` : `/admin/reviews/${reviewId}/show`;
-      await fetchApi(endpoint, { method: 'PATCH' });
-      loadData();
-    } catch (err: any) {
-      alert(err.message || 'Lỗi cập nhật đánh giá');
+    if (!selectedIngredientId) {
+      setImportError('Vui lòng chọn nguyên liệu nhập.');
+      return;
     }
-  };
-
-  const handleQuickImport = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!importIngId || !importQty) return;
+    if (isNaN(qty) || qty <= 0) {
+      setImportError('Số lượng nhập phải lớn hơn 0.');
+      return;
+    }
+    if (isNaN(unitPrice) || unitPrice <= 0) {
+      setImportError('Đơn vị giá nhập phải lớn hơn 0.');
+      return;
+    }
 
     try {
       setImportLoading(true);
-      const suppliers = await fetchApi('/admin/suppliers');
-      const supplierId = suppliers[0]?.id;
-
-      await fetchApi('/admin/import-receipts', {
+      await fetchApi('/admin/inventory/import', {
         method: 'POST',
         body: JSON.stringify({
-          supplierId,
+          supplierId: selectedSupplierId,
           items: [
             {
-              ingredientId: importIngId,
-              quantity: Number(importQty),
-              unitPrice: 100,
+              ingredientId: selectedIngredientId,
+              quantity: qty,
+              unitPrice: unitPrice,
             },
           ],
         }),
       });
 
-      alert(`Đã nhập thêm ${importQty} đơn vị vào kho thành công!`);
-      setImportQty('');
+      setToastMsg({ message: `Đã lập phiếu nhập ${qty} đơn vị vào kho thành công.`, type: 'success' });
+      setImportModalOpen(false);
+      setImportQuantity('');
+      setImportUnitPrice('');
       loadData();
-    } catch (err: any) {
-      alert(err.message || 'Lỗi lập phiếu nhập kho');
+    } catch (err: unknown) {
+      setToastMsg({ message: getErrorMessage(err), type: 'danger' });
     } finally {
       setImportLoading(false);
     }
   };
 
+  // Toggle ẩn hiện đánh giá
+  const handleToggleReview = async (reviewId: string, currentStatus: string) => {
+    try {
+      const endpoint = currentStatus === 'VISIBLE' ? `/admin/reviews/${reviewId}/hide` : `/admin/reviews/${reviewId}/show`;
+      await fetchApi(endpoint, { method: 'PATCH' });
+      setToastMsg({ message: 'Đã cập nhật trạng thái hiển thị đánh giá.', type: 'success' });
+      loadData();
+    } catch (err: unknown) {
+      setToastMsg({ message: getErrorMessage(err), type: 'danger' });
+    }
+  };
+
+  // Khóa / Mở khóa tài khoản
+  const handleToggleAccountStatus = async (accountId: string, currentStatus: string) => {
+    try {
+      const endpoint = currentStatus === 'ACTIVE' ? `/admin/accounts/${accountId}/lock` : `/admin/accounts/${accountId}/unlock`;
+      await fetchApi(endpoint, { method: 'PATCH' });
+      setToastMsg({ message: 'Đã thay đổi trạng thái tài khoản.', type: 'success' });
+      loadData();
+    } catch (err: unknown) {
+      setToastMsg({ message: getErrorMessage(err), type: 'danger' });
+    }
+  };
+
+  if (!ready) {
+    return (
+      <div className="space-y-4 py-8">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  const navItems = [
+    { id: 'overview', label: 'Tổng quan & Doanh thu', icon: BarChart3 },
+    { id: 'products', label: 'Quản lý Sản phẩm', icon: Coffee },
+    { id: 'inventory', label: 'Kho & Nhập hàng', icon: Package },
+    { id: 'promotions', label: 'Mã Khuyến mãi', icon: Ticket },
+    { id: 'reviews', label: 'Đánh giá khách hàng', icon: MessageSquare },
+    { id: 'users', label: 'Nhân sự & Tài khoản', icon: Users },
+  ];
+
+  const estimatedImportTotal = (Number(importQuantity) || 0) * (Number(importUnitPrice) || 0);
+
   return (
     <div className="space-y-6">
-      {/* Admin Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white rounded-3xl p-6 border border-coffee-200 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-800 flex items-center justify-center">
-            <Shield className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black text-coffee-950">Trung Tâm Quản Trị Hệ Thống (Admin)</h1>
-            <p className="text-xs text-coffee-600">Kiểm soát doanh thu, chuỗi cung ứng, kho nguyên liệu và đánh giá khách hàng.</p>
-          </div>
-        </div>
-
-        <button
-          onClick={loadData}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-coffee-100 hover:bg-coffee-200 text-coffee-800 font-bold text-xs transition-colors self-start sm:self-auto"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          <span>Làm mới số liệu</span>
-        </button>
-      </div>
-
-      {/* Overview Stat Cards */}
-      {overview && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-2xl p-4 sm:p-5 border border-coffee-200 shadow-sm space-y-1">
-            <span className="text-xs font-bold text-coffee-500 uppercase tracking-wider block">Tổng doanh thu</span>
-            <div className="text-xl sm:text-2xl font-black text-coffee-950">
-              {Number(overview.totalRevenue).toLocaleString('vi-VN')}đ
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl p-4 sm:p-5 border border-coffee-200 shadow-sm space-y-1">
-            <span className="text-xs font-bold text-coffee-500 uppercase tracking-wider block">Tổng đơn hàng</span>
-            <div className="text-xl sm:text-2xl font-black text-coffee-950">{overview.totalOrders}</div>
-          </div>
-          <div className="bg-white rounded-2xl p-4 sm:p-5 border border-coffee-200 shadow-sm space-y-1">
-            <span className="text-xs font-bold text-coffee-500 uppercase tracking-wider block">Khách hàng</span>
-            <div className="text-xl sm:text-2xl font-black text-coffee-950">{overview.totalCustomers}</div>
-          </div>
-          <div className="bg-white rounded-2xl p-4 sm:p-5 border border-coffee-200 shadow-sm space-y-1">
-            <span className="text-xs font-bold text-coffee-500 uppercase tracking-wider block">Món đang bán</span>
-            <div className="text-xl sm:text-2xl font-black text-coffee-950">{overview.totalProducts}</div>
-          </div>
-        </div>
+      {toastMsg && (
+        <Toast message={toastMsg.message} type={toastMsg.type} onClose={() => setToastMsg(null)} />
       )}
 
-      {/* Navigation Tabs */}
-      <div className="flex border-b border-coffee-200 gap-2 overflow-x-auto pb-1">
-        <button
-          onClick={() => setActiveTab('stats')}
-          className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-colors ${
-            activeTab === 'stats' ? 'bg-coffee-900 text-white shadow' : 'bg-white text-coffee-700 hover:bg-coffee-100'
-          }`}
-        >
-          <TrendingUp className="w-4 h-4" />
-          <span>Doanh thu & Sản phẩm bán chạy</span>
-        </button>
+      <PageHeader
+        title="Bảng điều khiển quản trị"
+        description="Quản lý thực đơn, kiểm soát tồn kho nguyên liệu, doanh thu và nhân sự quầy."
+        action={
+          <Button variant="secondary" size="sm" onClick={loadData} className="gap-1.5">
+            <RefreshCw className="w-3.5 h-3.5" strokeWidth={1.75} />
+            <span>Cập nhật</span>
+          </Button>
+        }
+      />
 
-        <button
-          onClick={() => setActiveTab('inventory')}
-          className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-colors ${
-            activeTab === 'inventory' ? 'bg-coffee-900 text-white shadow' : 'bg-white text-coffee-700 hover:bg-coffee-100'
-          }`}
-        >
-          <Package className="w-4 h-4" />
-          <span>Kho nguyên liệu ({ingredients.length})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('reviews')}
-          className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-colors ${
-            activeTab === 'reviews' ? 'bg-coffee-900 text-white shadow' : 'bg-white text-coffee-700 hover:bg-coffee-100'
-          }`}
-        >
-          <Star className="w-4 h-4" />
-          <span>Kiểm duyệt Đánh giá ({reviews.length})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('promotions')}
-          className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-colors ${
-            activeTab === 'promotions' ? 'bg-coffee-900 text-white shadow' : 'bg-white text-coffee-700 hover:bg-coffee-100'
-          }`}
-        >
-          <Ticket className="w-4 h-4" />
-          <span>Mã khuyến mãi ({promotions.length})</span>
-        </button>
-      </div>
-
-      {/* Tab 1: Stats */}
-      {activeTab === 'stats' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Revenue by Date */}
-          <div className="bg-white rounded-3xl p-6 border border-coffee-200 shadow-sm space-y-4">
-            <h3 className="font-black text-coffee-950 text-base flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-coffee-700" />
-              <span>Biểu đồ doanh số theo ngày</span>
-            </h3>
-            <div className="space-y-2">
-              {revenueStats.map((st) => (
-                <div key={st.date} className="flex justify-between items-center p-3 rounded-xl bg-coffee-50/70 border border-coffee-100 text-sm">
-                  <span className="font-semibold text-coffee-700">{st.date}</span>
-                  <span className="font-black text-coffee-950">{Number(st.revenue).toLocaleString('vi-VN')}đ</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Top Products */}
-          <div className="bg-white rounded-3xl p-6 border border-coffee-200 shadow-sm space-y-4">
-            <h3 className="font-black text-coffee-950 text-base flex items-center gap-2">
-              <Star className="w-5 h-5 text-amber-500 fill-amber-400" />
-              <span>Top 5 đồ uống bán chạy nhất</span>
-            </h3>
-            <div className="space-y-2">
-              {topProducts.map((p, idx) => (
-                <div key={idx} className="flex justify-between items-center p-3 rounded-xl bg-amber-50/50 border border-amber-100 text-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-lg bg-amber-200 text-amber-900 font-black text-xs flex items-center justify-center">
-                      #{idx + 1}
-                    </span>
-                    <span className="font-bold text-coffee-900">{p.name}</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="font-black text-coffee-950">{p.quantity} ly</span>
-                    <span className="text-xs text-coffee-500 block">{Number(p.revenue).toLocaleString('vi-VN')}đ</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Tab 2: Inventory & Quick Import */}
-      {activeTab === 'inventory' && (
-        <div className="space-y-6">
-          {/* Quick Import Form */}
-          <form onSubmit={handleQuickImport} className="bg-white rounded-3xl p-6 border border-coffee-200 shadow-sm space-y-4">
-            <h3 className="font-black text-coffee-950 text-sm flex items-center gap-2">
-              <Plus className="w-4 h-4 text-emerald-600" />
-              <span>Lập phiếu nhập kho nhanh (Cộng dồn tồn kho trong Transaction)</span>
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <select
-                value={importIngId}
-                onChange={(e) => setImportIngId(e.target.value)}
-                className="px-3 py-2 rounded-xl bg-coffee-50 border border-coffee-200 text-xs font-semibold"
-              >
-                {ingredients.map((ing) => (
-                  <option key={ing.id} value={ing.id}>
-                    {ing.name} ({ing.unit})
-                  </option>
-                ))}
-              </select>
-
-              <input
-                type="number"
-                placeholder="Số lượng nhập..."
-                value={importQty}
-                onChange={(e) => setImportQty(e.target.value)}
-                required
-                min="1"
-                className="px-3 py-2 rounded-xl bg-coffee-50 border border-coffee-200 text-xs font-semibold"
-              />
-
+      {/* Main Admin Grid with Left Sidebar */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left Sidebar Nav (3 cols) */}
+        <aside className="lg:col-span-3 border border-line rounded bg-surface p-2 space-y-1">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
               <button
-                type="submit"
-                disabled={importLoading}
-                className="px-4 py-2 rounded-xl bg-coffee-800 text-white font-bold text-xs hover:bg-coffee-900 disabled:opacity-50"
+                key={item.id}
+                onClick={() => setActiveTab(item.id as AdminTab)}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs rounded transition-colors text-left font-medium ${
+                  isActive
+                    ? 'bg-espresso text-espresso-text'
+                    : 'text-ink-2 hover:bg-surface-2 hover:text-ink'
+                }`}
               >
-                {importLoading ? 'Đang nhập...' : 'Tạo phiếu & Tăng kho'}
+                <Icon className="w-4 h-4 shrink-0" strokeWidth={1.75} />
+                <span>{item.label}</span>
               </button>
-            </div>
-          </form>
+            );
+          })}
+        </aside>
 
-          {/* Ingredient List */}
-          <div className="bg-white rounded-3xl p-6 border border-coffee-200 shadow-sm space-y-4">
-            <h3 className="font-black text-coffee-950 text-base">Định mức tồn kho nguyên liệu (Optimistic Locking)</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {ingredients.map((ing) => {
-                const isLow = Number(ing.stockQuantity) < 15000;
-                return (
-                  <div
-                    key={ing.id}
-                    className={`p-4 rounded-2xl border ${
-                      isLow ? 'bg-red-50/60 border-red-200' : 'bg-coffee-50/50 border-coffee-100'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <span className="font-bold text-sm text-coffee-900">{ing.name}</span>
-                      {isLow && (
-                        <span className="px-2 py-0.5 rounded-md bg-red-100 text-red-700 text-[10px] font-bold flex items-center gap-1">
-                          <AlertTriangle className="w-3 h-3" /> Sắp hết
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-2 flex justify-between items-baseline">
-                      <span className="text-xl font-black text-coffee-950">
-                        {Number(ing.stockQuantity).toLocaleString('vi-VN')} {ing.unit}
-                      </span>
-                      <span className="text-[10px] text-coffee-500 font-mono">ver: {ing.version}</span>
-                    </div>
+        {/* Right Content Area (9 cols) */}
+        <main className="lg:col-span-9 space-y-6">
+          {loading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-48 w-full" />
+            </div>
+          ) : (
+            <>
+              {/* TAB 1: OVERVIEW & REVENUE */}
+              {activeTab === 'overview' && (
+                tabErrors.overview ? (
+                  <EmptyState
+                    title="Không thể tải tổng quan"
+                    description={tabErrors.overview}
+                    actionLabel="Tải lại dữ liệu"
+                    onAction={loadData}
+                  />
+                ) : (
+                  <div className="space-y-6">
+                    {/* Stat Badges */}
+                    {overview && (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <Card className="p-4 space-y-1">
+                          <span className="text-[11px] text-ink-3">Doanh thu hôm nay</span>
+                          <span className="font-display text-xl font-semibold text-ink tabular-nums block">
+                            {Number(overview.totalRevenue).toLocaleString('vi-VN')}đ
+                          </span>
+                        </Card>
+                        <Card className="p-4 space-y-1">
+                          <span className="text-[11px] text-ink-3">Tổng số đơn</span>
+                          <span className="font-display text-xl font-semibold text-ink tabular-nums block">
+                            {overview.totalOrders}
+                          </span>
+                        </Card>
+                        <Card className="p-4 space-y-1">
+                          <span className="text-[11px] text-ink-3">Khách thành viên</span>
+                          <span className="font-display text-xl font-semibold text-ink tabular-nums block">
+                            {overview.activeCustomers}
+                          </span>
+                        </Card>
+                        <Card className="p-4 space-y-1">
+                          <span className="text-[11px] text-ink-3">Nguyên liệu sắp hết</span>
+                          <span className="font-display text-xl font-semibold text-danger tabular-nums block">
+                            {overview.lowStockIngredients}
+                          </span>
+                        </Card>
+                      </div>
+                    )}
+
+                    {/* Revenue Trend Table */}
+                    <Card className="space-y-3">
+                      <h3 className="font-display text-base font-semibold text-ink">Doanh thu 7 ngày gần nhất</h3>
+                      <div className="divide-y divide-line border-y border-line text-xs">
+                        {revenueStats.map((st) => (
+                          <div key={st.date} className="py-2.5 flex items-center justify-between">
+                            <span className="font-medium text-ink">{st.date}</span>
+                            <span className="font-semibold text-ink tabular-nums">
+                              {Number(st.amount).toLocaleString('vi-VN')}đ
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+
+                    {/* Top Products */}
+                    <Card className="space-y-3">
+                      <h3 className="font-display text-base font-semibold text-ink">Sản phẩm bán chạy</h3>
+                      <div className="divide-y divide-line border-y border-line text-xs">
+                        {topProducts.map((p, idx) => (
+                          <div key={p.name} className="py-2.5 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="w-4 text-ink-3 font-mono font-medium">{idx + 1}.</span>
+                              <span className="font-medium text-ink">{p.name}</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="font-semibold text-ink tabular-nums block">
+                                {Number(p.revenue).toLocaleString('vi-VN')}đ
+                              </span>
+                              <span className="text-ink-3 text-[11px] tabular-nums block">
+                                {p.totalSold} ly đã bán
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
+                )
+              )}
 
-      {/* Tab 3: Reviews */}
-      {activeTab === 'reviews' && (
-        <div className="bg-white rounded-3xl p-6 border border-coffee-200 shadow-sm space-y-4">
-          <h3 className="font-black text-coffee-950 text-base">Kiểm duyệt đánh giá từ khách hàng</h3>
-          <div className="space-y-3">
-            {reviews.map((rev) => (
-              <div key={rev.id} className="p-4 rounded-2xl bg-coffee-50/50 border border-coffee-100 flex items-center justify-between gap-4">
-                <div className="space-y-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm text-coffee-900">{rev.customer?.fullName}</span>
-                    <span className="text-xs text-coffee-500">• Món: {rev.product?.name}</span>
-                    <div className="flex items-center text-amber-500">
-                      {Array.from({ length: rev.stars }).map((_, i) => (
-                        <Star key={i} className="w-3 h-3 fill-amber-400" />
+              {/* TAB 2: PRODUCTS */}
+              {activeTab === 'products' && (
+                tabErrors.products ? (
+                  <EmptyState
+                    title="Không thể tải sản phẩm"
+                    description={tabErrors.products}
+                    actionLabel="Tải lại sản phẩm"
+                    onAction={loadData}
+                  />
+                ) : (
+                  <Card className="space-y-4">
+                    <div className="flex items-center justify-between border-b border-line pb-3">
+                      <div>
+                        <h3 className="font-display text-base font-semibold text-ink">Thực đơn đồ uống</h3>
+                        <p className="text-xs text-ink-2 mt-0.5">Danh sách các món uống đang kinh doanh tại quầy.</p>
+                      </div>
+                      <Button variant="primary" size="sm" onClick={() => setProductModalOpen(true)} className="gap-1">
+                        <Plus className="w-3.5 h-3.5" strokeWidth={1.75} />
+                        <span>Thêm món</span>
+                      </Button>
+                    </div>
+
+                    <div className="divide-y divide-line border-y border-line text-xs">
+                      {productsList.map((p: ProductItem) => (
+                        <div key={p.id} className="py-3 flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="relative w-10 h-10 bg-surface-2 border border-line rounded overflow-hidden shrink-0">
+                              <Image src={p.imageUrl} alt={p.name} fill sizes="40px" className="object-cover" />
+                            </div>
+                            <div>
+                              <span className="font-medium text-ink text-sm block">{p.name}</span>
+                              <span className="text-ink-3 text-[11px]">{p.category}</span>
+                            </div>
+                          </div>
+                          <span className="font-semibold text-ink tabular-nums">
+                            Từ {Number(p.minPrice).toLocaleString('vi-VN')}đ
+                          </span>
+                        </div>
                       ))}
                     </div>
-                  </div>
-                  <p className="text-xs text-coffee-700">{rev.content}</p>
-                  <span className="text-[10px] text-coffee-400 font-mono">{new Date(rev.createdAt).toLocaleString('vi-VN')}</span>
-                </div>
+                  </Card>
+                )
+              )}
 
-                <button
-                  onClick={() => handleToggleReviewStatus(rev.id, rev.status)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition-colors whitespace-nowrap ${
-                    rev.status === 'VISIBLE'
-                      ? 'bg-red-50 text-red-700 hover:bg-red-100'
-                      : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                  }`}
-                >
-                  {rev.status === 'VISIBLE' ? (
-                    <>
-                      <EyeOff className="w-3.5 h-3.5" /> Ẩn đánh giá
-                    </>
-                  ) : (
-                    <>
-                      <Eye className="w-3.5 h-3.5" /> Mở hiển thị
-                    </>
-                  )}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+              {/* TAB 3: INVENTORY */}
+              {activeTab === 'inventory' && (
+                tabErrors.inventory ? (
+                  <EmptyState
+                    title="Không thể tải kho nguyên liệu"
+                    description={tabErrors.inventory}
+                    actionLabel="Tải lại kho"
+                    onAction={loadData}
+                  />
+                ) : (
+                  <Card className="space-y-4">
+                    <div className="flex items-center justify-between border-b border-line pb-3">
+                      <div>
+                        <h3 className="font-display text-base font-semibold text-ink">Kho nguyên liệu & Phiếu nhập</h3>
+                        <p className="text-xs text-ink-2 mt-0.5">Kiểm soát định mức và lập phiếu nhập kho theo nhà cung cấp.</p>
+                      </div>
+                      <Button variant="primary" size="sm" onClick={() => setImportModalOpen(true)} className="gap-1">
+                        <Plus className="w-3.5 h-3.5" strokeWidth={1.75} />
+                        <span>Lập phiếu nhập kho</span>
+                      </Button>
+                    </div>
 
-      {/* Tab 4: Promotions */}
-      {activeTab === 'promotions' && (
-        <div className="bg-white rounded-3xl p-6 border border-coffee-200 shadow-sm space-y-4">
-          <h3 className="font-black text-coffee-950 text-base">Danh sách chương trình khuyến mãi</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {promotions.map((p) => (
-              <div key={p.id} className="p-4 rounded-2xl bg-coffee-50/50 border border-coffee-100 space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="font-mono font-black text-coffee-900 text-sm">{p.code}</span>
-                  <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-bold">
-                    {p.discountType === 'PERCENT' ? `Giảm ${p.discountValue}%` : `Giảm ${Number(p.discountValue).toLocaleString('vi-VN')}đ`}
-                  </span>
-                </div>
-                <div className="text-xs text-coffee-700 font-medium">{p.name}</div>
-                <div className="flex justify-between text-[11px] text-coffee-500 pt-1 border-t border-coffee-100">
-                  <span>Đã dùng: {p.usedCount} / {p.quantity} lượt</span>
-                  <span>HSD: {new Date(p.endDate).toLocaleDateString('vi-VN')}</span>
-                </div>
-              </div>
-            ))}
+                    <div className="divide-y divide-line border-y border-line text-xs">
+                      {ingredients.map((ing) => {
+                        // Bỏ || 15000: Thiếu warningThreshold từ API thì không gắn nhãn sắp hết
+                        const isLow =
+                          ing.warningThreshold !== undefined && ing.warningThreshold !== null
+                            ? Number(ing.stockQuantity) <= Number(ing.warningThreshold)
+                            : false;
+
+                        return (
+                          <div key={ing.id} className="py-3 flex items-center justify-between">
+                            <div>
+                              <span className="font-medium text-ink block">{ing.name}</span>
+                              <span className="text-ink-3 text-[11px]">
+                                Đơn vị: {ing.unit}
+                                {ing.warningThreshold !== undefined && ing.warningThreshold !== null && (
+                                  <span className="ml-2">· Ngưỡng báo động: {ing.warningThreshold} {ing.unit}</span>
+                                )}
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <span className={`font-semibold tabular-nums block ${isLow ? 'text-danger' : 'text-ink'}`}>
+                                {Number(ing.stockQuantity).toLocaleString('vi-VN')} {ing.unit}
+                              </span>
+                              {isLow && (
+                                <span className="text-[11px] text-danger font-medium flex items-center gap-1 justify-end">
+                                  <AlertTriangle className="w-3 h-3" /> Sắp hết hàng
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </Card>
+                )
+              )}
+
+              {/* TAB 4: PROMOTIONS */}
+              {activeTab === 'promotions' && (
+                tabErrors.promotions ? (
+                  <EmptyState
+                    title="Không thể tải khuyến mãi"
+                    description={tabErrors.promotions}
+                    actionLabel="Tải lại khuyến mãi"
+                    onAction={loadData}
+                  />
+                ) : (
+                  <Card className="space-y-4">
+                    <div className="flex items-center justify-between border-b border-line pb-3">
+                      <h3 className="font-display text-base font-semibold text-ink">Mã khuyến mãi</h3>
+                      <Button variant="primary" size="sm" onClick={() => setPromoModalOpen(true)} className="gap-1">
+                        <Plus className="w-3.5 h-3.5" strokeWidth={1.75} />
+                        <span>Tạo mã mới</span>
+                      </Button>
+                    </div>
+
+                    <div className="divide-y divide-line border-y border-line text-xs">
+                      {promotions.map((p) => (
+                        <div key={p.id} className="py-3 flex items-center justify-between">
+                          <div>
+                            <span className="font-mono font-bold text-ink block">{p.code}</span>
+                            <span className="text-ink-2 text-xs">{p.name}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-semibold text-ink block">
+                              {p.discountType === 'PERCENT' ? `-${p.discountValue}%` : `-${Number(p.discountValue).toLocaleString('vi-VN')}đ`}
+                            </span>
+                            <span className="text-ink-3 text-[11px] tabular-nums">
+                              Đã dùng: {p.usedCount}/{p.quantity} lượt
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                )
+              )}
+
+              {/* TAB 5: REVIEWS */}
+              {activeTab === 'reviews' && (
+                tabErrors.reviews ? (
+                  <EmptyState
+                    title="Không thể tải đánh giá"
+                    description={tabErrors.reviews}
+                    actionLabel="Tải lại đánh giá"
+                    onAction={loadData}
+                  />
+                ) : (
+                  <Card className="space-y-4">
+                    <h3 className="font-display text-base font-semibold text-ink border-b border-line pb-3">
+                      Kiểm duyệt đánh giá
+                    </h3>
+                    <div className="divide-y divide-line border-y border-line text-xs">
+                      {reviews.map((r) => (
+                        <div key={r.id} className="py-3 flex items-center justify-between gap-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-ink">{r.customer?.fullName || 'Khách hàng'}</span>
+                              <span className="text-ink-3">đánh giá món {r.product?.name}</span>
+                              <Badge variant={r.status === 'VISIBLE' ? 'success' : 'default'}>
+                                {r.status === 'VISIBLE' ? 'Đang hiện' : 'Đang ẩn'}
+                              </Badge>
+                            </div>
+                            <p className="text-ink-2">{r.content}</p>
+                          </div>
+
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleToggleReview(r.id, r.status)}
+                            className="gap-1.5 shrink-0"
+                          >
+                            {r.status === 'VISIBLE' ? (
+                              <>
+                                <EyeOff className="w-3.5 h-3.5" strokeWidth={1.75} />
+                                <span>Ẩn đi</span>
+                              </>
+                            ) : (
+                              <>
+                                <Eye className="w-3.5 h-3.5" strokeWidth={1.75} />
+                                <span>Cho hiện</span>
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                )
+              )}
+
+              {/* TAB 6: USERS */}
+              {activeTab === 'users' && (
+                tabErrors.users ? (
+                  <EmptyState
+                    title="Không thể tải danh sách tài khoản"
+                    description={tabErrors.users}
+                    actionLabel="Tải lại danh sách"
+                    onAction={loadData}
+                  />
+                ) : (
+                  <Card className="space-y-4">
+                    <h3 className="font-display text-base font-semibold text-ink border-b border-line pb-3">
+                      Nhân sự quầy & Tài khoản
+                    </h3>
+                    <div className="divide-y divide-line border-y border-line text-xs">
+                      {accountsList.map((acc) => (
+                        <div key={acc.id} className="py-3 flex items-center justify-between gap-4">
+                          <div>
+                            <span className="font-medium text-ink block">
+                              {acc.fullName || acc.username}
+                            </span>
+                            <span className="text-ink-3 text-[11px]">
+                              @{acc.username} · Vai trò: {acc.role}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Badge variant={acc.status === 'ACTIVE' ? 'success' : 'danger'}>
+                              {acc.status === 'ACTIVE' ? 'Hoạt động' : 'Đã khóa'}
+                            </Badge>
+
+                            {acc.role !== 'ADMIN' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleToggleAccountStatus(acc.id, acc.status)}
+                                className={acc.status === 'ACTIVE' ? 'text-danger' : 'text-success'}
+                              >
+                                {acc.status === 'ACTIVE' ? (
+                                  <>
+                                    <Lock className="w-3 h-3 mr-1" />
+                                    <span>Khóa</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Unlock className="w-3 h-3 mr-1" />
+                                    <span>Mở khóa</span>
+                                  </>
+                                )}
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                )
+              )}
+            </>
+          )}
+        </main>
+      </div>
+
+      {/* Modal Lập Phiếu Nhập Kho */}
+      <Modal
+        isOpen={importModalOpen}
+        onClose={() => {
+          setImportModalOpen(false);
+          setImportError(null);
+        }}
+        title="Lập phiếu nhập kho nguyên liệu"
+        description="Chọn nhà cung cấp, nguyên liệu và số lượng nhập thực tế để cập nhật kho."
+      >
+        <form onSubmit={handleCreateImport} className="space-y-3.5 text-xs text-left">
+          {importError && (
+            <div className="p-2.5 bg-danger-soft border border-danger/30 rounded text-danger text-xs">
+              {importError}
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <label className="font-semibold text-ink block">Nhà cung cấp</label>
+            <select
+              value={selectedSupplierId}
+              onChange={(e) => setSelectedSupplierId(e.target.value)}
+              className="w-full h-9 px-2.5 bg-bg border border-line rounded text-ink focus:border-accent focus:outline-none"
+            >
+              {suppliers.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
           </div>
-        </div>
-      )}
+
+          <div className="space-y-1">
+            <label className="font-semibold text-ink block">Nguyên liệu nhập</label>
+            <select
+              value={selectedIngredientId}
+              onChange={(e) => setSelectedIngredientId(e.target.value)}
+              className="w-full h-9 px-2.5 bg-bg border border-line rounded text-ink focus:border-accent focus:outline-none"
+            >
+              {ingredients.map((ing) => (
+                <option key={ing.id} value={ing.id}>{ing.name} ({ing.unit})</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Số lượng nhập"
+              type="number"
+              min="1"
+              required
+              value={importQuantity}
+              onChange={(e) => setImportQuantity(e.target.value)}
+              placeholder="VD: 5000"
+            />
+            <Input
+              label="Đơn vị giá (VNĐ)"
+              type="number"
+              min="1"
+              required
+              value={importUnitPrice}
+              onChange={(e) => setImportUnitPrice(e.target.value)}
+              placeholder="10000"
+            />
+          </div>
+
+          {/* Hiển thị thành tiền dự tính = Số lượng x Đơn vị giá */}
+          <div className="p-2.5 bg-surface-2 border border-line rounded flex items-center justify-between text-xs">
+            <span className="text-ink-2">Thành tiền dự tính:</span>
+            <span className="font-semibold text-ink tabular-nums text-sm">
+              {estimatedImportTotal.toLocaleString('vi-VN')}đ
+            </span>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-line">
+            <Button
+              variant="secondary"
+              size="sm"
+              type="button"
+              onClick={() => {
+                setImportModalOpen(false);
+                setImportError(null);
+              }}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              type="submit"
+              loading={importLoading}
+              disabled={estimatedImportTotal <= 0}
+            >
+              Xác nhận nhập kho
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal Thêm Sản Phẩm Mới */}
+      <Modal
+        isOpen={productModalOpen}
+        onClose={() => setProductModalOpen(false)}
+        title="Thêm món uống mới"
+        description="Định cấu hình tên món, phân loại danh mục và giá mở bán."
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            setToastMsg({ message: `Đã lưu món "${newProductName}" vào thực đơn.`, type: 'success' });
+            setProductModalOpen(false);
+          }}
+          className="space-y-3.5 text-xs text-left"
+        >
+          <Input
+            label="Tên món đồ uống"
+            required
+            value={newProductName}
+            onChange={(e) => setNewProductName(e.target.value)}
+            placeholder="VD: Cà phê Muối Cố Đô"
+          />
+          <div className="space-y-1">
+            <label className="font-semibold text-ink block">Danh mục</label>
+            <select
+              value={newProductCategory}
+              onChange={(e) => setNewProductCategory(e.target.value)}
+              className="w-full h-9 px-2.5 bg-bg border border-line rounded text-ink focus:border-accent focus:outline-none"
+            >
+              <option value="COFFEE">Cà phê truyền thống</option>
+              <option value="TEA">Trà trái cây & Trà sữa</option>
+              <option value="FREEZE">Đá xay Freeze</option>
+            </select>
+          </div>
+          <Input
+            label="Đơn giá cơ bản (VNĐ)"
+            type="number"
+            required
+            value={newProductPrice}
+            onChange={(e) => setNewProductPrice(e.target.value)}
+            placeholder="35000"
+          />
+          <div className="flex justify-end gap-2 pt-3 border-t border-line">
+            <Button variant="secondary" size="sm" type="button" onClick={() => setProductModalOpen(false)}>
+              Hủy
+            </Button>
+            <Button variant="primary" size="sm" type="submit">
+              Lưu món mới
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal Tạo Mã Khuyến Mãi Mới */}
+      <Modal
+        isOpen={promoModalOpen}
+        onClose={() => setPromoModalOpen(false)}
+        title="Tạo mã khuyến mãi mới"
+        description="Định cấu hình mã giảm giá theo phần trăm hoặc số tiền cố định."
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            setToastMsg({ message: `Đã phát hành mã "${newPromoCode}".`, type: 'success' });
+            setPromoModalOpen(false);
+          }}
+          className="space-y-3.5 text-xs text-left"
+        >
+          <Input
+            label="Mã code (Viết hoa)"
+            required
+            value={newPromoCode}
+            onChange={(e) => setNewPromoCode(e.target.value.toUpperCase())}
+            placeholder="VD: SUMMERSALE"
+          />
+          <Input
+            label="Mô tả chương trình"
+            required
+            value={newPromoName}
+            onChange={(e) => setNewPromoName(e.target.value)}
+            placeholder="VD: Giảm nhiệt mùa hè"
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="font-semibold text-ink block">Loại giảm giá</label>
+              <select
+                value={newPromoType}
+                onChange={(e) => setNewPromoType(e.target.value as 'PERCENT' | 'FIXED')}
+                className="w-full h-9 px-2.5 bg-bg border border-line rounded text-ink focus:border-accent focus:outline-none"
+              >
+                <option value="PERCENT">Theo phần trăm (%)</option>
+                <option value="FIXED">Số tiền cố định (VNĐ)</option>
+              </select>
+            </div>
+            <Input
+              label={newPromoType === 'PERCENT' ? 'Tỉ lệ giảm (%)' : 'Số tiền giảm (VNĐ)'}
+              type="number"
+              required
+              value={newPromoValue}
+              onChange={(e) => setNewPromoValue(e.target.value)}
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-3 border-t border-line">
+            <Button variant="secondary" size="sm" type="button" onClick={() => setPromoModalOpen(false)}>
+              Hủy
+            </Button>
+            <Button variant="primary" size="sm" type="submit">
+              Tạo mã
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

@@ -46,6 +46,10 @@ export class PaymentService {
     }
 
     // 2. Kiểm tra đơn hàng cần thanh toán
+    if (!dto.orderId || typeof dto.orderId !== 'string') {
+      throw new BadRequestException('Mã đơn hàng (orderId) không được để trống hoặc không hợp lệ');
+    }
+
     const order = await this.prisma.order.findUnique({
       where: { id: dto.orderId },
       include: {
