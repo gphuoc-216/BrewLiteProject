@@ -38,6 +38,7 @@ export default function CheckoutPage() {
   // Trạng thái thanh toán: 'WAITING' (đang chờ) hoặc 'SUCCESS' (thành công)
   // Nếu chuyển sai nội dung -> Hệ thống giữ nguyên trạng thái WAITING, đứng im như người dùng yêu cầu
   const [paymentStatus, setPaymentStatus] = useState<'WAITING' | 'SUCCESS'>('WAITING');
+  const [paymentWarning, setPaymentWarning] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<{
     amount: number;
     senderStk: string;
@@ -118,6 +119,7 @@ export default function CheckoutPage() {
     setTtlSeconds(300);
     setIsQrExpired(false);
     setPaymentStatus('WAITING');
+    setPaymentWarning(null);
     setErrorMsg(null);
   };
 
@@ -226,6 +228,45 @@ export default function CheckoutPage() {
   useEffect(() => {
     let lastHandledTime = 0;
 
+    const processIncomingPayment = (data: any) => {
+      const paidAmt = Number(data?.amount || 0);
+      const content = String(data?.content || '').toUpperCase();
+      const targetCode = orderCodeDisplay.toUpperCase();
+
+      // 1. Kiểm tra nếu mã QR đã hết hạn (quá 5 phút)
+      if (isQrExpired || ttlSeconds <= 0) {
+        setPaymentWarning(
+          `⛔ Giao dịch nhận được nhưng MÃ QR ĐÃ HẾT HẠN (quá 5 phút). Quý khách vui lòng bấm nút "Tạo Lại Mã Mới (+5 Phút)" để cập nhật mã đơn hàng!`
+        );
+        return;
+      }
+
+      // 2. Kiểm tra nếu SAI NỘI DUNG chuyển khoản
+      if (!content.includes(targetCode)) {
+        setPaymentWarning(
+          `⚠️ Nhận được chuyển khoản ${paidAmt.toLocaleString('vi-VN')} đ nhưng SAI NỘI DUNG ("${data.content || 'Trống'}"). Mã chuẩn của đơn này là "${orderCodeDisplay}". Hệ thống chưa thể gạch nợ tự động, vui lòng giữ biên lai hoặc liên hệ hotline để được tra soát lập tức!`
+        );
+        return;
+      }
+
+      // 3. Kiểm tra nếu SAI SỐ TIỀN:
+      // a) Chuyển THIẾU TIỀN:
+      if (paidAmt < finalTotal) {
+        const missing = finalTotal - paidAmt;
+        setPaymentWarning(
+          `❌ Chuyển THIẾU TIỀN: Đã nhận ${paidAmt.toLocaleString('vi-VN')} đ (Còn thiếu ${missing.toLocaleString('vi-VN')} đ so với tổng đơn hàng ${finalTotal.toLocaleString('vi-VN')} đ). Quý khách vui lòng chuyển tiếp ${missing.toLocaleString('vi-VN')} đ với cùng nội dung "BREWLITE ${orderCodeDisplay}" để hoàn tất đơn hàng!`
+        );
+        return;
+      }
+
+      // b) Chuyển ĐỦ TIỀN hoặc THỪA TIỀN:
+      setPaymentWarning(null);
+      handlePay({
+        senderStk: data.sender || '0589822346',
+        senderName: data.senderName || data.sender_name || user?.fullName || user?.username || 'NGUYEN HOANG ANH',
+      });
+    };
+
     const checkMbPayment = async () => {
       if (paymentStatus === 'SUCCESS') return;
 
@@ -246,11 +287,10 @@ export default function CheckoutPage() {
             const targetCode = orderCodeDisplay.toUpperCase();
 
             if (content.includes(targetCode)) {
-              handlePay({
-                senderStk: data.sender || '0589822346',
-                senderName: data.sender_name || user?.fullName || user?.username || 'NGUYEN HOANG ANH',
-              });
+              processIncomingPayment(data);
               return;
+            } else if (Date.now() - data.time < 40000) {
+              processIncomingPayment(data);
             }
           }
         } catch {
@@ -262,15 +302,13 @@ export default function CheckoutPage() {
       if (orderCodeDisplay && !isPollingRef.current) {
         isPollingRef.current = true;
         try {
-          const res = await fetchApi<{ paid: boolean; payment?: any }>(
+          const res = await fetchApi<{ paid: boolean; payment?: any; mismatched?: boolean; latestPayment?: any }>(
             `/payments/mbbank-check/${orderCodeDisplay}`
           );
           if (res && res.paid && res.payment) {
-            const p = res.payment;
-            handlePay({
-              senderStk: p.sender || '0589822346',
-              senderName: p.senderName || p.sender_name || 'NGUYEN HOANG ANH',
-            });
+            processIncomingPayment(res.payment);
+          } else if (res && res.mismatched && res.latestPayment) {
+            processIncomingPayment(res.latestPayment);
           }
         } catch {
           // Bỏ qua lỗi polling khi đang chờ
@@ -287,7 +325,7 @@ export default function CheckoutPage() {
       window.removeEventListener('storage', checkMbPayment);
       clearInterval(interval);
     };
-  }, [orderCodeDisplay, handlePay, user, paymentStatus]);
+  }, [orderCodeDisplay, handlePay, user, paymentStatus, finalTotal, isQrExpired, ttlSeconds]);
 
   const copyToClipboard = (text: string, label: string) => {
     if (navigator.clipboard) {
@@ -612,6 +650,33 @@ export default function CheckoutPage() {
                 </div>
               </div>
             </div>
+
+            {/* THÔNG BÁO CẢNH BÁO ĐỐI SOÁT (SAI NỘI DUNG / THIẾU TIỀN / HẾT HẠN) */}
+            {paymentWarning && (
+              <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-500 rounded-2xl text-amber-950 dark:text-amber-200 text-xs space-y-2 animate-fade-in shadow-md">
+                <div className="flex items-center gap-2 font-display text-sm font-bold text-amber-800 dark:text-amber-300">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Cảnh Báo Đối Soát Chuyển Khoản MBBank</span>
+                </div>
+                <p className="leading-relaxed font-medium">{paymentWarning}</p>
+                <div className="pt-1 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentWarning(null)}
+                    className="px-2.5 py-1 bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 rounded text-[11px] font-semibold hover:bg-amber-300 transition-colors"
+                  >
+                    Đóng cảnh báo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => refreshCurrentQr()}
+                    className="px-2.5 py-1 bg-accent text-on-accent rounded text-[11px] font-semibold hover:bg-accent-hover transition-colors"
+                  >
+                    Tạo lại mã mới (+5 phút)
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* THÔNG BÁO THÀNH CÔNG (TING TING) */}
             {paymentStatus === 'SUCCESS' && successNotice && (

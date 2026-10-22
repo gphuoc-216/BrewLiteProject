@@ -261,6 +261,8 @@ export class PaymentService {
     if (content) {
       PaymentService.mbPayments.set(content, paymentRecord);
     }
+    // Lưu giao dịch gần nhất để hỗ trợ đối soát các trường hợp sai nội dung
+    PaymentService.mbPayments.set('LATEST_TX', paymentRecord);
 
     return {
       success: true,
@@ -276,9 +278,10 @@ export class PaymentService {
     if (!payment) {
       for (const [key, val] of PaymentService.mbPayments.entries()) {
         if (
-          key.includes(code) ||
+          key !== 'LATEST_TX' &&
+          (key.includes(code) ||
           (val.content && val.content.toUpperCase().includes(code)) ||
-          (val.orderCode && val.orderCode.toUpperCase().includes(code))
+          (val.orderCode && val.orderCode.toUpperCase().includes(code)))
         ) {
           payment = val;
           break;
@@ -288,6 +291,15 @@ export class PaymentService {
 
     if (payment && Date.now() - payment.time < 300000) { // 5 phút hiệu lực
       return { paid: true, payment };
+    }
+
+    // Nếu không khớp đơn nhưng có giao dịch vừa chuyển khoản trong 60 giây qua
+    const latestTx = PaymentService.mbPayments.get('LATEST_TX');
+    if (latestTx && Date.now() - latestTx.time < 60000) {
+      const txContent = (latestTx.content || '').toUpperCase();
+      if (!txContent.includes(code)) {
+        return { paid: false, mismatched: true, latestPayment: latestTx };
+      }
     }
 
     return { paid: false };

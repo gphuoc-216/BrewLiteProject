@@ -2631,13 +2631,13 @@
             const rawAcc = document.getElementById('destAccountInput').value;
             const acc = rawAcc.replace(/[\s\-\.]/g, '').trim();
             if (acc) {
-                const isVCB = name.includes('Vietcombank') || name.includes('VCB');
-                if (acc === '99998888') {
-                    if (!isVCB) {
-                        showAccountErrorModal("Tài khoản 99998888 không tồn tại tại ngân hàng " + name + ". Số tài khoản của BREWLITE COFFEE thuộc ngân hàng Vietcombank (VCB).");
+                const isMB = name.includes('MBBank') || name.includes('MB');
+                if (acc === '0589822346') {
+                    if (!isMB) {
+                        showAccountErrorModal("Tài khoản 0589822346 của BREWLITE COFFEE thuộc Ngân hàng TMCP Quân đội (MBBank). Quý khách vui lòng chọn ngân hàng MBBank.");
                     }
-                } else if (acc !== '99998888' && acc !== '0589822346') {
-                    showAccountErrorModal("Không tìm thấy thông tin tài khoản người thụ hưởng tại ngân hàng " + name + ". Quý khách vui lòng kiểm tra lại số tài khoản.");
+                } else {
+                    showAccountErrorModal("Không tìm thấy thông tin tài khoản người thụ hưởng (" + acc + ") tại ngân hàng " + name + " (Mã lỗi: GW288).");
                 }
             }
         }
@@ -2753,13 +2753,9 @@
                     return;
                 }
 
-                if (acc === '99998888') {
-                    if (!isVCB) {
-                        showAccountErrorModal("Tài khoản 99998888 không tồn tại tại ngân hàng " + currentTargetBank + ". Số tài khoản của BREWLITE COFFEE thuộc ngân hàng Vietcombank (VCB). Vui lòng chọn lại ngân hàng thụ hưởng (Mã lỗi: GW288).");
-                    }
-                } else if (acc === '0589822346') {
+                if (acc === '0589822346') {
                     if (!isMB) {
-                        showAccountErrorModal("Tài khoản 0589822346 thuộc ngân hàng Quân đội (MBBank). Vui lòng chọn ngân hàng thụ hưởng MBBank (Mã lỗi: GW288).");
+                        showAccountErrorModal("Tài khoản 0589822346 của BREWLITE COFFEE thuộc ngân hàng Quân đội (MBBank). Quý khách vui lòng chọn ngân hàng thụ hưởng MBBank (Mã lỗi: GW288).");
                     }
                 } else {
                     // Nhập sai bất kỳ STK nào khác
@@ -3153,8 +3149,8 @@
                     showToast("Bộ nhớ tạm trống!");
                 }
             } catch (e) {
-                showToast("Dán thông tin: 99998888 BREWLITE COFFEE");
-                quickTransferTo('99998888', 'BREWLITE COFFEE', 'Vietcombank (VCB)', 'VCB', 'Ngân hàng TMCP Ngoại thương Việt Nam');
+                showToast("Dán thông tin: 0589822346 BREWLITE COFFEE");
+                quickTransferTo('0589822346', 'BREWLITE COFFEE', 'MBBank (MB)', 'MB', 'Ngân hàng TMCP Quân đội');
             }
         }
 
@@ -3215,7 +3211,7 @@
             }
 
             currentTargetAccount = acc;
-            currentTargetName = (acc === '99998888' ? 'BREWLITE COFFEE' : (name || 'DON VI THU HUONG')).toUpperCase();
+            currentTargetName = (acc === '0589822346' ? 'BREWLITE COFFEE' : (name || 'DON VI THU HUONG')).toUpperCase();
             currentTargetAmount = amtNum;
             currentTargetMsg = msg || 'KHACH HANG BREWLITE chuyen tien';
 
