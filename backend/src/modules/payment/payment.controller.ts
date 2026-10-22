@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Headers, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, Headers, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiHeader, ApiBearerAuth } from '@nestjs/swagger';
 import { PaymentService, ProcessPaymentDto } from './payment.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -6,12 +6,12 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('Thanh toán (Payments)')
 @Controller('payments')
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
 export class PaymentController {
   constructor(private readonly paymentService: PaymentService) {}
 
   @Post()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Thực hiện thanh toán đơn hàng không tiền mặt (Idempotent)' })
   @ApiHeader({
     name: 'Idempotency-Key',
@@ -28,4 +28,17 @@ export class PaymentController {
   ) {
     return this.paymentService.processPayment(dto, idempotencyKey, user);
   }
+
+  @Post('mbbank-sync')
+  @ApiOperation({ summary: 'Webhook/Sync biến động số dư từ ứng dụng MBBank trên điện thoại' })
+  syncMbPayment(@Body() dto: any) {
+    return this.paymentService.syncMbPayment(dto);
+  }
+
+  @Get('mbbank-check/:orderCode')
+  @ApiOperation({ summary: 'Kiểm tra trạng thái thanh toán MBBank cho mã đơn hàng' })
+  checkMbPayment(@Param('orderCode') orderCode: string) {
+    return this.paymentService.checkMbPayment(orderCode);
+  }
 }
+

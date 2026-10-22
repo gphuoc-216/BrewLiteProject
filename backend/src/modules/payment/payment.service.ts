@@ -227,4 +227,70 @@ export class PaymentService {
       };
     });
   }
+
+  // --- MBBANK REALTIME CROSS-DEVICE SYNC ---
+  private static mbPayments = new Map<string, {
+    orderCode: string;
+    amount: number;
+    content: string;
+    sender: string;
+    senderName: string;
+    transId: string;
+    time: number;
+  }>();
+
+  async syncMbPayment(data: any) {
+    const content = String(data?.content || '').toUpperCase().trim();
+    const rawCode = String(data?.invoice_code || '').toUpperCase().trim();
+    const match = content.match(/BL\d+/) || content.match(/ORD-[A-Z0-9]+/) || [rawCode];
+    const orderCode = (match[0] || rawCode).replace(/^BREWLITE\s*/i, '').trim();
+
+    const paymentRecord = {
+      orderCode,
+      amount: Number(data?.amount) || 0,
+      content: data?.content || '',
+      sender: String(data?.sender || '0589822346'),
+      senderName: String(data?.sender_name || data?.senderName || 'NGUYEN HOANG ANH'),
+      transId: String(data?.trans_id || data?.transId || `FT${Date.now()}`),
+      time: Date.now(),
+    };
+
+    if (orderCode) {
+      PaymentService.mbPayments.set(orderCode, paymentRecord);
+    }
+    if (content) {
+      PaymentService.mbPayments.set(content, paymentRecord);
+    }
+
+    return {
+      success: true,
+      message: 'Đã nhận biến động số dư chuyển khoản MBBank',
+      payment: paymentRecord,
+    };
+  }
+
+  async checkMbPayment(orderCode: string) {
+    const code = String(orderCode || '').toUpperCase().trim();
+    let payment = PaymentService.mbPayments.get(code);
+
+    if (!payment) {
+      for (const [key, val] of PaymentService.mbPayments.entries()) {
+        if (
+          key.includes(code) ||
+          (val.content && val.content.toUpperCase().includes(code)) ||
+          (val.orderCode && val.orderCode.toUpperCase().includes(code))
+        ) {
+          payment = val;
+          break;
+        }
+      }
+    }
+
+    if (payment && Date.now() - payment.time < 300000) { // 5 phút hiệu lực
+      return { paid: true, payment };
+    }
+
+    return { paid: false };
+  }
 }
+

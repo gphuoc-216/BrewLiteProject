@@ -3475,20 +3475,22 @@
                 content: currentTargetMsg,
                 time: Date.now(),
                 sender: '0589822346',
+                sender_name: 'NGUYEN HOANG ANH',
                 bank: 'MBBank',
                 trans_id: transCode
             };
 
-            // Lưu vào localStorage để cả tab BrewLite nhận ngay lập tức
+            // Lưu vào localStorage để cả tab BrewLite trên cùng trình duyệt nhận ngay lập tức
             localStorage.setItem("last_mb_payment", JSON.stringify(paymentPayload));
             localStorage.setItem("brewlite_mb_payment", JSON.stringify(paymentPayload));
 
-            // Gửi API đến backend thanh toán BrewLite
+            // Gửi API đến backend thanh toán BrewLite (hoạt động đa thiết bị: điện thoại -> máy tính qua mạng LAN)
+            const host = window.location.hostname || 'localhost';
             const syncUrls = [
-                '../api_payment.php?action=pay',
-                '../../api_payment.php?action=pay',
-                '/api_payment.php?action=pay',
-                '../brewlite/api/api_payment.php'
+                'http://' + host + ':3001/api/payments/mbbank-sync',
+                '/api/payments/mbbank-sync',
+                'http://localhost:3001/api/payments/mbbank-sync',
+                '/api/mbbank/sync'
             ];
 
             syncUrls.forEach(url => {

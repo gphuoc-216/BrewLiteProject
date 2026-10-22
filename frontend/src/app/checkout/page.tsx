@@ -52,6 +52,7 @@ export default function CheckoutPage() {
   // Lưu trữ orderId và idempotencyKey để tránh tạo trùng đơn khi bấm nhiều lần
   const existingOrderRef = useRef<string | null>(null);
   const idempotencyKeyRef = useRef<string | null>(null);
+  const isPollingRef = useRef<boolean>(false);
 
   const finalTotal = getFinalTotal();
   const [orderCodeDisplay, setOrderCodeDisplay] = useState('BL8899');
@@ -221,51 +222,72 @@ export default function CheckoutPage() {
     [user, items, isQrExpired, promotion, paymentMethod, playTingTing, orderCodeDisplay, finalTotal, clearCart, router]
   );
 
-  // Lắng nghe sự kiện chuyển khoản hợp lệ từ nền (nếu có ứng dụng đồng bộ)
+  // Lắng nghe sự kiện chuyển khoản: kết hợp localStorage (cùng tab) & Backend API Polling (qua điện thoại thật trong LAN)
   useEffect(() => {
     let lastHandledTime = 0;
 
-    const checkMbPayment = () => {
+    const checkMbPayment = async () => {
+      if (paymentStatus === 'SUCCESS') return;
+
+      // 1. Kiểm tra localStorage (trường hợp mở MBBank cùng trình duyệt máy tính)
       const raw =
         localStorage.getItem('brewlite_mb_payment') || localStorage.getItem('last_mb_payment');
-      if (!raw) return;
+      if (raw) {
+        try {
+          const data = JSON.parse(raw);
+          if (
+            data &&
+            data.time &&
+            data.time > lastHandledTime &&
+            Date.now() - data.time < 120000
+          ) {
+            lastHandledTime = data.time;
+            const content = String(data.content || '').toUpperCase();
+            const targetCode = orderCodeDisplay.toUpperCase();
 
-      try {
-        const data = JSON.parse(raw);
-        if (
-          data &&
-          data.time &&
-          data.time > lastHandledTime &&
-          Date.now() - data.time < 120000
-        ) {
-          lastHandledTime = data.time;
-          const content = String(data.content || '').toUpperCase();
-          const targetCode = orderCodeDisplay.toUpperCase();
-
-          if (content.includes(targetCode)) {
-            // ĐÚNG NỘI DUNG: Kích hoạt thanh toán thành công
-            handlePay({
-              senderStk: data.sender || '0589822346',
-              senderName: data.sender_name || user?.fullName || user?.username || 'Khách Hàng BrewLite',
-            });
-          } else {
-            // SAI NỘI DUNG: Theo yêu cầu của bạn, hệ thống ĐỨNG IM, KHÔNG BÁO GÌ CẢ.
-            // Mã QR giữ nguyên, trạng thái vẫn là WAITING để bạn tự biết.
+            if (content.includes(targetCode)) {
+              handlePay({
+                senderStk: data.sender || '0589822346',
+                senderName: data.sender_name || user?.fullName || user?.username || 'NGUYEN HOANG ANH',
+              });
+              return;
+            }
           }
+        } catch {
+          // Bỏ qua lỗi parse
         }
-      } catch {
-        // Bỏ qua lỗi parse
+      }
+
+      // 2. Poll Backend API (nhận biến động từ ứng dụng MBBank trên điện thoại quét qua camera)
+      if (orderCodeDisplay && !isPollingRef.current) {
+        isPollingRef.current = true;
+        try {
+          const res = await fetchApi<{ paid: boolean; payment?: any }>(
+            `/payments/mbbank-check/${orderCodeDisplay}`
+          );
+          if (res && res.paid && res.payment) {
+            const p = res.payment;
+            handlePay({
+              senderStk: p.sender || '0589822346',
+              senderName: p.senderName || p.sender_name || 'NGUYEN HOANG ANH',
+            });
+          }
+        } catch {
+          // Bỏ qua lỗi polling khi đang chờ
+        } finally {
+          isPollingRef.current = false;
+        }
       }
     };
 
     window.addEventListener('storage', checkMbPayment);
-    const interval = setInterval(checkMbPayment, 1200);
+    const interval = setInterval(checkMbPayment, 1000);
 
     return () => {
       window.removeEventListener('storage', checkMbPayment);
       clearInterval(interval);
     };
-  }, [orderCodeDisplay, handlePay, user]);
+  }, [orderCodeDisplay, handlePay, user, paymentStatus]);
 
   const copyToClipboard = (text: string, label: string) => {
     if (navigator.clipboard) {
@@ -561,29 +583,33 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              {/* Nút bấm xác nhận khi khách đã chuyển khoản trên điện thoại */}
-              <div className="pt-2 space-y-2">
-                <Button
-                  type="button"
-                  onClick={() => handlePay()}
-                  disabled={loading || isQrExpired}
-                  className="w-full py-3.5 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all"
-                >
-                  {loading ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Đang Kiểm Tra & Xác Nhận Giao Dịch...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Check className="w-4 h-4" />
-                      <span>Tôi Đã Chuyển Khoản Xong - Kiểm Tra Giao Dịch</span>
-                    </>
-                  )}
-                </Button>
-                <p className="text-[11px] text-ink-3 text-center">
-                  Hệ thống sẽ đối soát giao dịch và tự động chuyển bạn đến trang theo dõi tiến độ đơn hàng.
-                </p>
+              {/* Trạng thái Tự Động Đối Soát Giao Dịch Thời Gian Thực */}
+              <div className="pt-2 space-y-3">
+                <div className="p-4 rounded-xl border border-blue-500/30 bg-blue-50/70 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 flex items-center gap-3 shadow-sm">
+                  <div className="relative flex items-center justify-center shrink-0">
+                    <span className="w-4 h-4 rounded-full bg-blue-600 animate-ping absolute"></span>
+                    <span className="w-3 h-3 rounded-full bg-blue-600 relative"></span>
+                  </div>
+                  <div className="text-xs space-y-0.5">
+                    <div className="font-bold text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
+                      <span>⚡ Tự động hoàn tất ngay khi tiền tài khoản bị trừ</span>
+                    </div>
+                    <p className="text-[11.5px] text-blue-600/90 dark:text-blue-400 leading-relaxed">
+                      Quét mã QR bằng ứng dụng MBBank trên điện thoại và xác nhận chuyển tiền. Hệ thống tự động nhận diện giao dịch qua mạng LAN và xác nhận đơn hàng lập tức!
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-center pt-1">
+                  <button
+                    type="button"
+                    onClick={() => handlePay()}
+                    disabled={loading || isQrExpired}
+                    className="text-[11px] text-ink-3 hover:text-accent underline transition-colors"
+                  >
+                    {loading ? 'Đang xác thực giao dịch...' : 'Hoặc bấm vào đây để xác nhận thủ công (nếu mạng yếu)'}
+                  </button>
+                </div>
               </div>
             </div>
 
