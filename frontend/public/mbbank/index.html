@@ -671,23 +671,7 @@
             color: #ffffff;
         }
 
-        /* Nút Test QR BrewLite nhanh */
-        .btn-test-qr-fast {
-            margin: 10px 20px;
-            padding: 12px;
-            border-radius: 14px;
-            background: linear-gradient(135deg, #0284c7, #0369a1);
-            color: #ffffff;
-            font-size: 13px;
-            font-weight: 700;
-            border: none;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            box-shadow: 0 4px 15px rgba(3, 105, 161, 0.4);
-        }
+
 
         /* ========================================================
            VIEW 3: SIÊU CHUYỂN TIỀN (TRANSFER HUB) - CHUẨN MBBANK
@@ -1519,7 +1503,7 @@
             </div>
 
             <!-- Viewfinder camera box -->
-            <div class="scanner-viewfinder-box" onclick="handleViewfinderClick()" style="cursor: pointer;" title="Chạm để mở Camera chụp mã QR">
+            <div class="scanner-viewfinder-box">
                 <video id="qrVideo" playsinline webkit-playsinline autoplay muted></video>
                 <canvas id="qrCanvas" style="display:none;"></canvas>
 
@@ -1528,58 +1512,9 @@
                 <div class="corner-bracket bottom-left"></div>
                 <div class="corner-bracket bottom-right"></div>
                 <div class="laser-scan-line"></div>
-
-                <!-- Overlay trạng thái camera -->
-                <div id="cameraStatusOverlay" onclick="handleOverlayClick(event)" style="position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(11, 15, 25, 0.88); color: #fff; padding: 18px; text-align: center; z-index: 12; backdrop-filter: blur(4px); cursor: pointer;">
-                    <div style="width: 52px; height: 52px; border-radius: 50%; background: rgba(37, 99, 235, 0.2); border: 1.5px solid #3b82f6; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2.3">
-                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                            <circle cx="12" cy="13" r="4"/>
-                        </svg>
-                    </div>
-                    <div style="font-size: 14px; font-weight: 800; color: #ffffff; margin-bottom: 4px;" id="cameraOverlayTitle">Chạm để mở Camera chụp mã QR</div>
-                    <div style="font-size: 11.5px; color: #94a3b8; line-height: 1.4; margin-bottom: 12px;" id="cameraOverlaySub">Chạm vào đây để mở Camera quét mã trực tiếp trên điện thoại</div>
-                    <button type="button" style="padding: 10px 20px; border-radius: 12px; background: linear-gradient(135deg, #001f70, #0036d6); color: #ffffff; font-size: 13px; font-weight: 800; border: none; cursor: pointer; box-shadow: 0 4px 14px rgba(0, 54, 214, 0.4);" onclick="handleOverlayClick(event)">
-                        📷 MỞ CAMERA CHỤP MÃ QR
-                    </button>
-                </div>
             </div>
 
-            <div class="scanner-prompt-text">Hướng camera vào mã QR hoặc bấm nút bên dưới</div>
-
-            <!-- Nút quét thử QR BrewLite (BL8899) tiện lợi -->
-            <button class="btn-test-qr-fast" onclick="simulateBrewLiteScan()">
-                <span>⚡ Quét thử QR Đơn Hàng BREWLITE COFFEE (BL8899)</span>
-            </button>
-
-            <!-- Nút quét thử QR BrewLite Coffee tiện lợi -->
-            <button class="btn-test-qr-fast" onclick="simulateBrewLiteScan()" style="margin-top: 8px; background: linear-gradient(135deg, #78350f, #b45309); border-color: #f59e0b;">
-                <span>☕ Quét thử QR Cà Phê BREWLITE (Tự Động Nhận Mã Đơn)</span>
-            </button>
-
-            <!-- Hàng chứng nhận chuẩn VietQR / MB -->
-            <div style="text-align: center; margin: 16px 0 6px 0;">
-                <span style="font-size: 12px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Chấp nhận mọi mã QR</span>
-                <span style="font-size: 11px; color: #60a5fa; display: block; margin-top: 2px;">(Chạm vào đây để quét tự động)</span>
-            </div>
-            <div class="accepted-qr-strip" onclick="simulateBrewLiteScan()" style="cursor: pointer;" title="Chạm để quét mã QR">
-                <div class="accepted-qr-item" style="color:#60a5fa;" onclick="simulateBrewLiteScan()">
-                    <span>★ MB QR</span>
-                </div>
-                <div class="accepted-qr-item" style="color:#34d399;" onclick="simulateBrewLiteScan()">
-                    <span>✔ VietQR Napas247</span>
-                </div>
-                <div class="accepted-qr-item" style="color:#fbbf24;" onclick="simulateBrewLiteScan()">
-                    <span>💳 VNPAY-QR</span>
-                </div>
-            </div>
-
-            <!-- Gợi ý chụp ảnh mã QR thuần HTTP -->
-            <div style="margin: 10px 16px 0 16px; background: rgba(30, 41, 59, 0.7); border: 1px solid #334155; border-radius: 12px; padding: 10px; text-align: center;">
-                <div style="font-size: 11.5px; color: #94a3b8; line-height: 1.4;">
-                    💡 Chạm vào ô ngắm hoặc bấm <b>Chụp ảnh QR</b> bên dưới để mở Camera máy quét mã trên màn hình.
-                </div>
-            </div>
+            <div class="scanner-prompt-text">Hướng camera vào mã QR để quét</div>
 
             <!-- 3 Nút hành động đáy camera -->
             <div class="scanner-bottom-actions">
@@ -2871,11 +2806,6 @@
         // ==================== ENGINE QUÉT QR REAL-TIME ====================
         function openScanner() {
             switchView('viewScanner');
-            const overlay = document.getElementById('cameraStatusOverlay');
-            // Nếu đã từng cấp quyền thành công -> ẩn ngay overlay để quét bình thường
-            if (localStorage.getItem('mb_camera_granted') === '1' && overlay) {
-                overlay.style.display = 'none';
-            }
             startCameraStream();
         }
 
@@ -2884,45 +2814,10 @@
             switchView('viewHome');
         }
 
-        function handleViewfinderClick() {
-            if (activeVideoStream) return;
-            triggerCameraCapture();
-        }
-
-        function handleOverlayClick(e) {
-            if (e) {
-                e.stopPropagation();
-                e.preventDefault();
-            }
-            triggerCameraCapture();
-        }
-
-        function requestCameraOnIos(e) {
-            handleOverlayClick(e);
-        }
-
-        function showIosHttpsModal() {
-            triggerCameraCapture();
-        }
-
-        function closeIosHttpsModal() {}
-
-        function redirectToHttps() {}
-
         async function startCameraStream() {
             const video = document.getElementById('qrVideo');
-            const overlay = document.getElementById('cameraStatusOverlay');
-            const titleEl = document.getElementById('cameraOverlayTitle');
-            const subEl = document.getElementById('cameraOverlaySub');
-
             isScannerLoopActive = true;
 
-            const hasGrantedBefore = localStorage.getItem('mb_camera_granted') === '1';
-            if (hasGrantedBefore && overlay) {
-                overlay.style.display = 'none';
-            }
-
-            // Cấu hình video bắt buộc cho iOS Safari WebKit
             if (video) {
                 video.muted = true;
                 video.playsInline = true;
@@ -2932,46 +2827,40 @@
                 video.setAttribute('webkit-playsinline', '');
             }
 
-            // Thử trực tiếp mở Camera Live Stream nếu thiết bị hỗ trợ
-            let stream = null;
+            if (activeVideoStream) {
+                try {
+                    activeVideoStream.getTracks().forEach(t => t.stop());
+                } catch (e) {}
+                activeVideoStream = null;
+            }
+
             if (navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
                 const constraintList = [
-                    { video: { facingMode: { exact: "environment" } } },
-                    { video: { facingMode: "environment" } },
-                    { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } } },
-                    { video: true }
+                    { video: { facingMode: { exact: "environment" } }, audio: false },
+                    { video: { facingMode: "environment" }, audio: false },
+                    { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+                    { video: true, audio: false }
                 ];
 
                 for (const constraints of constraintList) {
                     try {
-                        stream = await navigator.mediaDevices.getUserMedia(constraints);
-                        if (stream) break;
+                        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                        if (stream) {
+                            activeVideoStream = stream;
+                            if (video) {
+                                video.srcObject = stream;
+                                try {
+                                    await video.play();
+                                } catch (playErr) {
+                                    console.warn("video.play() warning:", playErr);
+                                }
+                            }
+                            requestAnimationFrame(scanVideoFrameTick);
+                            return;
+                        }
                     } catch (e) {
-                        console.log("Thử cấu hình camera tiếp theo:", e);
+                        console.warn("Thử camera constraint tiếp:", e);
                     }
-                }
-            }
-
-            if (stream) {
-                activeVideoStream = stream;
-                if (video) {
-                    video.srcObject = stream;
-                    try {
-                        await video.play();
-                    } catch (playErr) {
-                        console.warn("video.play() failed:", playErr);
-                    }
-                }
-                localStorage.setItem('mb_camera_granted', '1');
-                if (overlay) overlay.style.display = 'none';
-                requestAnimationFrame(scanVideoFrameTick);
-                showToast("Camera đã mở! Hãy hướng mã QR vào ô ngắm");
-            } else {
-                // Trình duyệt di động trên HTTP chặn Live Stream -> hiển thị nút chụp ảnh camera gốc ngay
-                if (overlay) {
-                    overlay.style.display = 'flex';
-                    if (titleEl) titleEl.innerText = "Chạm để mở Camera chụp mã QR";
-                    if (subEl) subEl.innerText = "Chạy 100% HTTP - Mở camera chụp trực tiếp không cần HTTPS";
                 }
             }
         }
@@ -2979,17 +2868,13 @@
         function stopCameraStream() {
             isScannerLoopActive = false;
             if (activeVideoStream) {
-                activeVideoStream.getTracks().forEach(t => t.stop());
+                try {
+                    activeVideoStream.getTracks().forEach(t => t.stop());
+                } catch (e) {}
                 activeVideoStream = null;
             }
             const video = document.getElementById('qrVideo');
             if (video) video.srcObject = null;
-            const overlay = document.getElementById('cameraStatusOverlay');
-            // Nếu đã từng cấp quyền -> GIỮ NGUYÊN ẨN OVERLAY để lần sau bấm quét là mở camera ngay lập tức
-            const hasGrantedBefore = localStorage.getItem('mb_camera_granted') === '1';
-            if (overlay) {
-                overlay.style.display = hasGrantedBefore ? 'none' : 'flex';
-            }
         }
 
         function scanVideoFrameTick() {
@@ -3094,25 +2979,7 @@
             e.target.value = '';
         }
 
-        // Quét thử BrewLite
-        async function simulateBrewLiteScan() {
-            try {
-                const res = await fetch('/api_payment.php?action=get_invoice&code=BL8899&t=' + Date.now());
-                const data = await res.json();
-                if (data.success && data.invoice && data.invoice.vietqr_emv) {
-                    onQrScanSuccess(data.invoice.vietqr_emv);
-                    return;
-                }
-            } catch (e) {}
-            onQrScanSuccess("00020101021238520010A000000727012200069704360108999988880208QRIBFTTA5303704540738500005802VN62090805BL88996304");
-        }
-
-        // Quét thử BrewLite Coffee
-        function simulateBrewLiteScan() {
-            const code = localStorage.getItem('brewlite_pending_order') || 'BL8899';
-            const raw = `https://img.vietqr.io/image/MB-0589822346-compact2.png?amount=65000&addInfo=BREWLITE%20${code}&accountName=BREWLITE%20COFFEE`;
-            onQrScanSuccess(raw);
-        }
+        // Đã gỡ bỏ toàn bộ hàm simulateBrewLiteScan theo yêu cầu
 
         const BANK_BINS = {
             '970436': { code: 'VCB', name: 'Vietcombank (VCB)', sub: 'Ngân hàng TMCP Ngoại thương Việt Nam' },
