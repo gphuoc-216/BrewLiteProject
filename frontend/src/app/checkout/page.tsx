@@ -55,11 +55,11 @@ export default function CheckoutPage() {
   const isPollingRef = useRef<boolean>(false);
 
   const finalTotal = getFinalTotal();
-  const [orderCodeDisplay, setOrderCodeDisplay] = useState('BL8899');
+  const [orderCodeDisplay, setOrderCodeDisplay] = useState<string>(() => 'BL' + Math.floor(100000 + Math.random() * 900000));
 
-  // Khởi tạo mã đơn hàng ngẫu nhiên
+  // Khởi tạo mã đơn hàng ngẫu nhiên chuyên nghiệp chuẩn VietQR (6 chữ số)
   useEffect(() => {
-    const randomCode = 'BL' + Math.floor(1000 + Math.random() * 9000);
+    const randomCode = 'BL' + Math.floor(100000 + Math.random() * 900000);
     setOrderCodeDisplay(randomCode);
     localStorage.setItem('brewlite_pending_order', randomCode);
   }, []);
@@ -110,9 +110,9 @@ export default function CheckoutPage() {
     return () => clearInterval(timer);
   }, [ttlSeconds]);
 
-  // Làm mới mã QR (gia hạn thêm 5 phút)
+  // Làm mới mã QR (gia hạn thêm 5 phút với mã mới)
   const refreshCurrentQr = () => {
-    const newCode = 'BL' + Math.floor(1000 + Math.random() * 9000);
+    const newCode = 'BL' + Math.floor(100000 + Math.random() * 900000);
     setOrderCodeDisplay(newCode);
     localStorage.setItem('brewlite_pending_order', newCode);
     setTtlSeconds(300);

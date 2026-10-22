@@ -1597,7 +1597,7 @@
                     <span class="round-action-label">Số thẻ</span>
                 </div>
 
-                <div class="round-action-item" onclick="quickTransferTo('99998888', 'BREWLITE COFFEE', 'Vietcombank (VCB)', 'VCB', 'Ngân hàng TMCP Ngoại thương Việt Nam')">
+                <div class="round-action-item" onclick="quickTransferTo('0589822346', 'BREWLITE COFFEE', 'MBBank (MB)', 'MB', 'Ngân hàng TMCP Quân đội')">
                     <div class="round-action-icon">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -1654,11 +1654,11 @@
                 <div class="recent-section-header">Người nhận gần đây</div>
 
                 <!-- Contact duy nhất: BREWLITE COFFEE -->
-                <div class="contact-item-card" onclick="quickTransferTo('99998888', 'BREWLITE COFFEE', 'Vietcombank (VCB)', 'VCB', 'Ngân hàng TMCP Ngoại thương Việt Nam')">
+                <div class="contact-item-card" onclick="quickTransferTo('0589822346', 'BREWLITE COFFEE', 'MBBank (MB)', 'MB', 'Ngân hàng TMCP Quân đội')">
                     <div class="contact-avatar-pill" style="background:#fef3c7; color:#b45309;">☕</div>
                     <div class="contact-info-col">
                         <div class="contact-name-title">BREWLITE COFFEE</div>
-                        <div class="contact-account-sub">99998888 • Vietcombank (VCB)</div>
+                        <div class="contact-account-sub">0589822346 • MBBank (MB)</div>
                     </div>
                     <span style="font-size: 18px; color:#94a3b8;">›</span>
                 </div>
@@ -1780,7 +1780,7 @@
                 </div>
                 <div class="confirm-row">
                     <span class="confirm-label">Số tài khoản nhận:</span>
-                    <span class="confirm-value" id="confirmAccVal">99998888</span>
+                    <span class="confirm-value" id="confirmAccVal">0589822346</span>
                 </div>
                 <div class="confirm-row">
                     <span class="confirm-label">Tài khoản trích tiền:</span>
@@ -1826,7 +1826,7 @@
                         <span id="receiptDestBank">MBBank (Ngân hàng TMCP Quân đội)</span>
                     </div>
                     <div style="font-size: 13.5px; font-weight: 700; color: #334155; margin-bottom: 4px;">
-                        STK: <span id="receiptDestAcc">99998888</span>
+                        STK: <span id="receiptDestAcc">0589822346</span>
                     </div>
                     <div class="receipt-divider"></div>
                     <div style="font-size: 12.5px; color: #64748b; line-height: 1.45;">
@@ -2176,39 +2176,22 @@
             return null;
         }
 
-        // Quản lý số dư người dùng (Đồng bộ thời gian thực qua Server Apache cho mọi thiết bị iPhone / PC)
+        // Quản lý số dư người dùng (Mặc định 50.000.000đ, trừ tiền là trừ luôn lưu bền vững vào localStorage)
         const DEFAULT_START_BALANCE = 50000000;
-        let cachedServerBalance = null;
 
         function getUserBalance() {
-            if (cachedServerBalance !== null) return cachedServerBalance;
             const saved = localStorage.getItem('mb_user_balance');
-            return saved !== null ? parseInt(saved, 10) : DEFAULT_START_BALANCE;
+            if (saved !== null && !isNaN(parseInt(saved, 10))) {
+                return parseInt(saved, 10);
+            }
+            localStorage.setItem('mb_user_balance', DEFAULT_START_BALANCE);
+            return DEFAULT_START_BALANCE;
         }
 
         function saveUserBalance(amt) {
-            cachedServerBalance = amt;
             localStorage.setItem('mb_user_balance', amt);
             renderAllBalanceElements();
-            // Đồng bộ ngay lên Server XAMPP cho mọi máy tính & điện thoại cùng mạng
-            fetchApiPayment('action=set_balance&balance=' + amt);
         }
-
-        // Tự động đồng bộ số dư từ Server về thiết bị định kỳ (mỗi 1.5 giây cho mọi thiết bị)
-        async function syncBalanceFromServer() {
-            try {
-                const data = await fetchApiPayment('action=get_balance');
-                if (data && data.success && typeof data.balance === 'number') {
-                    if (cachedServerBalance !== data.balance) {
-                        cachedServerBalance = data.balance;
-                        localStorage.setItem('mb_user_balance', data.balance);
-                        renderAllBalanceElements();
-                    }
-                }
-            } catch (err) {}
-        }
-        syncBalanceFromServer();
-        setInterval(syncBalanceFromServer, 1500);
 
         let isBalanceHidden = true;
         let activeVideoStream = null;
@@ -2510,11 +2493,11 @@
         }
 
         function quickTransferTo(stk, name, bankName, bankCode, bankSub) {
-            document.getElementById('destAccountInput').value = stk;
-            document.getElementById('destNameInput').value = name;
+            document.getElementById('destAccountInput').value = stk || '0589822346';
+            document.getElementById('destNameInput').value = name || 'BREWLITE COFFEE';
             document.getElementById('transferAmountInput').value = '';
-            document.getElementById('transferMsgInput').value = 'KHACH HANG BREWLITE chuyen tien';
-            selectBank(bankCode || (stk === '99998888' ? 'VCB' : 'MB'), bankName, bankSub || (stk === '99998888' ? 'Ngân hàng TMCP Ngoại thương Việt Nam' : 'Ngân hàng TMCP Quân đội'));
+            document.getElementById('transferMsgInput').value = 'BREWLITE COFFEE';
+            selectBank(bankCode || 'MB', bankName || 'MBBank (MB)', bankSub || 'Ngân hàng TMCP Quân đội');
             switchView('viewTransferForm');
         }
 
@@ -2708,43 +2691,24 @@
             const isVCB = currentTargetBank && (currentTargetBank.includes('Vietcombank') || currentTargetBank.includes('VCB'));
             const isMB = currentTargetBank && (currentTargetBank.includes('MBBank') || currentTargetBank.includes('MB'));
 
-            // Trường hợp 1: STK 99998888 (Tài khoản cửa hàng BrewLite Coffee)
-            if (acc === '99998888') {
-                if (isVCB) {
-                    // Chọn ĐÚNG Vietcombank thì tra cứu thành công
+            // Trường hợp STK 0589822346 (Tài khoản cửa hàng BrewLite Coffee)
+            if (acc === '0589822346') {
+                if (isMB) {
                     nameEl.value = 'BREWLITE COFFEE';
                     nameEl.style.background = '#f0fdf4';
                     nameEl.style.borderColor = '#22c55e';
                     nameEl.style.color = '#15803d';
                     nameEl.style.fontWeight = '800';
-                    if (!msgEl.value || msgEl.value === 'Chuyen tien MB') {
-                        msgEl.value = 'KHACH HANG BREWLITE chuyen tien';
+                    if (!msgEl.value) {
+                        msgEl.value = 'BREWLITE COFFEE';
                     }
                 } else {
-                    // Chọn SAI ngân hàng
                     nameEl.value = 'TÀI KHOẢN KHÔNG TỒN TẠI (GW288)';
                     nameEl.style.background = '#fef2f2';
                     nameEl.style.borderColor = '#ef4444';
                     nameEl.style.color = '#dc2626';
                     nameEl.style.fontWeight = '700';
                 }
-            // Trường hợp 2: STK 0589822346 (Tài khoản khách hàng thành viên)
-            } else if (acc === '0589822346') {
-                if (isMB) {
-                    nameEl.value = 'KHACH HANG BREWLITE';
-                    nameEl.style.background = '#f0fdf4';
-                    nameEl.style.borderColor = '#22c55e';
-                    nameEl.style.color = '#15803d';
-                    nameEl.style.fontWeight = '800';
-                    if (!msgEl.value) msgEl.value = 'KHACH HANG BREWLITE chuyen tien';
-                } else {
-                    nameEl.value = 'TÀI KHOẢN KHÔNG TỒN TẠI (GW288)';
-                    nameEl.style.background = '#fef2f2';
-                    nameEl.style.borderColor = '#ef4444';
-                    nameEl.style.color = '#dc2626';
-                    nameEl.style.fontWeight = '700';
-                }
-            // Trường hợp 3: Nhập bất kỳ STK nào khác (Mô phỏng sai STK thực tế)
             } else {
                 nameEl.value = 'TÀI KHOẢN KHÔNG TỒN TẠI (GW288)';
                 nameEl.style.background = '#fef2f2';
@@ -3047,6 +3011,12 @@
             let account = "";
             let name = "";
             let amount = "";
+            let bank = "MBBank (MB)";
+            let bankCode = "MB";
+            let bankSub = "Ngân hàng TMCP Quân đội";
+            let account = "0589822346";
+            let name = "BREWLITE COFFEE";
+            let amount = "";
             let msg = "";
             let isRecognized = false;
 
@@ -3059,31 +3029,27 @@
                     if (sub38['01']) {
                         const sub01 = parseSubTLV(sub38['01']);
                         const bin = sub01['00'] || '';
-                        account = sub01['01'] || '';
+                        account = sub01['01'] || '0589822346';
 
                         if (BANK_BINS[bin]) {
                             bankCode = BANK_BINS[bin].code;
                             bank = BANK_BINS[bin].name;
                             bankSub = BANK_BINS[bin].sub;
-                        } else if (bin === '970436' || account === '99998888') {
-                            bankCode = 'VCB';
-                            bank = 'Vietcombank (VCB)';
-                            bankSub = 'Ngân hàng TMCP Ngoại thương Việt Nam';
                         }
                     }
 
-                    // Lấy chính xác số tiền từ Tag 54 của mã QR được quét (nếu có)
+                    // Lấy chính xác số tiền từ Tag 54
                     if (tags['54'] && parseInt(tags['54'], 10) > 0) {
                         amount = tags['54'];
                     }
 
-                    // Lấy nội dung / mã hóa đơn từ Tag 62
+                    // Lấy nội dung chuyển tiền từ Tag 62 (subtag 08)
                     if (tags['62']) {
                         const sub62 = parseSubTLV(tags['62']);
                         if (sub62['08']) msg = sub62['08'];
                     }
 
-                    // Tên người thụ hưởng nếu có trong Tag 59
+                    // Tên người thụ hưởng từ Tag 59
                     if (tags['59']) name = tags['59'];
                 }
             }
@@ -3099,9 +3065,6 @@
                     if (foundBank) {
                         bank = foundBank.name;
                         bankSub = foundBank.sub;
-                    } else if (bankCode === 'VCB') {
-                        bank = 'Vietcombank (VCB)';
-                        bankSub = 'Ngân hàng TMCP Ngoại thương Việt Nam';
                     }
                 }
                 const mAmt = raw.match(/amount=(\d+)/);
@@ -3110,7 +3073,7 @@
                 }
                 const mInfo = raw.match(/addInfo=([^&]+)/);
                 if (mInfo && mInfo[1]) {
-                    msg = decodeURIComponent(mInfo[1]);
+                    msg = decodeURIComponent(mInfo[1]).replace(/\+/g, ' ');
                 }
                 const mName = raw.match(/accountName=([^&]+)/);
                 if (mName && mName[1]) {
@@ -3118,75 +3081,44 @@
                 }
             }
 
-            // 3. MÃ QR NỘI BỘ MBBANK (KHACH HANG BREWLITE 0589822346)
-            if (!isRecognized && raw.includes("0589822346")) {
-                isRecognized = true;
-                bank = "MBBank (MB)";
-                bankCode = "MB";
-                bankSub = "Ngân hàng TMCP Quân đội";
-                account = "0589822346";
-                name = "KHACH HANG BREWLITE";
-                msg = "KHACH HANG BREWLITE chuyen tien";
-            }
-
-            // 4. MÃ QR BREWLITE COFFEE (STK 0589822346 hoặc có chữ BREWLITE)
+            // 3. Fallback nhận diện nếu chứa chữ BREWLITE hoặc số tài khoản 0589822346
             if (!isRecognized && (raw.toUpperCase().includes("BREWLITE") || raw.includes("0589822346"))) {
                 isRecognized = true;
-                bank = "MBBank (MB)";
-                bankCode = "MB";
-                bankSub = "Ngân hàng TMCP Quân đội";
                 account = "0589822346";
+                bankCode = "MB";
+                bank = "MBBank (MB)";
+                bankSub = "Ngân hàng TMCP Quân đội";
                 name = "BREWLITE COFFEE";
+                const matchBL = raw.match(/BL\d+/i) || raw.match(/ORD-[A-Z0-9]+/i);
+                if (matchBL) msg = `BREWLITE ${matchBL[0]}`;
+                const matchAmt = raw.match(/\b\d{4,7}\b/);
+                if (matchAmt) amount = matchAmt[0];
             }
 
-            // 5. MÃ QR BREWLITE CHỨA STK 99998888
-            if (!isRecognized && (raw.includes("99998888") || raw.toUpperCase().includes("BREWLITE"))) {
-                isRecognized = true;
-                bank = "Vietcombank (VCB)";
-                bankCode = "VCB";
-                bankSub = "Ngân hàng TMCP Ngoại thương Việt Nam";
-                account = "99998888";
-                name = "BREWLITE COFFEE";
-            }
-
-            // NẾU KHÔNG NHẬN DIỆN ĐƯỢC THÔNG TIN NGÂN HÀNG HỢP LỆ -> TỪ CHỐI, KHÔNG NHẬN DIỆN BỪA
-            if (!isRecognized || (!account && !bankCode)) {
+            if (!isRecognized) {
                 return false;
             }
 
-            // Xác thực tên thụ hưởng chính xác nếu là BrewLite (bắt buộc Vietcombank 99998888)
-            if (account === '99998888') {
-                bank = "Vietcombank (VCB)";
-                bankCode = "VCB";
-                bankSub = "Ngân hàng TMCP Ngoại thương Việt Nam";
-                name = "BREWLITE COFFEE";
+            // Đảm bảo thông tin thụ hưởng chính xác cho BrewLite
+            if (account === '0589822346' || !name || name.toUpperCase().includes('BREWLITE')) {
+                account = '0589822346';
+                bank = 'MBBank (MB)';
+                bankCode = 'MB';
+                bankSub = 'Ngân hàng TMCP Quân đội';
+                name = 'BREWLITE COFFEE';
             }
 
-            // Tra cứu hóa đơn thực tế trên server máy chủ (đồng bộ ngay khi Admin sửa giá tiền trên admin.html)
-            const matchCode = (raw.toUpperCase().match(/HD\d+/) || msg.toUpperCase().match(/HD\d+/) || [''])[0];
-            if (matchCode) {
-                msg = "KHACH HANG BREWLITE chuyen tien " + matchCode;
-                try {
-                    const invData = await fetchApiPayment('action=get_invoice&code=' + matchCode);
-                    if (invData && invData.success && invData.invoice) {
-                        // Ưu tiên số tiền thực tế mới nhất do Admin vừa cập nhật trên server
-                        if (invData.invoice.amount) {
-                            amount = String(invData.invoice.amount);
-                        }
-                        if (invData.invoice.hotel) name = invData.invoice.hotel;
-                        if (invData.invoice.stk) account = invData.invoice.stk;
-                    }
-                } catch (e) {
-                    console.log("Invoice live sync note:", e);
-                }
+            // Trích xuất mã hóa đơn nếu có
+            const matchCode = (raw.toUpperCase().match(/BL\d+/) || raw.toUpperCase().match(/ORD-[A-Z0-9]+/) || msg.toUpperCase().match(/BL\d+/) || msg.toUpperCase().match(/ORD-[A-Z0-9]+/) || [''])[0];
+            if (matchCode && (!msg || !msg.includes(matchCode))) {
+                msg = `BREWLITE ${matchCode}`;
             }
 
             selectBank(bankCode, bank, bankSub);
             document.getElementById('destAccountInput').value = account;
             document.getElementById('destNameInput').value = name;
-            // ĐIỀN ĐÚNG GIÁ TIỀN: Nếu mã QR có số tiền thì điền đúng số tiền đó, nếu không có số tiền thì để trống
             document.getElementById('transferAmountInput').value = amount ? amount : '';
-            document.getElementById('transferMsgInput').value = msg || ('KHACH HANG BREWLITE chuyen tien' + (matchCode ? ' ' + matchCode : ''));
+            document.getElementById('transferMsgInput').value = msg || (matchCode ? `BREWLITE ${matchCode}` : 'BREWLITE COFFEE');
 
             if (amount) {
                 showToast(`Đã nhận diện: ${parseInt(amount, 10).toLocaleString('vi-VN')}đ • ${name}`);
@@ -3430,18 +3362,13 @@
             const memo = urlParams.get('memo');
             const orderCode = urlParams.get('orderCode');
             const name = urlParams.get('name') || 'BREWLITE COFFEE';
-            const account = urlParams.get('account') || '99998888';
-            const bank = urlParams.get('bank') || (account === '99998888' ? 'VCB' : 'MBB');
-
+            const account = urlParams.get('account') || '0589822346';
+            const bank = urlParams.get('bank') || 'MB';
             const scanParam = urlParams.get('scan') || urlParams.get('action');
 
             if (!restored && (amount || memo || orderCode)) {
-                const finalMemo = memo || (orderCode ? `BREWLITE ${orderCode}` : 'BREWLITE THANH TOAN');
-                if (account === '99998888') {
-                    selectBank('VCB', 'Vietcombank (VCB)', 'Ngân hàng TMCP Ngoại thương Việt Nam');
-                } else if (typeof selectBank === 'function') {
-                    selectBank(bank, 'MBBank (MBB)', 'Ngân hàng TMCP Quân Đội');
-                }
+                const finalMemo = memo || (orderCode ? `BREWLITE ${orderCode}` : 'BREWLITE COFFEE');
+                selectBank(bank, 'MBBank (MB)', 'Ngân hàng TMCP Quân đội');
                 const accInput = document.getElementById('destAccountInput');
                 const nameInput = document.getElementById('destNameInput');
                 const amtInput = document.getElementById('transferAmountInput');
@@ -3453,22 +3380,21 @@
                 if (msgInput) msgInput.value = finalMemo;
 
                 // Tự động chuyển thẳng vào màn hình Chuyển tiền đã điền sẵn thông tin
-                if (typeof switchView === 'function') {
-                    switchView('viewTransferForm');
-                }
-                if (typeof saveAppState === 'function') {
-                    saveAppState();
-                }
+                switchView('viewTransferForm');
                 if (typeof showToast === 'function') {
-                    showToast(`Đã nhận diện đơn hàng: ${finalMemo} • ${Number(amount || 0).toLocaleString('vi-VN')}đ`);
+                    showToast(`Đã nhận diện: ${finalMemo} • ${Number(amount || 0).toLocaleString('vi-VN')}đ`);
                 }
-            } else if (!restored || scanParam === '1' || scanParam === 'scan' || window.location.hash === '#viewScanner') {
+            } else if (scanParam === '1' || scanParam === 'scan' || window.location.hash === '#viewScanner') {
                 // Tự động mở ngay màn hình Quét mã QR & kích hoạt Camera để quét mã VietQR trên máy tính
                 setTimeout(() => {
                     if (typeof openScanner === 'function') {
                         openScanner();
                     }
                 }, 150);
+            } else {
+                // MẶC ĐỊNH: Hiển thị Giao diện chính MBBank (Trang chủ) với số dư 50tr
+                switchView('viewHome');
+                renderAllBalanceElements();
             }
         });
     </script>
