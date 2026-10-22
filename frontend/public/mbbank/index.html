@@ -2292,7 +2292,11 @@
         function saveAppState() {
             try {
                 const activeViewEl = document.querySelector('.app-view.active');
-                const activeViewId = activeViewEl ? activeViewEl.id : ((window.location.hash || '').replace('#', '') || 'viewHome');
+                let activeViewId = activeViewEl ? activeViewEl.id : 'viewHome';
+                // Không bao giờ lưu viewScanner để tránh kẹt ở màn hình quét camera khi tải lại trang
+                if (activeViewId === 'viewScanner') {
+                    activeViewId = 'viewHome';
+                }
 
                 const state = {
                     activeView: activeViewId,
@@ -2356,6 +2360,11 @@
                     targetViewId = state.activeView;
                 }
 
+                // Tuyệt đối không tự động quay lại viewScanner khi F5/mở lại app
+                if (targetViewId === 'viewScanner') {
+                    targetViewId = 'viewHome';
+                }
+
                 // Khôi phục các biến chuyển tiền và dữ liệu
                 if (state) {
                     if (state.currentTargetBank) currentTargetBank = state.currentTargetBank;
@@ -2416,7 +2425,7 @@
                 }
 
                 // Chuyển đúng view người dùng đang đứng trước khi F5
-                if (targetViewId && targetViewId !== 'viewHome') {
+                if (targetViewId && targetViewId !== 'viewHome' && targetViewId !== 'viewScanner') {
                     switchView(targetViewId, false);
                     if (typeof onAccountInputChange === 'function') {
                         onAccountInputChange();
@@ -2439,10 +2448,16 @@
                 target.scrollTop = 0;
             }
 
-            // Đồng bộ hash URL để khi F5 trình duyệt giữ nguyên 100%
+            // Đồng bộ hash URL để khi F5 trình duyệt giữ nguyên (chỉ cho màn hình con, không gắn hash cho viewScanner hoặc viewHome)
             try {
-                if (window.location.hash !== '#' + viewId) {
-                    history.replaceState(null, '', '#' + viewId);
+                if (viewId !== 'viewScanner' && viewId !== 'viewHome') {
+                    if (window.location.hash !== '#' + viewId) {
+                        history.replaceState(null, '', '#' + viewId);
+                    }
+                } else {
+                    if (window.location.hash) {
+                        history.replaceState(null, '', window.location.pathname + window.location.search);
+                    }
                 }
             } catch (e) {}
 
@@ -3334,6 +3349,20 @@
 
         // Tự động khôi phục giao diện khi F5 & nhận diện tham số URL từ trang Checkout BrewLite
         window.addEventListener('DOMContentLoaded', () => {
+            // Dọn dẹp URL hash và state nếu trước đó từng kẹt viewScanner
+            if (window.location.hash === '#viewScanner' || window.location.hash === '#viewHome') {
+                try {
+                    history.replaceState(null, '', window.location.pathname + window.location.search);
+                } catch (e) {}
+            }
+            try {
+                const oldRaw = localStorage.getItem('mb_app_state');
+                if (oldRaw && oldRaw.includes('"viewScanner"')) {
+                    localStorage.removeItem('mb_app_state');
+                    sessionStorage.removeItem('mb_app_state');
+                }
+            } catch (e) {}
+
             // Lắng nghe sự kiện người dùng gõ để lưu trạng thái tức thì
             ['destAccountInput', 'transferAmountInput', 'transferMsgInput'].forEach(id => {
                 const el = document.getElementById(id);
@@ -3347,10 +3376,6 @@
                 }
             });
 
-            // 1. Thử khôi phục trạng thái bước làm việc trước đó nếu người dùng F5
-            const restored = (typeof restoreAppState === 'function') ? restoreAppState() : false;
-
-            // 2. Nếu chưa có phiên làm việc lưu trước đó, kiểm tra tham số URL từ trang Checkout BrewLite
             const urlParams = new URLSearchParams(window.location.search);
             const amount = urlParams.get('amount');
             const memo = urlParams.get('memo');
@@ -3360,6 +3385,20 @@
             const bank = urlParams.get('bank') || 'MB';
             const scanParam = urlParams.get('scan') || urlParams.get('action');
 
+            // 1. Nếu cố ý có tham số scan=1 -> Mở trực tiếp camera quét mã
+            if (scanParam === '1' || scanParam === 'scan') {
+                setTimeout(() => {
+                    if (typeof openScanner === 'function') {
+                        openScanner();
+                    }
+                }, 150);
+                return;
+            }
+
+            // 2. Thử khôi phục trạng thái form nếu người dùng F5 trong lúc nhập liệu
+            const restored = (typeof restoreAppState === 'function') ? restoreAppState() : false;
+
+            // 3. Nếu chuyển qua từ checkout có query params điền sẵn
             if (!restored && (amount || memo || orderCode)) {
                 const finalMemo = memo || (orderCode ? `BREWLITE ${orderCode}` : 'BREWLITE COFFEE');
                 selectBank(bank, 'MBBank (MB)', 'Ngân hàng TMCP Quân đội');
@@ -3378,16 +3417,9 @@
                 if (typeof showToast === 'function') {
                     showToast(`Đã nhận diện: ${finalMemo} • ${Number(amount || 0).toLocaleString('vi-VN')}đ`);
                 }
-            } else if (scanParam === '1' || scanParam === 'scan' || window.location.hash === '#viewScanner') {
-                // Tự động mở ngay màn hình Quét mã QR & kích hoạt Camera để quét mã VietQR trên máy tính
-                setTimeout(() => {
-                    if (typeof openScanner === 'function') {
-                        openScanner();
-                    }
-                }, 150);
-            } else {
-                // MẶC ĐỊNH: Hiển thị Giao diện chính MBBank (Trang chủ) với số dư 50tr
-                switchView('viewHome');
+            } else if (!restored) {
+                // MẶC ĐỊNH TUYỆT ĐỐI: Luôn luôn vào Giao diện chính MBBank (Trang chủ) với số dư 50tr
+                navToHome();
                 renderAllBalanceElements();
             }
         });
