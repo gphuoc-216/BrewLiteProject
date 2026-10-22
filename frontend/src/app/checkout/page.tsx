@@ -22,6 +22,7 @@ import {
   ShieldAlert,
   Sparkles,
   Info,
+  Zap,
 } from 'lucide-react';
 import { useRequireRole } from '@/hooks/useRequireRole';
 
@@ -386,8 +387,8 @@ export default function CheckoutPage() {
       </Link>
 
       <PageHeader
-        title="Cổng Thanh Toán & Quét Mã VietQR MBBank"
-        description="Quét mã VietQR bằng ứng dụng ngân hàng bất kỳ trên điện thoại để hoàn tất thanh toán nhanh chóng."
+        title="Cổng Thanh Toán & Quét Mã VietQR (Napas 247)"
+        description="Quét mã VietQR bằng ứng dụng ngân hàng bất kỳ hoặc ví điện tử để hoàn tất thanh toán nhanh chóng."
       />
 
       {/* Tabs Chuyển Phương Thức Thanh Toán */}
@@ -402,7 +403,7 @@ export default function CheckoutPage() {
           }`}
         >
           <CreditCard className="w-4 h-4" />
-          <span>🏦 Quét Mã VietQR MBBank</span>
+          <span>🏦 Quét Mã VietQR (Mọi Ngân Hàng)</span>
         </button>
 
         <button
@@ -426,9 +427,9 @@ export default function CheckoutPage() {
             <div className="flex items-center justify-between pb-3 border-b border-line">
               <div className="text-left">
                 <h3 className="font-display font-semibold text-sm text-ink flex items-center gap-1.5">
-                  <span>🏦 Mã VietQR Chuẩn MBBank</span>
+                  <span>🏦 Mã VietQR Chuẩn Napas 247</span>
                 </h3>
-                <span className="text-[11px] text-ink-3">Ngân hàng TMCP Quân Đội</span>
+                <span className="text-[11px] text-ink-3">Chấp nhận chuyển từ mọi ngân hàng</span>
               </div>
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-success bg-success-soft px-2.5 py-1 rounded-full border border-success/20">
                 <span className="w-2 h-2 rounded-full bg-success animate-pulse"></span>
@@ -455,16 +456,16 @@ export default function CheckoutPage() {
               <div className="bg-white p-3.5 rounded-2xl border-2 border-blue-600 shadow-md inline-block">
                 <Image
                   src={qrImageUrl}
-                  alt="Mã VietQR BrewLite MBBank"
+                  alt="Mã VietQR BrewLite Napas 247"
                   width={210}
                   height={210}
                   unoptimized
                   className="object-contain block mx-auto rounded"
                 />
                 <div className="mt-2.5 text-[11px] text-slate-800 font-bold leading-relaxed border-t border-slate-100 pt-2">
-                  <div>Ngân hàng: <b>MBBank (MB)</b></div>
-                  <div>Số TK: <b className="text-blue-700 text-xs font-mono">0589822346</b></div>
-                  <div>Chủ TK: <b>BREWLITE COFFEE</b></div>
+                  <div>Ngân hàng nhận: <b>MBBank (MB)</b></div>
+                  <div>Số TK nhận: <b className="text-blue-700 text-xs font-mono">0589822346</b></div>
+                  <div>Chủ TK nhận: <b>BREWLITE COFFEE</b></div>
                 </div>
               </div>
 
@@ -602,7 +603,7 @@ export default function CheckoutPage() {
                 <div className="p-3 bg-surface-2/60 border border-line rounded-xl space-y-1">
                   <div className="font-bold text-accent">Bước 1</div>
                   <p className="text-ink-2 text-[11.5px] leading-relaxed">
-                    Mở ứng dụng <b>Ngân hàng</b> (MBBank, VCB, TCB,...) hoặc <b>Ví điện tử</b> trên điện thoại.
+                    Mở ứng dụng <b>Ngân hàng bất kỳ</b> (VCB, MB, Techcombank, BIDV, ACB,...) hoặc <b>Ví điện tử</b> (MoMo, ZaloPay).
                   </p>
                 </div>
 
@@ -623,17 +624,20 @@ export default function CheckoutPage() {
 
               {/* Trạng thái Tự Động Đối Soát Giao Dịch Thời Gian Thực */}
               <div className="pt-2 space-y-3">
-                <div className="p-4 rounded-xl border border-blue-500/30 bg-blue-50/70 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 flex items-center gap-3 shadow-sm">
-                  <div className="relative flex items-center justify-center shrink-0">
-                    <span className="w-4 h-4 rounded-full bg-blue-600 animate-ping absolute"></span>
-                    <span className="w-3 h-3 rounded-full bg-blue-600 relative"></span>
+                <div className="p-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.07] dark:bg-emerald-950/30 text-ink flex items-start gap-3.5 shadow-sm">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5">
+                    <Zap className="w-4 h-4 fill-emerald-500/20" />
                   </div>
-                  <div className="text-xs space-y-0.5">
-                    <div className="font-bold text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
-                      <span>⚡ Tự động hoàn tất ngay khi tiền tài khoản bị trừ</span>
+                  <div className="space-y-1 text-xs">
+                    <div className="font-display font-semibold text-ink flex items-center gap-2">
+                      <span className="text-emerald-700 dark:text-emerald-300">Tự động hoàn tất ngay khi chuyển tiền thành công</span>
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/50 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        Napas 247 Live
+                      </span>
                     </div>
-                    <p className="text-[11.5px] text-blue-600/90 dark:text-blue-400 leading-relaxed">
-                      Quét mã QR bằng ứng dụng MBBank trên điện thoại và xác nhận chuyển tiền. Hệ thống tự động nhận diện giao dịch qua mạng LAN và xác nhận đơn hàng lập tức!
+                    <p className="text-[12px] text-ink-2 leading-relaxed">
+                      Hỗ trợ chuyển khoản từ <b>hơn 40 ngân hàng và ví điện tử</b>. Hệ thống tự động kiểm tra số tiền và gạch nợ đơn hàng ngay lập tức mà không cần chụp lại biên lai!
                     </p>
                   </div>
                 </div>
@@ -656,7 +660,7 @@ export default function CheckoutPage() {
               <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-500 rounded-2xl text-amber-950 dark:text-amber-200 text-xs space-y-2 animate-fade-in shadow-md">
                 <div className="flex items-center gap-2 font-display text-sm font-bold text-amber-800 dark:text-amber-300">
                   <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>Cảnh Báo Đối Soát Chuyển Khoản MBBank</span>
+                  <span>Cảnh Báo Đối Soát Chuyển Khoản</span>
                 </div>
                 <p className="leading-relaxed font-medium">{paymentWarning}</p>
                 <div className="pt-1 flex items-center gap-2">
@@ -687,7 +691,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="text-xs space-y-1">
                   <div>
-                    Đã nhận <b>{successNotice.amount.toLocaleString('vi-VN')} đ</b> từ MBBank (STK: <b>{successNotice.senderStk}</b> - {successNotice.senderName}).
+                    Đã nhận <b>{successNotice.amount.toLocaleString('vi-VN')} đ</b> qua chuyển khoản Napas 247 (STK gửi: <b>{successNotice.senderStk}</b> - {successNotice.senderName}).
                   </div>
                   <div>
                     Khớp chính xác mã đơn hàng: <b className="font-mono">{successNotice.code}</b>. Đơn hàng đã được ghi nhận và tự động gửi tới quầy pha chế!
