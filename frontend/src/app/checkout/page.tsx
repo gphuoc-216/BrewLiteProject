@@ -374,7 +374,7 @@ export default function CheckoutPage() {
     );
   }
 
-  const qrImageUrl = `https://img.vietqr.io/image/MB-0589822346-compact2.png?amount=${finalTotal}&addInfo=BREWLITE%20${orderCodeDisplay}&accountName=BREWLITE%20COFFEE`;
+  const qrImageUrl = `https://img.vietqr.io/image/VCB-99998888-compact2.png?amount=${finalTotal}&addInfo=BREWLITE%20${orderCodeDisplay}&accountName=BREWLITE%20COFFEE`;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -463,8 +463,8 @@ export default function CheckoutPage() {
                   className="object-contain block mx-auto rounded"
                 />
                 <div className="mt-2.5 text-[11px] text-slate-800 font-bold leading-relaxed border-t border-slate-100 pt-2">
-                  <div>Ngân hàng nhận: <b>MBBank (MB)</b></div>
-                  <div>Số TK nhận: <b className="text-blue-700 text-xs font-mono">0589822346</b></div>
+                  <div>Ngân hàng nhận: <b>Vietcombank (VCB)</b></div>
+                  <div>Số TK nhận: <b className="text-blue-700 text-xs font-mono">99998888</b></div>
                   <div>Chủ TK nhận: <b>BREWLITE COFFEE</b></div>
                 </div>
               </div>
