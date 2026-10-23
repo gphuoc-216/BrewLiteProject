@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <radialGradient id="coffeeDish" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#F5ECE4"/>
+      <stop offset="70%" stop-color="#E8D5C4"/>
+      <stop offset="100%" stop-color="#D7BEA8"/>
+    </radialGradient>
+    <linearGradient id="cubeTop" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5D4037"/>
+      <stop offset="100%" stop-color="#3E2723"/>
+    </linearGradient>
+    <linearGradient id="cubeLeft" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3E2723"/>
+      <stop offset="100%" stop-color="#1B0000"/>
+    </linearGradient>
+    <linearGradient id="cubeRight" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2D1500"/>
+      <stop offset="100%" stop-color="#110500"/>
+    </linearGradient>
+    <filter id="jellyGlow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="1.5" dy="2.5" stdDeviation="1.5" flood-color="#1A0A00" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <!-- Bát sứ trắng kem -->
+  <circle cx="50" cy="50" r="46" fill="#FBF7F0" stroke="#E2CCA6" stroke-width="2"/>
+  <circle cx="50" cy="50" r="40" fill="url(#coffeeDish)"/>
+
+  <!-- Từng khối thạch cà phê espresso đen nhánh hình lập phương 3D -->
+  <g filter="url(#jellyGlow)">
+    <!-- Khối 1: Góc trên trái -->
+    <g transform="translate(24, 30)">
+      <polygon points="12,0 24,6 12,12 0,6" fill="url(#cubeTop)"/>
+      <polygon points="0,6 12,12 12,25 0,19" fill="url(#cubeLeft)"/>
+      <polygon points="12,12 24,6 24,19 12,25" fill="url(#cubeRight)"/>
+      <line x1="12" y1="0" x2="24" y2="6" stroke="#8D6E63" stroke-width="0.8" opacity="0.8"/>
+    </g>
+
+    <!-- Khối 2: Góc trên phải -->
+    <g transform="translate(52, 28)">
+      <polygon points="13,0 26,7 13,14 0,7" fill="url(#cubeTop)"/>
+      <polygon points="0,7 13,14 13,27 0,20" fill="url(#cubeLeft)"/>
+      <polygon points="13,14 26,7 26,20 13,27" fill="url(#cubeRight)"/>
+      <line x1="13" y1="0" x2="26" y2="7" stroke="#8D6E63" stroke-width="0.8" opacity="0.8"/>
+    </g>
+
+    <!-- Khối 3: Ở giữa nhô lên -->
+    <g transform="translate(36, 48)">
+      <polygon points="14,0 28,7 14,14 0,7" fill="url(#cubeTop)"/>
+      <polygon points="0,7 14,14 14,28 0,21" fill="url(#cubeLeft)"/>
+      <polygon points="14,14 28,7 28,21 14,28" fill="url(#cubeRight)"/>
+      <line x1="14" y1="0" x2="28" y2="7" stroke="#A1887F" stroke-width="1" opacity="0.85"/>
+      <ellipse cx="14" cy="7" rx="6" ry="2" fill="#FFFFFF" opacity="0.4" transform="rotate(-15 14 7)"/>
+    </g>
+  </g>
+
+  <!-- Điểm sáng bóng thủy tinh thạch sương sáo cà phê -->
+  <polygon points="36,36 44,40 38,41" fill="#FFFFFF" opacity="0.6"/>
+  <polygon points="65,35 73,39 67,40" fill="#FFFFFF" opacity="0.6"/>
+  <polygon points="50,55 58,59 52,60" fill="#FFFFFF" opacity="0.75"/>
+</svg>
+
