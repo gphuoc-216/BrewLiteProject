@@ -34,7 +34,7 @@ export class AuthController {
     return this.authService.refreshToken(refreshToken);
   }
 
-  @Get('me')
+  @Get(['me', 'profile'])
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Lấy thông tin tài khoản và profile hiện tại' })
