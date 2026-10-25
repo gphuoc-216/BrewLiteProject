@@ -39,18 +39,18 @@ export async function GET(
   if (localPayments) {
     let payment = localPayments.get(code);
     if (!payment) {
-      for (const [key, val] of localPayments.entries()) {
-        if (
-          key !== 'LATEST_TX' &&
-          (key.includes(code) ||
+      localPayments.forEach((val, key) => {
+        if (!payment && key !== 'LATEST_TX') {
+          if (
+            key.includes(code) ||
             code.includes(key) ||
             (val.content && (val.content.toUpperCase().includes(code) || code.includes(val.content.toUpperCase()))) ||
-            (val.orderCode && (val.orderCode.toUpperCase().includes(code) || code.includes(val.orderCode.toUpperCase()))))
-        ) {
-          payment = val;
-          break;
+            (val.orderCode && (val.orderCode.toUpperCase().includes(code) || code.includes(val.orderCode.toUpperCase())))
+          ) {
+            payment = val;
+          }
         }
-      }
+      });
     }
 
     if (payment && Date.now() - payment.time < 300000) {

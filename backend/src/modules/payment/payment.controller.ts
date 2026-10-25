@@ -40,5 +40,11 @@ export class PaymentController {
   checkMbPayment(@Param('orderCode') orderCode: string) {
     return this.paymentService.checkMbPayment(orderCode);
   }
+
+  @Post('mbbank-invalidate/:orderCode')
+  @ApiOperation({ summary: 'Hủy/Vô hiệu hóa mã QR MBBank sau khi thanh toán hoặc hủy đơn' })
+  invalidateMbPayment(@Param('orderCode') orderCode: string) {
+    return this.paymentService.invalidateMbPayment(orderCode);
+  }
 }
 

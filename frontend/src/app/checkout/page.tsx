@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   Check,
   AlertCircle,
+  AlertTriangle,
   RefreshCw,
   Copy,
   Clock,
@@ -216,15 +217,25 @@ export default function CheckoutPage() {
             paymentDetails?.senderName || user?.fullName || user?.username || 'Khách Hàng BrewLite',
         });
 
-        // Dọn dẹp giỏ hàng
+        // Dọn dẹp giỏ hàng & Hủy bỏ mã QR hoàn toàn
         existingOrderRef.current = null;
         idempotencyKeyRef.current = null;
         localStorage.removeItem('brewlite_pending_order');
+        sessionStorage.removeItem('brewlite_active_order_code');
+        sessionStorage.setItem('brewlite_completed_order_' + orderCodeDisplay, 'true');
+
+        // Báo cho backend hủy mã này trong bộ nhớ để không thể quét lại
+        try {
+          fetchApi(`/payments/mbbank-invalidate/${orderCodeDisplay}`, { method: 'POST' }).catch(() => {});
+        } catch {
+          // Bỏ qua lỗi kết nối
+        }
+
         clearCart();
 
-        // Chuyển hướng nhanh đến trang theo dõi đơn hàng
+        // Chuyển hướng bằng router.replace để xóa bỏ trang checkout khỏi lịch sử duyệt web
         setTimeout(() => {
-          router.push(`/orders/${orderId}`);
+          router.replace(`/orders/${orderId}`);
         }, 800);
         return true;
       } catch (err: unknown) {
@@ -238,11 +249,33 @@ export default function CheckoutPage() {
     [user, items, isQrExpired, promotion, paymentMethod, playTingTing, orderCodeDisplay, finalTotal, clearCart, router]
   );
 
+  // Chặn tuyệt đối: Nếu giỏ hàng rỗng HOẶC mã đơn này đã thanh toán xong -> Tự động chuyển hướng về trang Thực đơn / Menu
+  useEffect(() => {
+    if (!ready) return;
+
+    const isAlreadyCompleted =
+      typeof window !== 'undefined' &&
+      sessionStorage.getItem('brewlite_completed_order_' + orderCodeDisplay);
+
+    if (items.length === 0 || isAlreadyCompleted) {
+      router.replace('/products');
+    }
+  }, [ready, items.length, orderCodeDisplay, router]);
+
+  // Bắt sự kiện người dùng bấm phím Back của trình duyệt (popstate) -> Tuyệt đối không cho quay lại mã QR
+  useEffect(() => {
+    const handlePopState = () => {
+      router.replace('/products');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [router]);
+
   // Lắng nghe sự kiện chuyển khoản: kết hợp localStorage (cùng tab) & Backend API Polling (qua điện thoại thật trong LAN)
   useEffect(() => {
     let lastHandledTime = 0;
 
-    const processIncomingPayment = (data: any) => {
+    const processIncomingPayment = (data: any, isMismatched?: boolean) => {
       const paidAmt = Number(data?.amount || 0);
       const content = String(data?.content || '').toUpperCase();
       const targetCode = orderCodeDisplay.toUpperCase();
@@ -250,12 +283,25 @@ export default function CheckoutPage() {
       // 1. Kiểm tra nếu mã QR đã hết hạn (quá 5 phút)
       if (isQrExpired || ttlSeconds <= 0) {
         setPaymentWarning(
-          `⛔ Giao dịch nhận được nhưng MÃ QR ĐÃ HẾT HẠN (quá 5 phút). Quý khách vui lòng bấm nút "Tạo Lại Mã Mới (+5 Phút)" để cập nhật mã đơn hàng!`
+          `⛔ Giao dịch nhận được nhưng MÃ QR ĐÃ HẾT HẠN (quá 5 phút). Quý khách vui lòng bấm nút "Làm Mới Mã QR (+5 Phút)" để cập nhật mã đơn hàng!`
         );
         return;
       }
 
-      // 2. Kiểm tra nếu SAI SỐ TIỀN:
+      // 2. KIỂM TRA SAI NỘI DUNG CHUYỂN KHOẢN (NGHIỆP VỤ BẮT BUỘC)
+      const hasCode = content.includes(targetCode) || (data.orderCode && String(data.orderCode).toUpperCase().includes(targetCode));
+      if (!hasCode || isMismatched) {
+        setPaymentWarning(
+          `⚠️ CẢNH BÁO: CHUYỂN TIỀN SAI NỘI DUNG!\n` +
+          `• Số tiền nhận được: ${paidAmt.toLocaleString('vi-VN')} đ (Mã GD: ${data.transId || 'N/A'})\n` +
+          `• Nội dung thực tế khách nhập: "${data.content || 'Trống'}"\n` +
+          `• Nội dung chuẩn bắt buộc: "BREWLITE ${orderCodeDisplay}"\n\n` +
+          `👉 Theo quy chế đối soát tự động: Đơn hàng TỪ CHỐI kích hoạt tự động. Giao dịch đã được chuyển sang diện Tra soát thủ công tại quầy (khấu trừ 10% phí vận hành theo quy chế) hoặc vui lòng liên hệ nhân viên quầy/hotline để được đối chiếu gạch nợ.`
+        );
+        return;
+      }
+
+      // 3. Kiểm tra nếu SAI SỐ TIỀN:
       // a) Chuyển THIẾU TIỀN:
       if (paidAmt < finalTotal) {
         const missing = finalTotal - paidAmt;
@@ -265,8 +311,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      // b) Chuyển ĐỦ TIỀN hoặc THỪA TIỀN:
-      // Tự động gạch nợ ngay lập tức mà không để khách hàng bị kẹt trạng thái
+      // b) Chuyển ĐỦ TIỀN hoặc THỪA TIỀN & ĐÚNG NỘI DUNG:
       setPaymentWarning(null);
       handlePay({
         senderStk: data.sender || '0589822346',
@@ -295,10 +340,12 @@ export default function CheckoutPage() {
             const targetCode = orderCodeDisplay.toUpperCase();
 
             if (content.includes(targetCode)) {
-              processIncomingPayment(data);
+              processIncomingPayment(data, false);
               return;
             } else if (Date.now() - data.time < 40000) {
-              processIncomingPayment(data);
+              // Giao dịch vừa diễn ra trong 40s nhưng SAI NỘI DUNG!
+              processIncomingPayment(data, true);
+              return;
             }
           }
         } catch {
@@ -310,13 +357,14 @@ export default function CheckoutPage() {
       if (orderCodeDisplay && !isPollingRef.current) {
         isPollingRef.current = true;
         try {
-          const res = await fetchApi<{ paid: boolean; payment?: any; mismatched?: boolean; latestPayment?: any }>(
+          const res = await fetchApi<{ paid: boolean; payment?: any; mismatched?: boolean; latestPayment?: any; message?: string }>(
             `/payments/mbbank-check/${orderCodeDisplay}`
           );
           if (res && res.paid && res.payment) {
-            processIncomingPayment(res.payment);
+            processIncomingPayment(res.payment, false);
           } else if (res && res.mismatched && res.latestPayment) {
-            processIncomingPayment(res.latestPayment);
+            // Backend phát hiện giao dịch sai nội dung!
+            processIncomingPayment(res.latestPayment, true);
           }
         } catch {
           // Bỏ qua lỗi polling khi đang chờ
@@ -389,6 +437,20 @@ export default function CheckoutPage() {
           >
             Đăng Ký Tài Khoản Mới
           </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="max-w-md mx-auto py-20 text-center space-y-4 animate-fade-in">
+        <div className="w-12 h-12 mx-auto rounded-full bg-surface-2 flex items-center justify-center text-accent">
+          <Clock className="w-6 h-6 animate-spin" />
+        </div>
+        <div className="space-y-1">
+          <h3 className="font-display font-semibold text-base text-ink">Đang chuyển hướng về thực đơn...</h3>
+          <p className="text-xs text-ink-3">Giỏ hàng của bạn đang trống hoặc đơn hàng này đã hoàn tất thanh toán.</p>
         </div>
       </div>
     );
@@ -537,6 +599,28 @@ export default function CheckoutPage() {
                 </span>
               )}
             </div>
+
+            {/* Cảnh báo Chuyển tiền sai nội dung / Thiếu tiền */}
+            {paymentWarning && (
+              <div className="text-left bg-danger-soft/90 border border-danger/40 rounded-xl p-3.5 space-y-2 animate-fade-in shadow-sm">
+                <div className="flex items-center gap-2 text-danger font-bold text-xs">
+                  <AlertTriangle className="w-4 h-4 shrink-0 text-danger" />
+                  <span>CẢNH BÁO GIAO DỊCH CHUYỂN KHOẢN</span>
+                </div>
+                <div className="text-[11.5px] text-danger/95 leading-relaxed whitespace-pre-line font-medium">
+                  {paymentWarning}
+                </div>
+                <div className="pt-1 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentWarning(null)}
+                    className="px-2.5 py-1 text-[11px] bg-danger text-white font-semibold rounded-md hover:bg-danger/90 transition-colors"
+                  >
+                    Đóng cảnh báo & Tra soát lại
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Hướng dẫn ngắn về nội dung chuyển tiền */}
             <div className="text-left bg-surface-2/60 border border-line rounded-xl p-3 space-y-1.5 text-[11px] text-ink-2">

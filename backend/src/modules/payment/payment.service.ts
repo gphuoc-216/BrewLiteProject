@@ -347,13 +347,33 @@ export class PaymentService {
       return { paid: true, payment };
     }
 
-    // Nếu không khớp mã nhưng có giao dịch chuyển tiền gần nhất trong vòng 10 phút
+    // Nếu không khớp mã nhưng có giao dịch chuyển tiền gần nhất trong vòng 2 phút -> Nhận diện SAI NỘI DUNG
     const latestTx = PaymentService.mbPayments.get('LATEST_TX');
-    if (latestTx && Date.now() - latestTx.time < 600000) {
-      return { paid: true, payment: latestTx };
+    if (latestTx && Date.now() - latestTx.time < 120000) {
+      const txContent = (latestTx.content || '').toUpperCase();
+      if (!txContent.includes(code)) {
+        return {
+          paid: false,
+          mismatched: true,
+          errorType: 'WRONG_CONTENT',
+          message: `Phát hiện giao dịch chuyển khoản SAI NỘI DUNG: Hệ thống nhận được nội dung "${latestTx.content}" (${Number(latestTx.amount || 0).toLocaleString('vi-VN')} đ), không khớp với mã hóa đơn "BREWLITE ${code}". Đơn hàng từ chối kích hoạt tự động theo quy chế.`,
+          latestPayment: latestTx,
+        };
+      }
     }
 
     return { paid: false };
+  }
+
+  async invalidateMbPayment(orderCode: string) {
+    const code = String(orderCode || '').toUpperCase().trim();
+    PaymentService.mbPayments.delete(code);
+    for (const [key, val] of PaymentService.mbPayments.entries()) {
+      if (key.includes(code) || (val?.orderCode && val.orderCode.includes(code))) {
+        PaymentService.mbPayments.delete(key);
+      }
+    }
+    return { success: true, message: `Đã hủy mã thanh toán ${code}` };
   }
 }
 
