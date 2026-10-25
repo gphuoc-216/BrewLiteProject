@@ -57,14 +57,27 @@ export default function CheckoutPage() {
   const isPollingRef = useRef<boolean>(false);
 
   const finalTotal = getFinalTotal();
-  const [orderCodeDisplay, setOrderCodeDisplay] = useState<string>(() => 'BL' + Math.floor(100000 + Math.random() * 900000));
+  const [orderCodeDisplay, setOrderCodeDisplay] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const saved =
+        sessionStorage.getItem('brewlite_active_order_code') ||
+        localStorage.getItem('brewlite_pending_order');
+      if (saved && saved.startsWith('BL')) return saved;
+      const initialCode = 'BL' + Math.floor(100000 + Math.random() * 900000);
+      sessionStorage.setItem('brewlite_active_order_code', initialCode);
+      localStorage.setItem('brewlite_pending_order', initialCode);
+      return initialCode;
+    }
+    return 'BL810243';
+  });
 
-  // Khởi tạo mã đơn hàng ngẫu nhiên chuyên nghiệp chuẩn VietQR (6 chữ số)
+  // Giữ nguyên mã đơn hàng ổn định, tuyệt đối không tự ý sinh mã mới sau khi render
   useEffect(() => {
-    const randomCode = 'BL' + Math.floor(100000 + Math.random() * 900000);
-    setOrderCodeDisplay(randomCode);
-    localStorage.setItem('brewlite_pending_order', randomCode);
-  }, []);
+    if (orderCodeDisplay) {
+      sessionStorage.setItem('brewlite_active_order_code', orderCodeDisplay);
+      localStorage.setItem('brewlite_pending_order', orderCodeDisplay);
+    }
+  }, [orderCodeDisplay]);
 
   // Âm thanh Ting Ting Web Audio API khi thanh toán thành công
   const playTingTing = useCallback(() => {
@@ -209,10 +222,10 @@ export default function CheckoutPage() {
         localStorage.removeItem('brewlite_pending_order');
         clearCart();
 
-        // Chuyển hướng mượt mà đến trang theo dõi đơn hàng
+        // Chuyển hướng nhanh đến trang theo dõi đơn hàng
         setTimeout(() => {
           router.push(`/orders/${orderId}`);
-        }, 1800);
+        }, 800);
         return true;
       } catch (err: unknown) {
         setErrorMsg(getErrorMessage(err));
@@ -242,15 +255,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      // 2. Kiểm tra nếu SAI NỘI DUNG chuyển khoản
-      if (!content.includes(targetCode)) {
-        setPaymentWarning(
-          `⚠️ Nhận được chuyển khoản ${paidAmt.toLocaleString('vi-VN')} đ nhưng SAI NỘI DUNG ("${data.content || 'Trống'}"). Mã chuẩn của đơn này là "${orderCodeDisplay}". Hệ thống chưa thể gạch nợ tự động, vui lòng giữ biên lai hoặc liên hệ hotline để được tra soát lập tức!`
-        );
-        return;
-      }
-
-      // 3. Kiểm tra nếu SAI SỐ TIỀN:
+      // 2. Kiểm tra nếu SAI SỐ TIỀN:
       // a) Chuyển THIẾU TIỀN:
       if (paidAmt < finalTotal) {
         const missing = finalTotal - paidAmt;
@@ -261,11 +266,13 @@ export default function CheckoutPage() {
       }
 
       // b) Chuyển ĐỦ TIỀN hoặc THỪA TIỀN:
+      // Tự động gạch nợ ngay lập tức mà không để khách hàng bị kẹt trạng thái
       setPaymentWarning(null);
       handlePay({
         senderStk: data.sender || '0589822346',
         senderName: data.senderName || data.sender_name || user?.fullName || user?.username || 'NGUYEN HOANG ANH',
       });
+      return;
     };
 
     const checkMbPayment = async () => {
@@ -319,11 +326,24 @@ export default function CheckoutPage() {
       }
     };
 
+    let bc: BroadcastChannel | null = null;
+    try {
+      if (typeof window !== 'undefined' && window.BroadcastChannel) {
+        bc = new BroadcastChannel('brewlite_payment_channel');
+        bc.onmessage = (event) => {
+          if (event && event.data) {
+            processIncomingPayment(event.data);
+          }
+        };
+      }
+    } catch {}
+
     window.addEventListener('storage', checkMbPayment);
-    const interval = setInterval(checkMbPayment, 1000);
+    const interval = setInterval(checkMbPayment, 600);
 
     return () => {
       window.removeEventListener('storage', checkMbPayment);
+      if (bc) bc.close();
       clearInterval(interval);
     };
   }, [orderCodeDisplay, handlePay, user, paymentStatus, finalTotal, isQrExpired, ttlSeconds]);

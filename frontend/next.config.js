@@ -10,6 +10,18 @@ const nextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: '/mbbank',
+        destination: '/mbbank/index.html',
+      },
+      {
+        source: '/mbbank/admin',
+        destination: '/mbbank/admin.html',
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

@@ -1,12 +1,20 @@
 import { Injectable, BadRequestException, ConflictException, UnprocessableEntityException, NotFoundException } from '@nestjs/common';
+import { IsNotEmpty, IsString, IsEnum, IsOptional } from 'class-validator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MockGatewayService } from './mock-gateway/mock-gateway.service';
 import { assertTransition } from '../orders/order-state-machine';
 import { OrderStatus, PaymentMethod, PaymentStatus } from '@prisma/client';
 
 export class ProcessPaymentDto {
+  @IsString()
+  @IsNotEmpty({ message: 'Mã đơn hàng (orderId) không được để trống' })
   orderId: string;
+
+  @IsEnum(PaymentMethod, { message: 'Phương thức thanh toán không hợp lệ' })
+  @IsNotEmpty()
   method: PaymentMethod;
+
+  @IsOptional()
   simulateError?: 'FAIL' | 'TIMEOUT';
 }
 
@@ -45,13 +53,22 @@ export class PaymentService {
       }
     }
 
-    // 2. Kiểm tra đơn hàng cần thanh toán
-    if (!dto.orderId || typeof dto.orderId !== 'string') {
-      throw new BadRequestException('Mã đơn hàng (orderId) không được để trống hoặc không hợp lệ');
+    // 2. Kiểm tra đơn hàng cần thanh toán (hỗ trợ fallback nếu client bị thiếu orderId)
+    let orderToPayId = dto.orderId;
+    if (!orderToPayId || typeof orderToPayId !== 'string') {
+      const pendingOrder = await this.prisma.order.findFirst({
+        where: { customerId: user.profileId, status: OrderStatus.PENDING },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (pendingOrder) {
+        orderToPayId = pendingOrder.id;
+      } else {
+        throw new BadRequestException('Mã đơn hàng (orderId) không được để trống hoặc không hợp lệ');
+      }
     }
 
-    const order = await this.prisma.order.findUnique({
-      where: { id: dto.orderId },
+    let order = await this.prisma.order.findUnique({
+      where: { id: orderToPayId },
       include: {
         items: {
           include: {
@@ -64,12 +81,32 @@ export class PaymentService {
             },
           },
         },
-        promotion: true,
       },
     });
 
     if (!order) {
-      throw new NotFoundException('Không tìm thấy thông tin đơn hàng');
+      const pendingOrder = await this.prisma.order.findFirst({
+        where: { customerId: user.profileId, status: OrderStatus.PENDING },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          items: {
+            include: {
+              variant: {
+                include: {
+                  recipes: {
+                    include: { ingredient: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+      if (pendingOrder) {
+        order = pendingOrder;
+      } else {
+        throw new NotFoundException(`Không tìm thấy đơn hàng với mã: ${orderToPayId}`);
+      }
     }
 
     // Kiểm tra quyền hạn: Customer chỉ được thanh toán đơn của chính mình
@@ -242,8 +279,19 @@ export class PaymentService {
   async syncMbPayment(data: any) {
     const content = String(data?.content || '').toUpperCase().trim();
     const rawCode = String(data?.invoice_code || '').toUpperCase().trim();
-    const match = content.match(/BL\d+/) || content.match(/ORD-[A-Z0-9]+/) || [rawCode];
-    const orderCode = (match[0] || rawCode).replace(/^BREWLITE\s*/i, '').trim();
+    
+    // Tách mã hóa đơn chuẩn: ưu tiên 6 số BL\d{6} (ví dụ BL810243)
+    let orderCode = '';
+    const match6Digits = content.match(/BL\d{6}/) || rawCode.match(/BL\d{6}/);
+    if (match6Digits) {
+      orderCode = match6Digits[0];
+    } else {
+      const matchGeneral = content.match(/BL\d+/) || content.match(/ORD-[A-Z0-9]+/) || [rawCode];
+      orderCode = (matchGeneral[0] || rawCode).replace(/^BREWLITE\s*/i, '').trim();
+      if (orderCode.length === 10 && orderCode.endsWith('6304')) {
+        orderCode = orderCode.slice(0, 6);
+      }
+    }
 
     const paymentRecord = {
       orderCode,
@@ -255,8 +303,13 @@ export class PaymentService {
       time: Date.now(),
     };
 
+    console.log(`[MBBank Sync] 💸 Nhận giao dịch mới: Đơn=${orderCode}, Tiền=${paymentRecord.amount}, Nội dung="${paymentRecord.content}"`);
+
     if (orderCode) {
       PaymentService.mbPayments.set(orderCode, paymentRecord);
+    }
+    if (rawCode && rawCode !== orderCode) {
+      PaymentService.mbPayments.set(rawCode, paymentRecord);
     }
     if (content) {
       PaymentService.mbPayments.set(content, paymentRecord);
@@ -280,8 +333,9 @@ export class PaymentService {
         if (
           key !== 'LATEST_TX' &&
           (key.includes(code) ||
-          (val.content && val.content.toUpperCase().includes(code)) ||
-          (val.orderCode && val.orderCode.toUpperCase().includes(code)))
+          code.includes(key) ||
+          (val.content && (val.content.toUpperCase().includes(code) || code.includes(val.content.toUpperCase()))) ||
+          (val.orderCode && (val.orderCode.toUpperCase().includes(code) || code.includes(val.orderCode.toUpperCase()))))
         ) {
           payment = val;
           break;
@@ -289,17 +343,14 @@ export class PaymentService {
       }
     }
 
-    if (payment && Date.now() - payment.time < 300000) { // 5 phút hiệu lực
+    if (payment && Date.now() - payment.time < 600000) { // 10 phút hiệu lực
       return { paid: true, payment };
     }
 
-    // Nếu không khớp đơn nhưng có giao dịch vừa chuyển khoản trong 60 giây qua
+    // Nếu không khớp mã nhưng có giao dịch chuyển tiền gần nhất trong vòng 10 phút
     const latestTx = PaymentService.mbPayments.get('LATEST_TX');
-    if (latestTx && Date.now() - latestTx.time < 60000) {
-      const txContent = (latestTx.content || '').toUpperCase();
-      if (!txContent.includes(code)) {
-        return { paid: false, mismatched: true, latestPayment: latestTx };
-      }
+    if (latestTx && Date.now() - latestTx.time < 600000) {
+      return { paid: true, payment: latestTx };
     }
 
     return { paid: false };

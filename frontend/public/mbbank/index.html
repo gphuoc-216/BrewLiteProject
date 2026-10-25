@@ -621,6 +621,51 @@
             font-weight: 500;
         }
 
+        /* Lớp phủ mở máy ảnh khi trình duyệt chặn live video stream qua HTTP */
+        .camera-fallback-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(10, 16, 32, 0.94);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            text-align: center;
+            z-index: 15;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+        }
+        .camera-fallback-icon {
+            font-size: 38px;
+            margin-bottom: 6px;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+        }
+        .camera-fallback-title {
+            font-size: 14px;
+            font-weight: 800;
+            color: #ffffff;
+            margin-bottom: 4px;
+        }
+        .camera-fallback-sub {
+            font-size: 11px;
+            color: #93c5fd;
+            line-height: 1.35;
+            margin-bottom: 12px;
+        }
+        .camera-fallback-btn {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            border: 1px solid #60a5fa;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 8px 16px;
+            border-radius: 20px;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+            cursor: pointer;
+            pointer-events: none;
+        }
+
         /* Hàng chấp nhận mã QR */
         .accepted-qr-strip {
             margin: 22px 20px 10px 20px;
@@ -1503,7 +1548,7 @@
             </div>
 
             <!-- Viewfinder camera box -->
-            <div class="scanner-viewfinder-box">
+            <div class="scanner-viewfinder-box" onclick="onViewfinderClick()">
                 <video id="qrVideo" playsinline webkit-playsinline autoplay muted></video>
                 <canvas id="qrCanvas" style="display:none;"></canvas>
 
@@ -1512,9 +1557,16 @@
                 <div class="corner-bracket bottom-left"></div>
                 <div class="corner-bracket bottom-right"></div>
                 <div class="laser-scan-line"></div>
+
+                <label for="fileInputCamera" id="cameraPromptOverlay" class="camera-fallback-overlay" style="display:none; cursor: pointer;">
+                    <div class="camera-fallback-icon">📸</div>
+                    <div class="camera-fallback-title">Chạm để Chụp & Quét QR</div>
+                    <div class="camera-fallback-sub">Camera điện thoại sẽ tự động mở để quét mã thanh toán</div>
+                    <span class="camera-fallback-btn">Bật Máy Ảnh Quét QR</span>
+                </label>
             </div>
 
-            <div class="scanner-prompt-text">Hướng camera vào mã QR để quét</div>
+            <div class="scanner-prompt-text">Hướng camera vào mã QR (hoặc bấm "Chụp ảnh QR" bên dưới)</div>
 
             <!-- 3 Nút hành động đáy camera -->
             <div class="scanner-bottom-actions">
@@ -1526,22 +1578,22 @@
                     <span>QR của tôi</span>
                 </div>
 
-                <div class="scanner-action-btn" onclick="triggerCameraCapture()">
+                <label for="fileInputCamera" class="scanner-action-btn" style="cursor: pointer;">
                     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2">
                         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
                         <circle cx="12" cy="13" r="4"/>
                     </svg>
                     <span>Chụp ảnh QR</span>
-                </div>
+                </label>
 
-                <div class="scanner-action-btn" onclick="triggerImageUpload()">
+                <label for="fileInputGallery" class="scanner-action-btn" style="cursor: pointer;">
                     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2">
                         <rect x="3" y="3" width="18" height="18" rx="2"/>
                         <circle cx="8.5" cy="8.5" r="1.5"/>
                         <polyline points="21 15 16 10 5 21"/>
                     </svg>
                     <span>Tải ảnh lên</span>
-                </div>
+                </label>
             </div>
 
             <!-- Input upload ẩn -->
@@ -2780,7 +2832,24 @@
 
         // ==================== ENGINE QUÉT QR REAL-TIME ====================
         function openScanner() {
+            const hasMediaDevices = typeof navigator !== 'undefined' && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function';
+
             switchView('viewScanner');
+
+            if (!hasMediaDevices) {
+                // Trên iOS Safari / Android qua HTTP: Kích hoạt camera native NGAY LẬP TỨC trong thao tác chạm
+                const overlay = document.getElementById('cameraPromptOverlay');
+                if (overlay) overlay.style.display = 'flex';
+                showToast("Đang mở Camera điện thoại để quét...");
+                try {
+                    const camInput = document.getElementById('fileInputCamera');
+                    if (camInput) camInput.click();
+                } catch (e) {
+                    console.warn("Auto click camera:", e);
+                }
+                return;
+            }
+
             startCameraStream();
         }
 
@@ -2789,8 +2858,16 @@
             switchView('viewHome');
         }
 
+        function onViewfinderClick() {
+            // Khi chạm vào khung ngắm camera (kích hoạt camera native ngay lập tức)
+            const camInput = document.getElementById('fileInputCamera');
+            if (camInput) camInput.click();
+        }
+
         async function startCameraStream() {
             const video = document.getElementById('qrVideo');
+            const overlay = document.getElementById('cameraPromptOverlay');
+            if (overlay) overlay.style.display = 'none';
             isScannerLoopActive = true;
 
             if (video) {
@@ -2809,34 +2886,56 @@
                 activeVideoStream = null;
             }
 
-            if (navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
-                const constraintList = [
-                    { video: { facingMode: { exact: "environment" } }, audio: false },
-                    { video: { facingMode: "environment" }, audio: false },
-                    { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
-                    { video: true, audio: false }
-                ];
+            // Kiểm tra hỗ trợ MediaDevices (trên điện thoại qua mạng LAN không có HTTPS, trình duyệt sẽ tắt getUserMedia)
+            const hasMediaDevices = typeof navigator !== 'undefined' && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function';
 
-                for (const constraints of constraintList) {
-                    try {
-                        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                        if (stream) {
-                            activeVideoStream = stream;
-                            if (video) {
-                                video.srcObject = stream;
-                                try {
-                                    await video.play();
-                                } catch (playErr) {
-                                    console.warn("video.play() warning:", playErr);
-                                }
+            if (!hasMediaDevices) {
+                console.warn("Trình duyệt không hỗ trợ getUserMedia (thường do truy cập HTTP qua mạng LAN trên điện thoại).");
+                if (overlay) overlay.style.display = 'flex';
+                showToast("📱 Chạm vào màn hình để bật Camera quét mã QR!");
+                return;
+            }
+
+            const constraintList = [
+                { video: { facingMode: { exact: "environment" } }, audio: false },
+                { video: { facingMode: "environment" }, audio: false },
+                { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+                { video: true, audio: false }
+            ];
+
+            let permissionDenied = false;
+            for (const constraints of constraintList) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    if (stream) {
+                        activeVideoStream = stream;
+                        if (video) {
+                            video.srcObject = stream;
+                            try {
+                                await video.play();
+                            } catch (playErr) {
+                                console.warn("video.play() warning:", playErr);
                             }
-                            requestAnimationFrame(scanVideoFrameTick);
-                            return;
                         }
-                    } catch (e) {
-                        console.warn("Thử camera constraint tiếp:", e);
+                        if (overlay) overlay.style.display = 'none';
+                        requestAnimationFrame(scanVideoFrameTick);
+                        return;
+                    }
+                } catch (e) {
+                    console.warn("Thử camera constraint tiếp:", e);
+                    if (e && (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError')) {
+                        permissionDenied = true;
+                        break;
                     }
                 }
+            }
+
+            // Nếu không thể kích hoạt luồng camera trực tiếp
+            if (overlay) overlay.style.display = 'flex';
+            if (permissionDenied) {
+                showAccountErrorModal("Bạn đã từ chối cấp quyền Camera cho trình duyệt. Vui lòng cho phép quyền Camera trong Cài đặt hoặc chạm nút 'Chụp ảnh QR' bên dưới để quét!");
+            } else {
+                showToast("Chạm vào ô quét hoặc bấm 'Chụp ảnh QR' để quét mã.");
             }
         }
 
@@ -3002,13 +3101,20 @@
         async function onQrScanSuccess(qrText) {
             stopCameraStream();
             const isOk = await parseVietQrData(qrText);
-            if (isOk) {
-                showToast("Quét mã QR thành công!");
-                if (navigator.vibrate) navigator.vibrate(100);
-                switchView('viewTransferForm');
-            } else {
+            if (!isOk) {
                 showAccountErrorModal("Mã QR bạn vừa quét không phải là mã thanh toán ngân hàng hoặc VietQR hợp lệ. Vui lòng quét mã QR thanh toán của BrewLite Coffee hoặc mã QR ngân hàng chuẩn.");
+                return;
             }
+
+            const rawAcc = document.getElementById('destAccountInput').value.trim();
+            const rawName = document.getElementById('destNameInput').value.trim();
+            const rawAmt = document.getElementById('transferAmountInput').value.trim();
+            const rawMsg = document.getElementById('transferMsgInput').value.trim();
+            const amtNum = parseInt(rawAmt, 10);
+
+            showToast("Quét mã QR thành công!");
+            if (navigator.vibrate) navigator.vibrate(100);
+            switchView('viewTransferForm');
         }
 
         // Parse VietQR / EMVCo / Text chuẩn xác theo từng mã QR - Tuyệt đối không nhận diện bừa
@@ -3113,8 +3219,23 @@
                 name = 'BREWLITE COFFEE';
             }
 
-            // Trích xuất mã hóa đơn nếu có
-            const matchCode = (raw.toUpperCase().match(/BL\d+/) || raw.toUpperCase().match(/ORD-[A-Z0-9]+/) || msg.toUpperCase().match(/BL\d+/) || msg.toUpperCase().match(/ORD-[A-Z0-9]+/) || [''])[0];
+            // Trích xuất mã hóa đơn nếu có: ưu tiên 6 số BL\d{6} hoặc ORD-
+            let matchCode = '';
+            const mMsg6 = msg ? (msg.toUpperCase().match(/BL\d{6}/) || msg.toUpperCase().match(/ORD-[A-Z0-9]+/)) : null;
+            if (mMsg6) {
+                matchCode = mMsg6[0];
+            } else {
+                const mRaw6 = raw.toUpperCase().match(/BL\d{6}/) || raw.toUpperCase().match(/ORD-[A-Z0-9]+/);
+                if (mRaw6) {
+                    matchCode = mRaw6[0];
+                } else {
+                    const mGen = (msg.toUpperCase().match(/BL\d+/) || raw.toUpperCase().match(/BL\d+/) || [''])[0];
+                    matchCode = mGen;
+                    if (matchCode.length === 10 && matchCode.endsWith('6304')) {
+                        matchCode = matchCode.slice(0, 6);
+                    }
+                }
+            }
             if (matchCode && (!msg || !msg.includes(matchCode))) {
                 msg = `BREWLITE ${matchCode}`;
             }
@@ -3196,12 +3317,13 @@
                 showAccountErrorModal("Không tìm thấy thông tin tài khoản người thụ hưởng (" + acc + ") tại ngân hàng " + currentTargetBank + ". Giao dịch không thể thực hiện (Mã lỗi: GW288).");
                 return;
             }
-            if (!amtStr || parseInt(amtStr, 10) <= 0) {
+            const cleanAmtStr = amtStr.replace(/[^\d]/g, '');
+            if (!cleanAmtStr || parseInt(cleanAmtStr, 10) <= 0) {
                 showToast("Vui lòng nhập số tiền hợp lệ!");
                 return;
             }
 
-            const amtNum = parseInt(amtStr, 10);
+            const amtNum = parseInt(cleanAmtStr, 10);
             const curBal = getUserBalance();
 
             // Kiểm tra số dư khả dụng
@@ -3244,7 +3366,8 @@
 
             // 1. Trừ tiền tài khoản & lưu localStorage
             const curBal = getUserBalance();
-            const newBal = Math.max(0, curBal - currentTargetAmount);
+            const deductAmt = Number(currentTargetAmount) || 0;
+            const newBal = Math.max(0, curBal - deductAmt);
             saveUserBalance(newBal);
 
             // 2. Điền thông tin vào Biên lai (Receipt)
@@ -3268,10 +3391,19 @@
             // 5. Chuyển sang màn hình Biên lai
             switchView('viewReceiptSuccess');
 
-            // 6. ĐỒNG BỘ THANH TOÁN TỰ ĐỘNG (LƯU LOCALSTORAGE & WEBHOOK BACKEND)
+            // 6. ĐỒNG BỘ THANH TOÁN TỰ ĐỘNG (LƯU LOCALSTORAGE, BROADCAST CHANNEL & WEBHOOK BACKEND)
             const activeBookingCode = localStorage.getItem('brewlite_pending_order') || 'BREWLITE';
-            const billCodeMatch = (currentTargetMsg.toUpperCase().match(/ORD-[A-Z0-9]+/) || currentTargetMsg.toUpperCase().match(/BL\d+/) || currentTargetMsg.toUpperCase().match(/HD\d+/) || [''])[0];
-            const finalInvoiceCode = billCodeMatch || activeBookingCode;
+            let finalInvoiceCode = '';
+            const mBill6 = (currentTargetMsg.toUpperCase().match(/BL\d{6}/) || currentTargetMsg.toUpperCase().match(/ORD-[A-Z0-9]+/));
+            if (mBill6) {
+                finalInvoiceCode = mBill6[0];
+            } else {
+                const billCodeMatch = (currentTargetMsg.toUpperCase().match(/BL\d+/) || currentTargetMsg.toUpperCase().match(/HD\d+/) || [''])[0];
+                finalInvoiceCode = billCodeMatch || activeBookingCode;
+                if (finalInvoiceCode.length === 10 && finalInvoiceCode.endsWith('6304')) {
+                    finalInvoiceCode = finalInvoiceCode.slice(0, 6);
+                }
+            }
 
             const paymentPayload = {
                 invoice_code: finalInvoiceCode,
@@ -3288,13 +3420,27 @@
             localStorage.setItem("last_mb_payment", JSON.stringify(paymentPayload));
             localStorage.setItem("brewlite_mb_payment", JSON.stringify(paymentPayload));
 
-            // Gửi API đến backend thanh toán BrewLite (hoạt động đa thiết bị: điện thoại -> máy tính qua mạng LAN)
+            // Phát sóng qua BroadcastChannel cho các tab BrewLite khác
+            try {
+                if (window.BroadcastChannel) {
+                    const bc = new BroadcastChannel('brewlite_payment_channel');
+                    bc.postMessage(paymentPayload);
+                    setTimeout(() => bc.close(), 5000);
+                }
+            } catch (e) {}
+
+            // Gửi API đến backend thanh toán BrewLite (hoạt động đa thiết bị: điện thoại -> máy tính qua mạng LAN/Tunnel)
             const host = window.location.hostname || 'localhost';
+            const protocol = window.location.protocol && window.location.protocol.startsWith('http') ? window.location.protocol : 'http:';
+            const origin = window.location.origin || '';
             const syncUrls = [
-                'http://' + host + ':3001/api/payments/mbbank-sync',
                 '/api/payments/mbbank-sync',
+                origin + '/api/payments/mbbank-sync',
+                protocol + '//' + host + ':3000/api/payments/mbbank-sync',
+                'http://' + host + ':3001/api/payments/mbbank-sync',
+                protocol + '//' + host + ':3001/api/payments/mbbank-sync',
                 'http://localhost:3001/api/payments/mbbank-sync',
-                '/api/mbbank/sync'
+                'http://127.0.0.1:3001/api/payments/mbbank-sync'
             ];
 
             syncUrls.forEach(url => {
@@ -3339,6 +3485,7 @@
             document.getElementById('transferAmountInput').value = '';
             document.getElementById('transferMsgInput').value = 'KHACH HANG BREWLITE chuyen tien';
             resetBankSelector();
+            isBalanceHidden = false;
             navToHome();
             showToast("Đã hoàn tất giao dịch");
         }
