@@ -5,19 +5,26 @@ import { MockGatewayService } from './mock-gateway/mock-gateway.service';
 import { assertTransition } from '../orders/order-state-machine';
 import { OrderStatus, PaymentMethod, PaymentStatus } from '@prisma/client';
 
+/**
+ * Data Transfer Object (DTO) xác thực dữ liệu gửi lên khi thanh toán đơn hàng.
+ */
 export class ProcessPaymentDto {
   @IsString()
   @IsNotEmpty({ message: 'Mã đơn hàng (orderId) không được để trống' })
   orderId: string;
 
-  @IsEnum(PaymentMethod, { message: 'Phương thức thanh toán không hợp lệ' })
+  @IsEnum(PaymentMethod, { message: 'Phương thức thanh toán không hợp lệ (chỉ chấp nhận WALLET hoặc CARD)' })
   @IsNotEmpty()
   method: PaymentMethod;
 
   @IsOptional()
-  simulateError?: 'FAIL' | 'TIMEOUT';
+  simulateError?: 'FAIL' | 'TIMEOUT'; // Dùng để mô phỏng lỗi khi demo
 }
 
+/**
+ * Service cốt lõi xử lý Thanh Toán, Chống Trùng Lặp (Idempotency) & Trừ Kho Đồng Thời (Optimistic Locking).
+ * Đây là module quan trọng nhất của Task 8 & Task 10 đề bài.
+ */
 @Injectable()
 export class PaymentService {
   constructor(
@@ -25,12 +32,29 @@ export class PaymentService {
     private mockGateway: MockGatewayService,
   ) {}
 
+  /**
+   * Hàm thực hiện quy trình thanh toán toàn diện:
+   * 1. Kiểm tra Idempotency-Key chống thanh toán trùng lặp.
+   * 2. Kiểm tra tính hợp lệ của đơn hàng & Order State Machine.
+   * 3. Tính toán tổng nguyên liệu cần tiêu hao từ công thức Recipe.
+   * 4. Chạy trong Database Transaction:
+   *    - Trừ tồn kho nguyên liệu bằng Optimistic Locking kèm Retry tối đa 3 lần.
+   *    - Gọi Cổng thanh toán giả lập (Mock Gateway).
+   *    - Tạo bản ghi Payment lưu vào CSDL.
+   *    - Cập nhật trạng thái đơn hàng sang PAID.
+   *    - Tăng số lượt dùng voucher khuyến mãi.
+   *    - Tích lũy điểm thưởng loyalty cho khách hàng (1 điểm / 10.000 VNĐ).
+   *    - Ghi nhật ký kiểm toán OrderStatusHistory.
+   */
   async processPayment(dto: ProcessPaymentDto, idempotencyKey: string, user: any) {
+    // =========================================================================
+    // BƯỚC 1: KIỂM TRA IDEMPOTENCY-KEY CHỐNG TRÙNG LẶP GIAO DỊCH (Task 10.2)
+    // =========================================================================
     if (!idempotencyKey || !idempotencyKey.trim()) {
       throw new BadRequestException('Bắt buộc phải có header Idempotency-Key để thực hiện thanh toán');
     }
 
-    // 1. Kiểm tra Idempotency-Key chống trùng lặp giao dịch
+    // Tra cứu trong CSDL xem Idempotency-Key này đã từng được xử lý thành công chưa
     const existingPayment = await this.prisma.payment.findUnique({
       where: { idempotencyKey: idempotencyKey.trim() },
       include: { order: true },
@@ -38,24 +62,30 @@ export class PaymentService {
 
     if (existingPayment) {
       if (existingPayment.orderId === dto.orderId) {
-        // Cùng key + cùng orderId -> Trả lại kết quả cũ đã xử lý
+        // [Kịch bản Replay]: Cùng key + cùng orderId -> Khách hàng đã thanh toán rồi (bị lag mạng bấm đúp)
+        // Trả lại ngay kết quả của giao dịch trước đó (HTTP 200), KHÔNG trừ tiền hay trừ kho lần 2.
         return {
           cached: true,
+          replayed: true,
           message: 'Giao dịch đã được xử lý trước đó (Idempotent replay)',
           payment: existingPayment,
           order: existingPayment.order,
         };
       } else {
-        // Cùng key nhưng khác orderId -> 422 Unprocessable Entity
+        // [Kịch bản Vi phạm]: Cùng key nhưng gửi cho một orderId khác -> Nghi vấn gian lận
+        // Ném lỗi 422 Unprocessable Entity theo chuẩn kỹ thuật RESTful API.
         throw new UnprocessableEntityException(
           'Idempotency-Key đã được sử dụng cho một đơn hàng khác. Vui lòng sinh key mới.',
         );
       }
     }
 
-    // 2. Kiểm tra đơn hàng cần thanh toán (hỗ trợ fallback nếu client bị thiếu orderId)
+    // =========================================================================
+    // BƯỚC 2: KIỂM TRA ĐƠN HÀNG & MÁY TRẠNG THÁI ORDER STATE MACHINE (Task 10.1)
+    // =========================================================================
     let orderToPayId = dto.orderId;
     if (!orderToPayId || typeof orderToPayId !== 'string') {
+      // Hỗ trợ tìm đơn hàng PENDING gần nhất của khách nếu client truyền thiếu mã
       const pendingOrder = await this.prisma.order.findFirst({
         where: { customerId: user.profileId, status: OrderStatus.PENDING },
         orderBy: { createdAt: 'desc' },
@@ -67,6 +97,7 @@ export class PaymentService {
       }
     }
 
+    // Lấy thông tin chi tiết đơn hàng kèm danh sách món, biến thể size và công thức pha chế
     let order = await this.prisma.order.findUnique({
       where: { id: orderToPayId },
       include: {
@@ -109,15 +140,33 @@ export class PaymentService {
       }
     }
 
-    // Kiểm tra quyền hạn: Customer chỉ được thanh toán đơn của chính mình
+    // Kiểm tra quyền hạn: Khách hàng chỉ được phép thanh toán đơn hàng của chính mình
     if (user.role === 'CUSTOMER' && order.customerId !== user.profileId) {
       throw new BadRequestException('Bạn không thể thanh toán đơn hàng của khách hàng khác');
     }
 
-    // Kiểm tra máy trạng thái đơn hàng (chỉ cho phép từ PENDING hoặc PAYMENT_FAILED sang PAID)
-    assertTransition(order.status, OrderStatus.PAID);
+    // KÍCH HOẠT MÁY TRẠNG THÁI (Order State Machine):
+    // Chỉ cho phép chuyển từ PENDING hoặc PAYMENT_FAILED sang PAID. Nếu đơn đã CANCELLED hoặc COMPLETED sẽ bị chặn.
+    try {
+      assertTransition(order.status, OrderStatus.PAID);
+    } catch (err) {
+      await this.prisma.orderStatusHistory.create({
+        data: {
+          orderId: order.id,
+          fromStatus: order.status,
+          toStatus: OrderStatus.PAID,
+          actorId: user.profileId,
+          note: `⛔ [CẢNH BÁO CHẶN GIAN LẬN] Cố tình thanh toán đơn ở trạng thái '${order.status}' không hợp lệ đã bị hệ thống chặn đứng (HTTP 409 Conflict)`,
+        },
+      });
+      throw err;
+    }
 
-    // 3. Tính toán tổng định lượng nguyên liệu cần thiết cho toàn bộ đơn hàng
+    // =========================================================================
+    // BƯỚC 3: TỔNG HỢP NGUYÊN LIỆU CẦN THIẾT TỪ TẤT CẢ MÓN TRONG ĐƠN
+    // =========================================================================
+    // Một đơn hàng có thể có nhiều ly nước, các ly nước có thể dùng chung nguyên liệu (VD: Hạt cà phê, Sữa đặc)
+    // Cần gộp tổng định lượng cần dùng theo từng ingredientId để trừ kho 1 lần duy nhất.
     const ingredientRequirements = new Map<string, { qty: number; name: string }>();
 
     for (const item of order.items) {
@@ -130,45 +179,56 @@ export class PaymentService {
       }
     }
 
-    // 4. Xử lý trong Database Transaction với Optimistic Locking
+    // =========================================================================
+    // BƯỚC 4: DATABASE TRANSACTION - BẢO ĐẢM TÍNH TOÀN VẸN DỮ LIỆU (ACID)
+    // =========================================================================
     return this.prisma.$transaction(async (tx) => {
-      // 4.1 Khấu trừ tồn kho nguyên liệu bằng Optimistic Locking kèm Retry (tối đa 3 lần)
+      // -----------------------------------------------------------------------
+      // 4.1 Khấu trừ tồn kho bằng OPTIMISTIC LOCKING kèm cơ chế RETRY (Task 10.3)
+      // -----------------------------------------------------------------------
       for (const [ingredientId, requirement] of ingredientRequirements.entries()) {
         let updateSuccess = false;
         let lastErrorMsg = '';
 
+        // Cơ chế Retry tối đa 3 lần nếu có xung đột phiên bản (version conflict) giữa các khách hàng đặt cùng lúc
         for (let attempt = 0; attempt < 3; attempt++) {
           const ingredient = await tx.ingredient.findUnique({
             where: { id: ingredientId },
           });
 
+          // Kiểm tra xem số lượng tồn kho thực tế có đủ phục vụ đơn hàng này không
           if (!ingredient || Number(ingredient.stockQuantity) < requirement.qty) {
             throw new ConflictException(
               `Nguyên liệu "${requirement.name}" đã hết hoặc không đủ tồn kho (Còn lại: ${ingredient?.stockQuantity || 0}, Cần: ${requirement.qty}). Giao dịch bị hủy.`,
             );
           }
 
-          // Cập nhật với điều kiện phiên bản (Optimistic Locking)
+          // CÂU LỆNH OPTIMISTIC LOCKING:
+          // Chỉ cập nhật khi: id trùng khớp, version trùng khớp với lúc đọc ra, và tồn kho >= số lượng cần trừ.
+          // Khi update thành công, tự động tăng version lên 1 (version: increment: 1)
           const result = await tx.ingredient.updateMany({
             where: {
               id: ingredientId,
-              version: ingredient.version,
+              version: ingredient.version, // Điều kiện phiên bản lạc quan (Optimistic Lock)
               stockQuantity: { gte: requirement.qty },
             },
             data: {
-              stockQuantity: { decrement: requirement.qty },
-              version: { increment: 1 },
+              stockQuantity: { decrement: requirement.qty }, // Giảm số lượng tồn
+              version: { increment: 1 },                     // Đánh dấu phiên bản mới
             },
           });
 
+          // Nếu result.count > 0 nghĩa là không bị ai tranh chấp đè lên phiên bản này -> Thành công
           if (result.count > 0) {
             updateSuccess = true;
             break;
           }
 
+          // Nếu result.count == 0 nghĩa là đã có transaction khác cập nhật trước -> Thử lại vòng lặp kế tiếp
           lastErrorMsg = `Xung đột phiên bản nguyên liệu "${requirement.name}" ở lần thử thứ ${attempt + 1}`;
         }
 
+        // Sau 3 lần thử vẫn xung đột -> Báo lỗi để rollback transaction, yêu cầu khách thử lại
         if (!updateSuccess) {
           throw new ConflictException(
             `Hệ thống đang có nhiều khách hàng đặt món đồng thời (${lastErrorMsg}). Vui lòng bấm thanh toán lại.`,
@@ -176,7 +236,9 @@ export class PaymentService {
         }
       }
 
-      // 4.2 Gọi Mock Payment Gateway
+      // -----------------------------------------------------------------------
+      // 4.2 GỌI CỔNG THANH TOÁN GIẢ LẬP (MOCK GATEWAY)
+      // -----------------------------------------------------------------------
       const chargeResult = await this.mockGateway.processCharge({
         amount: Number(order.totalAfterDiscount),
         method: dto.method,
@@ -184,13 +246,14 @@ export class PaymentService {
       });
 
       if (!chargeResult.success) {
-        // Cập nhật trạng thái đơn thành PAYMENT_FAILED
+        // Nếu thanh toán thất bại (ví dụ tài khoản không đủ tiền):
+        // 1. Cập nhật trạng thái đơn thành PAYMENT_FAILED
         await tx.order.update({
           where: { id: order.id },
           data: { status: OrderStatus.PAYMENT_FAILED },
         });
 
-        // Ghi lịch sử lỗi thanh toán
+        // 2. Ghi nhật ký lỗi thanh toán vào OrderStatusHistory
         await tx.orderStatusHistory.create({
           data: {
             orderId: order.id,
@@ -201,28 +264,34 @@ export class PaymentService {
           },
         });
 
-        // Ném lỗi để rollback việc trừ kho nguyên liệu
+        // 3. Ném lỗi để tự động ROLLBACK toàn bộ việc trừ kho nguyên liệu đã thực hiện ở bước 4.1
         throw new BadRequestException(`Cổng thanh toán từ chối: ${chargeResult.message}`);
       }
 
-      // 4.3 Tạo bản ghi GiaoDichThanhToan (Payment)
+      // -----------------------------------------------------------------------
+      // 4.3 TẠO BẢN GHI GIAO DỊCH THANH TOÁN (PAYMENT)
+      // -----------------------------------------------------------------------
       const payment = await tx.payment.create({
         data: {
           orderId: order.id,
-          idempotencyKey: idempotencyKey.trim(),
+          idempotencyKey: idempotencyKey.trim(), // Khóa duy nhất (Unique)
           amount: order.totalAfterDiscount,
           status: PaymentStatus.SUCCESS,
           method: dto.method,
         },
       });
 
-      // 4.4 Cập nhật đơn hàng sang PAID
+      // -----------------------------------------------------------------------
+      // 4.4 CẬP NHẬT TRẠNG THÁI ĐƠN HÀNG SANG 'PAID' (ĐÃ THANH TOÁN)
+      // -----------------------------------------------------------------------
       const updatedOrder = await tx.order.update({
         where: { id: order.id },
         data: { status: OrderStatus.PAID },
       });
 
-      // 4.5 Tăng usedCount của mã khuyến mãi (nếu có)
+      // -----------------------------------------------------------------------
+      // 4.5 TĂNG SỐ LƯỢT ĐÃ SỬ DỤNG CỦA MÃ VOUCHER KHUYẾN MÃI (NẾU CÓ)
+      // -----------------------------------------------------------------------
       if (order.promotionId) {
         await tx.promotion.update({
           where: { id: order.promotionId },
@@ -232,7 +301,10 @@ export class PaymentService {
         });
       }
 
-      // 4.6 Tích lũy điểm thưởng cho khách hàng (1 điểm / 10.000 VNĐ)
+      // -----------------------------------------------------------------------
+      // 4.6 TÍCH LŨY ĐIỂM THƯỞNG CHO KHÁCH HÀNG (LOYALTY POINTS)
+      // -----------------------------------------------------------------------
+      // Quy tắc nghiệp vụ: Mỗi 10.000 VNĐ chi tiêu thực tế được cộng 1 điểm thưởng
       const earnedPoints = Math.floor(Number(order.totalAfterDiscount) / 10000);
       if (earnedPoints > 0) {
         await tx.customer.update({
@@ -243,7 +315,9 @@ export class PaymentService {
         });
       }
 
-      // 4.7 Ghi lịch sử chuyển trạng thái đơn hàng
+      // -----------------------------------------------------------------------
+      // 4.7 GHI NHẬT KÝ KIỂM TOÁN CHUYỂN TRẠNG THÁI ĐƠN HÀNG (AUDIT LOG)
+      // -----------------------------------------------------------------------
       await tx.orderStatusHistory.create({
         data: {
           orderId: order.id,
@@ -254,8 +328,10 @@ export class PaymentService {
         },
       });
 
+      // Hoàn tất transaction và trả về dữ liệu cho Client
       return {
         cached: false,
+        replayed: false,
         success: true,
         message: 'Thanh toán đơn hàng thành công',
         payment,
@@ -265,7 +341,14 @@ export class PaymentService {
     });
   }
 
-  // --- MBBANK REALTIME CROSS-DEVICE SYNC ---
+  // =========================================================================
+  // PHÂN HỆ ĐỒNG BỘ REALTIME MBBANK QUA MẠNG LAN / MOBILE CAMERA
+  // =========================================================================
+
+  /**
+   * Bộ nhớ đệm tĩnh lưu trữ danh sách các giao dịch chuyển khoản MBBank nhận được từ điện thoại.
+   * Key: mã đơn hàng hoặc nội dung chuyển khoản | Value: thông tin giao dịch.
+   */
   private static mbPayments = new Map<string, {
     orderCode: string;
     amount: number;
@@ -276,6 +359,10 @@ export class PaymentService {
     time: number;
   }>();
 
+  /**
+   * Hàm Webhook nhận biến động số dư khi điện thoại quét mã VietQR và bấm xác nhận chuyển tiền.
+   * Tự động trích xuất mã đơn hàng (ví dụ: BL810243 hoặc ORD-XXX) từ nội dung chuyển khoản.
+   */
   async syncMbPayment(data: any) {
     const content = String(data?.content || '').toUpperCase().trim();
     const rawCode = String(data?.invoice_code || '').toUpperCase().trim();
@@ -293,6 +380,7 @@ export class PaymentService {
       }
     }
 
+    // Tạo bản ghi giao dịch chuẩn hóa
     const paymentRecord = {
       orderCode,
       amount: Number(data?.amount) || 0,
@@ -305,6 +393,7 @@ export class PaymentService {
 
     console.log(`[MBBank Sync] 💸 Nhận giao dịch mới: Đơn=${orderCode}, Tiền=${paymentRecord.amount}, Nội dung="${paymentRecord.content}"`);
 
+    // Lưu vào bộ nhớ theo nhiều khóa để hỗ trợ tra cứu linh hoạt
     if (orderCode) {
       PaymentService.mbPayments.set(orderCode, paymentRecord);
     }
@@ -314,7 +403,7 @@ export class PaymentService {
     if (content) {
       PaymentService.mbPayments.set(content, paymentRecord);
     }
-    // Lưu giao dịch gần nhất để hỗ trợ đối soát các trường hợp sai nội dung
+    // Lưu giao dịch gần nhất để hỗ trợ đối soát các trường hợp sai nội dung chuyển khoản
     PaymentService.mbPayments.set('LATEST_TX', paymentRecord);
 
     return {
@@ -324,10 +413,15 @@ export class PaymentService {
     };
   }
 
+  /**
+   * Hàm kiểm tra trạng thái thanh toán chuyển khoản MBBank cho mã hóa đơn.
+   * Client (trang Checkout) định kỳ gọi hàm này để cập nhật trạng thái "Đã thanh toán" tự động.
+   */
   async checkMbPayment(orderCode: string) {
     const code = String(orderCode || '').toUpperCase().trim();
     let payment = PaymentService.mbPayments.get(code);
 
+    // Tìm kiếm mở rộng nếu mã nằm trong chuỗi nội dung chuyển khoản
     if (!payment) {
       for (const [key, val] of PaymentService.mbPayments.entries()) {
         if (
@@ -343,11 +437,13 @@ export class PaymentService {
       }
     }
 
-    if (payment && Date.now() - payment.time < 600000) { // 10 phút hiệu lực
+    // Giao dịch hợp lệ nếu tìm thấy và thời gian phát sinh chưa quá 10 phút
+    if (payment && Date.now() - payment.time < 600000) {
       return { paid: true, payment };
     }
 
-    // Nếu không khớp mã nhưng có giao dịch chuyển tiền gần nhất trong vòng 2 phút -> Nhận diện SAI NỘI DUNG
+    // NGHIỆP VỤ ĐẶC THÙ (Napas 247): Nếu có giao dịch chuyển tiền gần nhất trong vòng 2 phút nhưng không khớp mã đơn
+    // -> Nhận diện ngay là khách hàng đã chuyển tiền nhưng "GHI SAI NỘI DUNG CHUYỂN KHOẢN"
     const latestTx = PaymentService.mbPayments.get('LATEST_TX');
     if (latestTx && Date.now() - latestTx.time < 120000) {
       const txContent = (latestTx.content || '').toUpperCase();
@@ -365,6 +461,9 @@ export class PaymentService {
     return { paid: false };
   }
 
+  /**
+   * Hàm vô hiệu hóa / xóa mã thanh toán MBBank khỏi bộ nhớ khi đơn đã thanh toán hoặc bị hủy.
+   */
   async invalidateMbPayment(orderCode: string) {
     const code = String(orderCode || '').toUpperCase().trim();
     PaymentService.mbPayments.delete(code);
@@ -376,4 +475,5 @@ export class PaymentService {
     return { success: true, message: `Đã hủy mã thanh toán ${code}` };
   }
 }
+
 

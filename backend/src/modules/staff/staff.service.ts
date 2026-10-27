@@ -47,7 +47,20 @@ export class StaffService {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('Không tìm thấy đơn hàng');
 
-    assertTransition(order.status, OrderStatus.PREPARING);
+    try {
+      assertTransition(order.status, OrderStatus.PREPARING);
+    } catch (err) {
+      await this.prisma.orderStatusHistory.create({
+        data: {
+          orderId,
+          fromStatus: order.status,
+          toStatus: OrderStatus.PREPARING,
+          actorId: staffId,
+          note: `⛔ [CẢNH BÁO CHẶN GIAN LẬN] Chuyển đổi trạng thái từ '${order.status}' sang 'PREPARING' bị từ chối: ${(err as Error).message}`,
+        },
+      });
+      throw err;
+    }
 
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.order.update({
@@ -76,7 +89,20 @@ export class StaffService {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('Không tìm thấy đơn hàng');
 
-    assertTransition(order.status, OrderStatus.READY);
+    try {
+      assertTransition(order.status, OrderStatus.READY);
+    } catch (err) {
+      await this.prisma.orderStatusHistory.create({
+        data: {
+          orderId,
+          fromStatus: order.status,
+          toStatus: OrderStatus.READY,
+          actorId: staffId,
+          note: `⛔ [CẢNH BÁO CHẶN GIAN LẬN] Chuyển đổi trạng thái từ '${order.status}' sang 'READY' bị từ chối: ${(err as Error).message}`,
+        },
+      });
+      throw err;
+    }
 
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.order.update({
@@ -102,7 +128,21 @@ export class StaffService {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('Không tìm thấy đơn hàng');
 
-    assertTransition(order.status, OrderStatus.COMPLETED);
+    try {
+      assertTransition(order.status, OrderStatus.COMPLETED);
+    } catch (err) {
+      // Ghi nhật ký kiểm toán (Audit Log) lưu vết hành vi cố tình vi phạm State Machine để làm minh chứng
+      await this.prisma.orderStatusHistory.create({
+        data: {
+          orderId,
+          fromStatus: order.status,
+          toStatus: OrderStatus.COMPLETED,
+          actorId: staffId,
+          note: `⛔ [CẢNH BÁO CHẶN GIAN LẬN] Cố tình nhảy cóc từ '${order.status}' sang 'COMPLETED' đã bị hệ thống chặn đứng (HTTP 409 Conflict)`,
+        },
+      });
+      throw err;
+    }
 
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.order.update({
