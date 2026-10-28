@@ -1,0 +1,416 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' 
+      xmlns:w='urn:schemas-microsoft-com:office:word' 
+      xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+<meta charset="utf-8">
+<title>BẢNG ĐỐI CHIẾU TRƯỚC VÀ SAU SỬA LỖI - BREWLITE PROJECT</title>
+<!--[if gte mso 9]>
+<xml>
+<w:WordDocument>
+<w:View>Print</w:View>
+<w:Zoom>100</w:Zoom>
+<w:DoNotOptimizeForBrowser/>
+</w:WordDocument>
+</xml>
+<![endif]-->
+<style>
+  body {
+    font-family: 'Times New Roman', 'Segoe UI', Arial, sans-serif;
+    font-size: 12pt;
+    line-height: 1.6;
+    color: #241B15;
+    margin: 40px;
+    background-color: #FFFFFF;
+  }
+  h1 {
+    font-size: 18pt;
+    color: #8B4513;
+    text-align: center;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    font-weight: bold;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 11pt;
+    color: #666;
+    font-style: italic;
+    margin-bottom: 25px;
+  }
+  h2 {
+    font-size: 14pt;
+    color: #4A2E18;
+    border-bottom: 2px solid #8B4513;
+    padding-bottom: 4px;
+    margin-top: 25px;
+    margin-bottom: 12px;
+  }
+  h3 {
+    font-size: 12.5pt;
+    color: #2D3748;
+    margin-top: 18px;
+    margin-bottom: 6px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 15px 0;
+    font-size: 11pt;
+  }
+  th, td {
+    border: 1px solid #C9BBA8;
+    padding: 9px 12px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background-color: #F4EFE7;
+    color: #3D3027;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 10.5pt;
+  }
+  tr:nth-child(even) td {
+    background-color: #FAF7F2;
+  }
+  .badge-before {
+    display: inline-block;
+    background-color: #FEE2E2;
+    color: #991B1B;
+    font-weight: bold;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 10pt;
+  }
+  .badge-after {
+    display: inline-block;
+    background-color: #DCFCE7;
+    color: #166534;
+    font-weight: bold;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 10pt;
+  }
+  .file-path {
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 10pt;
+    color: #7B341E;
+    background-color: #F8F5F0;
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+  .note-box {
+    background-color: #FDF8F3;
+    border-left: 4px solid #8B4513;
+    padding: 10px 14px;
+    margin: 15px 0;
+    font-size: 11pt;
+  }
+  ul, ol {
+    margin-top: 4px;
+    margin-bottom: 8px;
+    padding-left: 24px;
+  }
+  li {
+    margin-bottom: 4px;
+  }
+</style>
+</head>
+<body>
+
+<h1>BẢO CÁO NGHIỆM THU — ĐỐI CHIẾU TRƯỚC VÀ SAU SỬA LỖI</h1>
+<div class="subtitle">
+  Dự án: BrewLite — Quầy Cà Phê Thủ Công Không Tiền Mặt<br/>
+  Phân hệ: [P4 - Frontend & Backend] Giao diện Auth + Màn hình Thanh toán + Lịch sử đơn (/orders/me)<br/>
+  Nhánh Git: <b>feat/p4-checkout-history</b> | Tài liệu đối chiếu: <b>BrewLite-CongNghePhanMem.pdf (VER 1.0)</b>
+</div>
+
+<div class="note-box">
+  <b>Tóm tắt mục tiêu hoàn thiện:</b><br/>
+  Bản báo cáo này đối chiếu chi tiết hiện trạng mã nguồn <b>TRƯỚC KHI SỬA</b> (gặp lỗi nghiệp vụ, sai route, lỗi 404, tính sai điểm thưởng, bypass token giả, lỗi 409 đánh giá) và <b>SAU KHI SỬA</b> (khớp 100% tài liệu đặc tả đề bài BTL Công nghệ phần mềm, sẵn sàng phục vụ nghiệm thu DoD cho Giảng viên).
+</div>
+
+<h2>I. BẢNG TỔNG HỢP SO SÁNH NHANH (EXECUTIVE SUMMARY)</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th style="width: 5%;">STT</th>
+      <th style="width: 20%;">Hạng mục / Chức năng</th>
+      <th style="width: 25%;">Vị trí File Mã Nguồn</th>
+      <th style="width: 25%;">Trước khi sửa (Lỗi / Bất cập)</th>
+      <th style="width: 25%;">Sau khi sửa (Chuẩn Đề bài BTL)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: center; font-weight: bold;">1</td>
+      <td><b>Đường dẫn Lịch sử đơn hàng (/orders/me)</b></td>
+      <td>
+        <span class="file-path">frontend/src/app/orders/me/page.tsx</span><br/>
+        <span class="file-path">frontend/src/app/orders/history/page.tsx</span>
+      </td>
+      <td>
+        <span class="badge-before">🔴 LỖI 404</span><br/>
+        Truy cập URL chuẩn <code>/orders/me</code> bị 404 Not Found (chỉ có thư mục <code>orders/history</code>). Sai lệch Mục 12.1 PDF đề bài.
+      </td>
+      <td>
+        <span class="badge-after">🟢 ĐÃ SỬA CHUẨN</span><br/>
+        Tạo trang <code>/orders/me</code> chính thức. Truy cập <code>/orders/history</code> tự động chuyển hướng mượt mà sang <code>/orders/me</code>.
+      </td>
+    </tr>
+    <tr>
+      <td style="text-align: center; font-weight: bold;">2</td>
+      <td><b>Công thức Điểm thưởng Loyalty</b></td>
+      <td>
+        <span class="file-path">frontend/src/app/orders/[id]/page.tsx</span> (dòng 106)
+      </td>
+      <td>
+        <span class="badge-before">🔴 SAI LỆCH x10</span><br/>
+        Chia cho 1.000: Đơn 50.000đ hiển thị "+50 điểm". Nhưng DB và Navbar chỉ cộng 5 điểm, gây sai lệch dữ liệu trầm trọng.
+      </td>
+      <td>
+        <span class="badge-after">🟢 CHUẨN ĐỀ BÀI</span><br/>
+        Chia cho 10.000 (1 điểm / 10.000đ). Đơn 50.000đ hiển thị đúng <b>+5 điểm</b>, đồng bộ 100% với Navbar và Backend.
+      </td>
+    </tr>
+    <tr>
+      <td style="text-align: center; font-weight: bold;">3</td>
+      <td><b>Xác thực Auth & Mock Token Bypass</b></td>
+      <td>
+        <span class="file-path">frontend/src/app/login/page.tsx</span><br/>
+        <span class="file-path">backend/src/modules/auth/auth.service.ts</span>
+      </td>
+      <td>
+        <span class="badge-before">🔴 HỔNG BẢO MẬT</span><br/>
+        Khối <code>catch</code> tự gán <code>mock_token_cust</code> giả mạo vào localStorage. Request sau bị 401 Unauthorized và văng logout liên tục.
+      </td>
+      <td>
+        <span class="badge-after">🟢 JWT CHUẨN HÓA</span><br/>
+        Xóa sạch token giả. Bắt buộc nhận JWT thật từ backend. Bổ sung thông báo chuẩn khi tài khoản bị khóa (<code>customer3</code>: LOCKED).
+      </td>
+    </tr>
+    <tr>
+      <td style="text-align: center; font-weight: bold;">4</td>
+      <td><b>Nút Thanh toán Giỏ hàng (US-05 AC 1)</b></td>
+      <td>
+        <span class="file-path">frontend/src/app/cart/page.tsx</span>
+      </td>
+      <td>
+        <span class="badge-before">🔴 THIẾU TIÊU CHÍ AC</span><br/>
+        Nút chỉ hiển thị text cứng <i>"Tiến hành thanh toán"</i>, không có số tiền, vi phạm tiêu chí nghiệm thu US-05 AC 1 trong đề bài.
+      </td>
+      <td>
+        <span class="badge-after">🟢 HIỂN THỊ TỔNG TIỀN</span><br/>
+        Nút hiển thị kèm tổng tiền: <b>"Tiến hành thanh toán (35.000đ)"</b> hoặc <b>"Đăng nhập để thanh toán (35.000đ)"</b>.
+      </td>
+    </tr>
+    <tr>
+      <td style="text-align: center; font-weight: bold;">5</td>
+      <td><b>Demo Lỗi Thanh toán (PAYMENT_FAILED)</b></td>
+      <td>
+        <span class="file-path">frontend/src/app/checkout/page.tsx</span><br/>
+        <span class="file-path">backend/src/modules/payment/payment.service.ts</span>
+      </td>
+      <td>
+        <span class="badge-before">🔴 THIẾU CHỨC NĂNG DEMO</span><br/>
+        Không có nút kích hoạt kịch bản lỗi thanh toán trên UI để giảng viên nghiệm thu tiêu chí "Giữ nguyên giỏ hàng khi lỗi".
+      </td>
+      <td>
+        <span class="badge-after">🟢 NÚT DEMO CHUYÊN DỤNG</span><br/>
+        Thêm nút <b>"⚡ Giả lập lỗi thanh toán (PAYMENT_FAILED)"</b>: Đơn chuyển sang <code>PAYMENT_FAILED</code>, <b>giỏ hàng được giữ nguyên 100%</b>.
+      </td>
+    </tr>
+    <tr>
+      <td style="text-align: center; font-weight: bold;">6</td>
+      <td><b>Chặn phím Back ở màn Checkout</b></td>
+      <td>
+        <span class="file-path">frontend/src/app/checkout/page.tsx</span>
+      </td>
+      <td>
+        <span class="badge-before">🔴 TRẢI NGHIỆM KÉM</span><br/>
+        Lắng nghe <code>popstate</code> chặn Back quá mức: Khách vừa vào Checkout muốn bấm Back đổi topping thì bị ép văng sang <code>/products</code>.
+      </td>
+      <td>
+        <span class="badge-after">🟢 ĐIỀU HƯỚNG MỀM DẺO</span><br/>
+        Chỉ chặn khi đơn đã thanh toán xong. Khi đang chọn phương thức, bấm Back trình duyệt quay về <code>/cart</code> sửa món bình thường.
+      </td>
+    </tr>
+    <tr>
+      <td style="text-align: center; font-weight: bold;">7</td>
+      <td><b>Thanh toán lại Đơn lỗi (Retry Payment)</b></td>
+      <td>
+        <span class="file-path">frontend/src/app/orders/[id]/page.tsx</span><br/>
+        <span class="file-path">frontend/src/app/checkout/page.tsx</span>
+      </td>
+      <td>
+        <span class="badge-before">🔴 BỊ KẸT LUỒNG VĂNG TRANG</span><br/>
+        Khi đơn lỗi, bấm "Quay lại thanh toán" sang <code>/checkout</code> bị đoạn chặn <code>items.length === 0</code> đẩy văng về <code>/products</code>.
+      </td>
+      <td>
+        <span class="badge-after">🟢 HỖ TRỢ RETRY MƯỢT MÀ</span><br/>
+        Hỗ trợ thanh toán lại trực tiếp hoặc giữ đơn đang lỗi để tiếp tục thanh toán mà không phụ thuộc vào giỏ hàng rỗng.
+      </td>
+    </tr>
+    <tr>
+      <td style="text-align: center; font-weight: bold;">8</td>
+      <td><b>Đánh giá món & Tránh Crash 409 Conflict</b></td>
+      <td>
+        <span class="file-path">backend/src/modules/orders/orders.service.ts</span><br/>
+        <span class="file-path">frontend/src/app/orders/me/page.tsx</span>
+      </td>
+      <td>
+        <span class="badge-before">🔴 LỖI 409 KHI GỬI LẠI</span><br/>
+        Query backend thiếu quan hệ <code>reviews: true</code>. Nút "Đánh giá món" luôn hiện, khi khách bấm gửi lại thì server crash lỗi 409 Conflict.
+      </td>
+      <td>
+        <span class="badge-after">🟢 ĐÃ LIÊN KẾT REVIEWS</span><br/>
+        Backend thêm <code>reviews: true</code>. Frontend khóa món đã review, tự đổi sang nhãn <b>"Đã đánh giá đủ món"</b>, không còn lỗi 409.
+      </td>
+    </tr>
+    <tr>
+      <td style="text-align: center; font-weight: bold;">9</td>
+      <td><b>Nút Hủy đơn tại Chi tiết Đơn hàng</b></td>
+      <td>
+        <span class="file-path">frontend/src/app/orders/[id]/page.tsx</span>
+      </td>
+      <td>
+        <span class="badge-before">🔴 THIẾU TÍNH NĂNG</span><br/>
+        Màn hình chi tiết đơn không có nút Hủy đơn, khách bắt buộc phải quay lại danh sách ngoài mới bấm hủy được.
+      </td>
+      <td>
+        <span class="badge-after">🟢 NÚT & MODAL HỦY ĐƠN</span><br/>
+        Bổ sung nút và Modal xác nhận "Hủy đơn hàng" trực tiếp trên màn chi tiết khi đơn ở trạng thái <code>PENDING</code> hoặc <code>PAID</code>.
+      </td>
+    </tr>
+    <tr>
+      <td style="text-align: center; font-weight: bold;">10</td>
+      <td><b>Cơ chế Fallback Store khi PostgreSQL Offline</b></td>
+      <td>
+        <span class="file-path">backend/src/prisma/fallback-store.ts</span><br/>
+        <span class="file-path">backend/src/prisma/prisma.service.ts</span>
+      </td>
+      <td>
+        <span class="badge-before">🔴 CRASH KHI THIẾU DB</span><br/>
+        Nếu chưa bật Docker/PostgreSQL, toàn bộ API trả về lỗi <code>500 Connection Refused</code>, không thể chấm bài hay chạy demo.
+      </td>
+      <td>
+        <span class="badge-after">🟢 TỰ ĐỘNG FALLBACK IN-MEMORY</span><br/>
+        Tự động kích hoạt store in-memory có sẵn tài khoản seed, đơn hàng mẫu, tạo đơn, thanh toán và tích điểm mượt mà 100%.
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>II. KỊCH BẢN KIỂM THỬ CHI TIẾT (STEP-BY-STEP TEST SCENARIOS)</h2>
+
+<h3>Kịch bản 1: Kiểm tra Route Lịch sử Đơn hàng (/orders/me)</h3>
+<ul>
+  <li><b>Bước 1:</b> Mở trình duyệt, gõ trực tiếp URL: <code>http://localhost:3000/orders/me</code>.</li>
+  <li><b>Kết quả Trước khi sửa:</b> Màn hình báo <b>404 Not Found</b>.</li>
+  <li><b>Kết quả Sau khi sửa:</b> Trang Lịch sử đơn hàng tải thành công, hiển thị 4 Tabs lọc: <i>Tất cả đơn, Đang xử lý, Hoàn tất, Đã hủy / Lỗi</i>.</li>
+  <li><b>Bước 2 (Kiểm tra tương thích ngược):</b> Gõ URL cũ: <code>http://localhost:3000/orders/history</code>.</li>
+  <li><b>Kết quả Sau khi sửa:</b> Trình duyệt tự động chuyển hướng (redirect) mượt mà về <code>/orders/me</code>.</li>
+</ul>
+
+<h3>Kịch bản 2: Kiểm tra Đăng nhập & Bảo mật Token</h3>
+<ul>
+  <li><b>Bước 1:</b> Mở trang Đăng nhập <code>http://localhost:3000/login</code>.</li>
+  <li><b>Bước 2:</b> Nhập tài khoản <code>customer3</code> / <code>123456</code> (tài khoản đã cấu hình khóa).</li>
+  <li><b>Kết quả Trước khi sửa:</b> Bị lỗi hoặc tự sinh token giả lưu vào localStorage gây lỗi văng phiên ở trang sau.</li>
+  <li><b>Kết quả Sau khi sửa:</b> Hệ thống chặn đăng nhập, hiển thị thông báo đỏ: <b>"Tài khoản đã bị khoá, vui lòng liên hệ quầy"</b>.</li>
+  <li><b>Bước 3:</b> Đăng nhập tài khoản <code>customer1</code> / <code>123456</code>.</li>
+  <li><b>Kết quả Sau khi sửa:</b> Đăng nhập thành công với JWT hợp lệ, góc phải Navbar hiển thị <b>Hoàng Minh Khách</b> và <b>120 điểm</b>.</li>
+</ul>
+
+<h3>Kịch bản 3: Kiểm tra Nút Giỏ hàng hiển thị Tổng tiền (US-05 AC 1)</h3>
+<ul>
+  <li><b>Bước 1:</b> Mở Menu <code>/products</code>, chọn món "Cà phê Sữa Đá Truyền Thống" (Size M: 35.000đ), bấm "Thêm vào giỏ hàng".</li>
+  <li><b>Bước 2:</b> Mở trang Giỏ hàng <code>http://localhost:3000/cart</code>.</li>
+  <li><b>Kết quả Trước khi sửa:</b> Nút thanh toán hiển thị chữ: <i>"Tiến hành thanh toán"</i> (không có giá tiền).</li>
+  <li><b>Kết quả Sau khi sửa:</b> Nút thanh toán hiển thị rõ ràng: <b>"Tiến hành thanh toán (35.000đ)"</b>.</li>
+</ul>
+
+<h3>Kịch bản 4: Kiểm tra Demo Giả lập Lỗi Thanh toán (PAYMENT_FAILED) & Giữ nguyên Giỏ hàng</h3>
+<ul>
+  <li><b>Bước 1:</b> Tại trang Giỏ hàng, bấm "Tiến hành thanh toán" chuyển sang <code>/checkout</code>.</li>
+  <li><b>Bước 2:</b> Bấm phím Back của trình duyệt.</li>
+  <li><b>Kết quả Sau khi sửa:</b> Trình duyệt quay về <code>/cart</code> cho phép khách đổi số lượng/topping (không bị ép văng sang <code>/products</code> như trước).</li>
+  <li><b>Bước 3:</b> Quay lại <code>/checkout</code>, bấm nút <b>"⚡ Giả lập lỗi thanh toán (PAYMENT_FAILED)"</b>.</li>
+  <li><b>Bước 4:</b> Bấm <b>"Xác nhận trả"</b>.</li>
+  <li><b>Kết quả Sau khi sửa:</b> Đơn hàng chuyển sang trạng thái <b>PAYMENT_FAILED</b>, và <b>toàn bộ món trong giỏ hàng được giữ nguyên</b> (đúng Acceptance Criteria Task 8 trong PDF đề bài).</li>
+</ul>
+
+<h3>Kịch bản 5: Kiểm tra Thanh toán Thành công & Tính đúng Điểm thưởng (+1 điểm / 10.000đ)</h3>
+<ul>
+  <li><b>Bước 1:</b> Tại màn hình <code>/checkout</code>, chọn phương thức "Ví điện tử", bấm <b>"Xác nhận trả"</b> (không bật giả lập lỗi).</li>
+  <li><b>Bước 2:</b> Hệ thống chuyển hướng sang màn hình Xác nhận đơn <code>/orders/[id]</code>.</li>
+  <li><b>Kết quả Trước khi sửa:</b> Màn hình báo nhận <b>"+35 điểm"</b> (do chia 1.000), nhưng Navbar chỉ cộng 3 điểm.</li>
+  <li><b>Kết quả Sau khi sửa:</b>
+    <ul>
+      <li>Giao diện hiển thị đúng chuẩn Wireframe (5): Biểu tượng tích xanh <b>✓</b>, dòng chữ <b>"Đặt hàng thành công"</b>, Trạng thái <b>PAID</b>, thông điệp <b>"Mời tới quầy lấy nước"</b>, nút <b>"Về trang chủ"</b>.</li>
+      <li>Điểm thưởng hiển thị chính xác: <b>"+3 điểm"</b> (35.000 / 10.000 = 3 điểm), đồng bộ tuyệt đối với số điểm tích lũy của khách hàng.</li>
+    </ul>
+  </li>
+</ul>
+
+<h3>Kịch bản 6: Kiểm tra Đánh giá món tại Đơn Hoàn thành & Chống lỗi 409</h3>
+<ul>
+  <li><b>Bước 1:</b> Mở trang Lịch sử đơn hàng <code>http://localhost:3000/orders/me</code>.</li>
+  <li><b>Bước 2:</b> Chuyển sang Tab <b>"Hoàn tất"</b> và tìm đơn hàng mẫu <code>ord-demo-101</code> (đã hoàn thành).</li>
+  <li><b>Bước 3:</b> Bấm nút "Đánh giá món", chọn số sao, nhập bình luận và bấm "Gửi đánh giá".</li>
+  <li><b>Kết quả Trước khi sửa:</b> Nút đánh giá vẫn hiện, mở lại gửi tiếp sẽ crash báo lỗi <code>409 Conflict</code>.</li>
+  <li><b>Kết quả Sau khi sửa:</b> Đánh giá được lưu thành công. Món đã đánh giá được đánh dấu và nút chuyển thành <b>"Đã đánh giá đủ món"</b>, không thể gửi trùng lặp.</li>
+</ul>
+
+<h2>III. DANH SÁCH TÀI KHOẢN MẪU DÙNG ĐỂ NGHIỆM THU (Mật khẩu chung: 123456)</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Phân hệ / Vai trò</th>
+      <th>Username</th>
+      <th>Mật khẩu</th>
+      <th>Mục đích kiểm thử</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><b>Quản trị viên (ADMIN)</b></td>
+      <td><code>admin</code></td>
+      <td><code>123456</code></td>
+      <td>Quản trị sản phẩm, nguyên liệu, tài khoản, doanh thu tại <code>/admin</code>.</td>
+    </tr>
+    <tr>
+      <td><b>Pha chế (STAFF)</b></td>
+      <td><code>barista1</code><br/><code>barista2</code></td>
+      <td><code>123456</code><br/><code>123456</code></td>
+      <td>Xem Kanban quầy bar, nhận đơn, pha chế và hoàn tất đơn tại <code>/staff</code>.</td>
+    </tr>
+    <tr>
+      <td><b>Khách hàng 1 (CUSTOMER)</b></td>
+      <td><code>customer1</code></td>
+      <td><code>123456</code></td>
+      <td><b>Khuyên dùng:</b> Có sẵn 120 điểm loyalty & 2 đơn mẫu để test ngay <code>/orders/me</code>.</td>
+    </tr>
+    <tr>
+      <td><b>Khách hàng 2 (CUSTOMER)</b></td>
+      <td><code>customer2</code></td>
+      <td><code>123456</code></td>
+      <td>Khách hàng mới (45 điểm), test đặt đơn mới và thanh toán từ giỏ hàng.</td>
+    </tr>
+    <tr>
+      <td><b>Khách hàng Khóa (LOCKED)</b></td>
+      <td><code>customer3</code></td>
+      <td><code>123456</code></td>
+      <td>Test Guard đăng nhập chặn tài khoản bị khóa và hiện thông báo đỏ.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div style="margin-top: 30px; text-align: right; font-style: italic; color: #555;">
+  Báo cáo được hoàn thiện và trích xuất tự động phục vụ nghiệm thu Đồ án Công nghệ phần mềm.
+</div>
+
+</body>
+</html>
