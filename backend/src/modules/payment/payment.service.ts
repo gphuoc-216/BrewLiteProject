@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, ConflictException, UnprocessableEntityException, NotFoundException } from '@nestjs/common';
 import { IsNotEmpty, IsString, IsEnum, IsOptional } from 'class-validator';
 import { PrismaService } from '../../prisma/prisma.service';
+import { fallbackStore } from '../../prisma/fallback-store';
 import { MockGatewayService } from './mock-gateway/mock-gateway.service';
 import { assertTransition } from '../orders/order-state-machine';
 import { OrderStatus, PaymentMethod, PaymentStatus } from '@prisma/client';
@@ -30,64 +31,46 @@ export class PaymentService {
       throw new BadRequestException('Bắt buộc phải có header Idempotency-Key để thực hiện thanh toán');
     }
 
-    // 1. Kiểm tra Idempotency-Key chống trùng lặp giao dịch
-    const existingPayment = await this.prisma.payment.findUnique({
-      where: { idempotencyKey: idempotencyKey.trim() },
-      include: { order: true },
-    });
-
-    if (existingPayment) {
-      if (existingPayment.orderId === dto.orderId) {
-        // Cùng key + cùng orderId -> Trả lại kết quả cũ đã xử lý
-        return {
-          cached: true,
-          message: 'Giao dịch đã được xử lý trước đó (Idempotent replay)',
-          payment: existingPayment,
-          order: existingPayment.order,
-        };
-      } else {
-        // Cùng key nhưng khác orderId -> 422 Unprocessable Entity
-        throw new UnprocessableEntityException(
-          'Idempotency-Key đã được sử dụng cho một đơn hàng khác. Vui lòng sinh key mới.',
-        );
-      }
-    }
-
-    // 2. Kiểm tra đơn hàng cần thanh toán (hỗ trợ fallback nếu client bị thiếu orderId)
-    let orderToPayId = dto.orderId;
-    if (!orderToPayId || typeof orderToPayId !== 'string') {
-      const pendingOrder = await this.prisma.order.findFirst({
-        where: { customerId: user.profileId, status: OrderStatus.PENDING },
-        orderBy: { createdAt: 'desc' },
+    try {
+      // 1. Kiểm tra Idempotency-Key chống trùng lặp giao dịch
+      const existingPayment = await this.prisma.payment.findUnique({
+        where: { idempotencyKey: idempotencyKey.trim() },
+        include: { order: true },
       });
-      if (pendingOrder) {
-        orderToPayId = pendingOrder.id;
-      } else {
-        throw new BadRequestException('Mã đơn hàng (orderId) không được để trống hoặc không hợp lệ');
+
+      if (existingPayment) {
+        if (existingPayment.orderId === dto.orderId) {
+          // Cùng key + cùng orderId -> Trả lại kết quả cũ đã xử lý
+          return {
+            cached: true,
+            message: 'Giao dịch đã được xử lý trước đó (Idempotent replay)',
+            payment: existingPayment,
+            order: existingPayment.order,
+          };
+        } else {
+          // Cùng key nhưng khác orderId -> 422 Unprocessable Entity
+          throw new UnprocessableEntityException(
+            'Idempotency-Key đã được sử dụng cho một đơn hàng khác. Vui lòng sinh key mới.',
+          );
+        }
       }
-    }
 
-    let order = await this.prisma.order.findUnique({
-      where: { id: orderToPayId },
-      include: {
-        items: {
-          include: {
-            variant: {
-              include: {
-                recipes: {
-                  include: { ingredient: true },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
+      // 2. Kiểm tra đơn hàng cần thanh toán (hỗ trợ fallback nếu client bị thiếu orderId)
+      let orderToPayId = dto.orderId;
+      if (!orderToPayId || typeof orderToPayId !== 'string') {
+        const pendingOrder = await this.prisma.order.findFirst({
+          where: { customerId: user.profileId, status: OrderStatus.PENDING },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (pendingOrder) {
+          orderToPayId = pendingOrder.id;
+        } else {
+          throw new BadRequestException('Mã đơn hàng (orderId) không được để trống hoặc không hợp lệ');
+        }
+      }
 
-    if (!order) {
-      const pendingOrder = await this.prisma.order.findFirst({
-        where: { customerId: user.profileId, status: OrderStatus.PENDING },
-        orderBy: { createdAt: 'desc' },
+      let order = await this.prisma.order.findUnique({
+        where: { id: orderToPayId },
         include: {
           items: {
             include: {
@@ -102,167 +85,266 @@ export class PaymentService {
           },
         },
       });
-      if (pendingOrder) {
-        order = pendingOrder;
+
+      if (!order) {
+        const pendingOrder = await this.prisma.order.findFirst({
+          where: { customerId: user.profileId, status: OrderStatus.PENDING },
+          orderBy: { createdAt: 'desc' },
+          include: {
+            items: {
+              include: {
+                variant: {
+                  include: {
+                    recipes: {
+                      include: { ingredient: true },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        });
+        if (pendingOrder) {
+          order = pendingOrder;
+        } else {
+          throw new NotFoundException(`Không tìm thấy đơn hàng với mã: ${orderToPayId}`);
+        }
+      }
+
+      // Kiểm tra quyền hạn: Customer chỉ được thanh toán đơn của chính mình
+      if (user.role === 'CUSTOMER' && order.customerId !== user.profileId) {
+        throw new BadRequestException('Bạn không thể thanh toán đơn hàng của khách hàng khác');
+      }
+
+      // Kiểm tra máy trạng thái đơn hàng (chỉ cho phép từ PENDING hoặc PAYMENT_FAILED sang PAID)
+      assertTransition(order.status, OrderStatus.PAID);
+
+      // 3. Tính toán tổng định lượng nguyên liệu cần thiết cho toàn bộ đơn hàng
+      const ingredientRequirements = new Map<string, { qty: number; name: string }>();
+
+      for (const item of order.items) {
+        for (const recipe of item.variant.recipes) {
+          const ingId = recipe.ingredientId;
+          const required = Number(recipe.quantityRequired) * item.quantity;
+          const current = ingredientRequirements.get(ingId) || { qty: 0, name: recipe.ingredient.name };
+          current.qty += required;
+          ingredientRequirements.set(ingId, current);
+        }
+      }
+
+      // Kịch bản demo PAYMENT_FAILED được xử lý trước transaction trừ kho để giỏ/đơn còn retry được.
+      if (dto.simulateError) {
+        const failedCharge = await this.mockGateway.processCharge({
+          amount: Number(order.totalAfterDiscount),
+          method: dto.method,
+          simulateError: dto.simulateError,
+        });
+
+        if (!failedCharge.success) {
+          await this.prisma.$transaction(async (tx) => {
+            await tx.order.update({
+              where: { id: order.id },
+              data: { status: OrderStatus.PAYMENT_FAILED },
+            });
+
+            await tx.orderStatusHistory.create({
+              data: {
+                orderId: order.id,
+                fromStatus: order.status,
+                toStatus: OrderStatus.PAYMENT_FAILED,
+                actorId: user.profileId,
+                note: `Thanh toán thất bại: ${failedCharge.message}`,
+              },
+            });
+          });
+
+          throw new BadRequestException(`Cổng thanh toán từ chối: ${failedCharge.message}`);
+        }
+      }
+
+      // 4. Xử lý trong Database Transaction với Optimistic Locking
+      return await this.prisma.$transaction(async (tx) => {
+        // 4.1 Khấu trừ tồn kho nguyên liệu bằng Optimistic Locking kèm Retry (tối đa 3 lần)
+        for (const [ingredientId, requirement] of ingredientRequirements.entries()) {
+          let updateSuccess = false;
+          let lastErrorMsg = '';
+
+          for (let attempt = 0; attempt < 3; attempt++) {
+            const ingredient = await tx.ingredient.findUnique({
+              where: { id: ingredientId },
+            });
+
+            if (!ingredient || Number(ingredient.stockQuantity) < requirement.qty) {
+              throw new ConflictException(
+                `Nguyên liệu "${requirement.name}" đã hết hoặc không đủ tồn kho (Còn lại: ${ingredient?.stockQuantity || 0}, Cần: ${requirement.qty}). Giao dịch bị hủy.`,
+              );
+            }
+
+            // Cập nhật với điều kiện phiên bản (Optimistic Locking)
+            const result = await tx.ingredient.updateMany({
+              where: {
+                id: ingredientId,
+                version: ingredient.version,
+                stockQuantity: { gte: requirement.qty },
+              },
+              data: {
+                stockQuantity: { decrement: requirement.qty },
+                version: { increment: 1 },
+              },
+            });
+
+            if (result.count > 0) {
+              updateSuccess = true;
+              break;
+            }
+
+            lastErrorMsg = `Xung đột phiên bản nguyên liệu "${requirement.name}" ở lần thử thứ ${attempt + 1}`;
+          }
+
+          if (!updateSuccess) {
+            throw new ConflictException(
+              `Hệ thống đang có nhiều khách hàng đặt món đồng thời (${lastErrorMsg}). Vui lòng bấm thanh toán lại.`,
+            );
+          }
+        }
+
+        if (!dto.simulateError) {
+          const chargeResult = await this.mockGateway.processCharge({
+            amount: Number(order.totalAfterDiscount),
+            method: dto.method,
+          });
+
+          if (!chargeResult.success) {
+            throw new BadRequestException(`Cổng thanh toán từ chối: ${chargeResult.message}`);
+          }
+        }
+
+        // 4.3 Tạo bản ghi GiaoDichThanhToan (Payment)
+        const payment = await tx.payment.create({
+          data: {
+            orderId: order.id,
+            idempotencyKey: idempotencyKey.trim(),
+            amount: order.totalAfterDiscount,
+            status: PaymentStatus.SUCCESS,
+            method: dto.method,
+          },
+        });
+
+        // 4.4 Cập nhật đơn hàng sang PAID
+        const updatedOrder = await tx.order.update({
+          where: { id: order.id },
+          data: { status: OrderStatus.PAID },
+        });
+
+        // 4.5 Tăng usedCount của mã khuyến mãi (nếu có)
+        if (order.promotionId) {
+          await tx.promotion.update({
+            where: { id: order.promotionId },
+            data: {
+              usedCount: { increment: 1 },
+            },
+          });
+        }
+
+        // 4.6 Tích lũy điểm thưởng cho khách hàng (1 điểm / 10.000 VNĐ)
+        const earnedPoints = Math.floor(Number(order.totalAfterDiscount) / 10000);
+        if (earnedPoints > 0) {
+          await tx.customer.update({
+            where: { id: order.customerId },
+            data: {
+              loyaltyPoints: { increment: earnedPoints },
+            },
+          });
+        }
+
+        // 4.7 Ghi lịch sử chuyển trạng thái đơn hàng
+        await tx.orderStatusHistory.create({
+          data: {
+            orderId: order.id,
+            fromStatus: order.status,
+            toStatus: OrderStatus.PAID,
+            actorId: user.profileId,
+            note: `Thanh toán thành công ${Number(order.totalAfterDiscount).toLocaleString('vi-VN')} VNĐ qua ${dto.method}. Tích lũy +${earnedPoints} điểm thưởng.`,
+          },
+        });
+
+        return {
+          cached: false,
+          success: true,
+          message: 'Thanh toán đơn hàng thành công',
+          payment,
+          order: updatedOrder,
+          earnedPoints,
+        };
+      });
+    } catch (err: any) {
+      if (
+        err instanceof BadRequestException ||
+        err instanceof UnprocessableEntityException ||
+        err instanceof NotFoundException ||
+        err instanceof ConflictException
+      ) {
+        throw err;
+      }
+      // DB connection error -> fallback to in-memory store
+    }
+
+    // 5. Fallback in-memory store
+    const existing = fallbackStore.findPaymentByIdempotencyKey(idempotencyKey.trim());
+    if (existing) {
+      if (existing.orderId === dto.orderId) {
+        return {
+          cached: true,
+          message: 'Giao dịch đã được xử lý trước đó (Idempotent replay)',
+          payment: existing,
+          order: existing.order,
+        };
+      } else {
+        throw new UnprocessableEntityException(
+          'Idempotency-Key đã được sử dụng cho một đơn hàng khác. Vui lòng sinh key mới.',
+        );
+      }
+    }
+
+    let orderToPayId = dto.orderId;
+    let order = fallbackStore.findOrderById(orderToPayId);
+    if (!order) {
+      const myOrders = fallbackStore.getMyOrders(user.profileId);
+      const pending = myOrders.find((o) => o.status === OrderStatus.PENDING || o.status === OrderStatus.PAYMENT_FAILED);
+      if (pending) {
+        order = pending;
+        orderToPayId = pending.id;
       } else {
         throw new NotFoundException(`Không tìm thấy đơn hàng với mã: ${orderToPayId}`);
       }
     }
 
-    // Kiểm tra quyền hạn: Customer chỉ được thanh toán đơn của chính mình
     if (user.role === 'CUSTOMER' && order.customerId !== user.profileId) {
       throw new BadRequestException('Bạn không thể thanh toán đơn hàng của khách hàng khác');
     }
 
-    // Kiểm tra máy trạng thái đơn hàng (chỉ cho phép từ PENDING hoặc PAYMENT_FAILED sang PAID)
     assertTransition(order.status, OrderStatus.PAID);
 
-    // 3. Tính toán tổng định lượng nguyên liệu cần thiết cho toàn bộ đơn hàng
-    const ingredientRequirements = new Map<string, { qty: number; name: string }>();
+    const payResult = fallbackStore.processPayment({
+      orderId: order.id,
+      idempotencyKey: idempotencyKey.trim(),
+      method: dto.method,
+      simulateError: dto.simulateError,
+      actorId: user.profileId,
+    });
 
-    for (const item of order.items) {
-      for (const recipe of item.variant.recipes) {
-        const ingId = recipe.ingredientId;
-        const required = Number(recipe.quantityRequired) * item.quantity;
-        const current = ingredientRequirements.get(ingId) || { qty: 0, name: recipe.ingredient.name };
-        current.qty += required;
-        ingredientRequirements.set(ingId, current);
-      }
+    if (!payResult || !payResult.success) {
+      throw new BadRequestException(`Cổng thanh toán từ chối: Mô phỏng lỗi giao dịch (${dto.simulateError})`);
     }
 
-    // 4. Xử lý trong Database Transaction với Optimistic Locking
-    return this.prisma.$transaction(async (tx) => {
-      // 4.1 Khấu trừ tồn kho nguyên liệu bằng Optimistic Locking kèm Retry (tối đa 3 lần)
-      for (const [ingredientId, requirement] of ingredientRequirements.entries()) {
-        let updateSuccess = false;
-        let lastErrorMsg = '';
-
-        for (let attempt = 0; attempt < 3; attempt++) {
-          const ingredient = await tx.ingredient.findUnique({
-            where: { id: ingredientId },
-          });
-
-          if (!ingredient || Number(ingredient.stockQuantity) < requirement.qty) {
-            throw new ConflictException(
-              `Nguyên liệu "${requirement.name}" đã hết hoặc không đủ tồn kho (Còn lại: ${ingredient?.stockQuantity || 0}, Cần: ${requirement.qty}). Giao dịch bị hủy.`,
-            );
-          }
-
-          // Cập nhật với điều kiện phiên bản (Optimistic Locking)
-          const result = await tx.ingredient.updateMany({
-            where: {
-              id: ingredientId,
-              version: ingredient.version,
-              stockQuantity: { gte: requirement.qty },
-            },
-            data: {
-              stockQuantity: { decrement: requirement.qty },
-              version: { increment: 1 },
-            },
-          });
-
-          if (result.count > 0) {
-            updateSuccess = true;
-            break;
-          }
-
-          lastErrorMsg = `Xung đột phiên bản nguyên liệu "${requirement.name}" ở lần thử thứ ${attempt + 1}`;
-        }
-
-        if (!updateSuccess) {
-          throw new ConflictException(
-            `Hệ thống đang có nhiều khách hàng đặt món đồng thời (${lastErrorMsg}). Vui lòng bấm thanh toán lại.`,
-          );
-        }
-      }
-
-      // 4.2 Gọi Mock Payment Gateway
-      const chargeResult = await this.mockGateway.processCharge({
-        amount: Number(order.totalAfterDiscount),
-        method: dto.method,
-        simulateError: dto.simulateError,
-      });
-
-      if (!chargeResult.success) {
-        // Cập nhật trạng thái đơn thành PAYMENT_FAILED
-        await tx.order.update({
-          where: { id: order.id },
-          data: { status: OrderStatus.PAYMENT_FAILED },
-        });
-
-        // Ghi lịch sử lỗi thanh toán
-        await tx.orderStatusHistory.create({
-          data: {
-            orderId: order.id,
-            fromStatus: order.status,
-            toStatus: OrderStatus.PAYMENT_FAILED,
-            actorId: user.profileId,
-            note: `Thanh toán thất bại: ${chargeResult.message}`,
-          },
-        });
-
-        // Ném lỗi để rollback việc trừ kho nguyên liệu
-        throw new BadRequestException(`Cổng thanh toán từ chối: ${chargeResult.message}`);
-      }
-
-      // 4.3 Tạo bản ghi GiaoDichThanhToan (Payment)
-      const payment = await tx.payment.create({
-        data: {
-          orderId: order.id,
-          idempotencyKey: idempotencyKey.trim(),
-          amount: order.totalAfterDiscount,
-          status: PaymentStatus.SUCCESS,
-          method: dto.method,
-        },
-      });
-
-      // 4.4 Cập nhật đơn hàng sang PAID
-      const updatedOrder = await tx.order.update({
-        where: { id: order.id },
-        data: { status: OrderStatus.PAID },
-      });
-
-      // 4.5 Tăng usedCount của mã khuyến mãi (nếu có)
-      if (order.promotionId) {
-        await tx.promotion.update({
-          where: { id: order.promotionId },
-          data: {
-            usedCount: { increment: 1 },
-          },
-        });
-      }
-
-      // 4.6 Tích lũy điểm thưởng cho khách hàng (1 điểm / 10.000 VNĐ)
-      const earnedPoints = Math.floor(Number(order.totalAfterDiscount) / 10000);
-      if (earnedPoints > 0) {
-        await tx.customer.update({
-          where: { id: order.customerId },
-          data: {
-            loyaltyPoints: { increment: earnedPoints },
-          },
-        });
-      }
-
-      // 4.7 Ghi lịch sử chuyển trạng thái đơn hàng
-      await tx.orderStatusHistory.create({
-        data: {
-          orderId: order.id,
-          fromStatus: order.status,
-          toStatus: OrderStatus.PAID,
-          actorId: user.profileId,
-          note: `Thanh toán thành công ${Number(order.totalAfterDiscount).toLocaleString('vi-VN')} VNĐ qua ${dto.method}. Tích lũy +${earnedPoints} điểm thưởng.`,
-        },
-      });
-
-      return {
-        cached: false,
-        success: true,
-        message: 'Thanh toán đơn hàng thành công',
-        payment,
-        order: updatedOrder,
-        earnedPoints,
-      };
-    });
+    return {
+      cached: false,
+      success: true,
+      message: 'Thanh toán đơn hàng thành công',
+      payment: payResult.payment,
+      order: payResult.order,
+      earnedPoints: payResult.earnedPoints,
+    };
   }
 
   // --- MBBANK REALTIME CROSS-DEVICE SYNC ---

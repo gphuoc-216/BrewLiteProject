@@ -7,7 +7,7 @@ export default function OrdersRedirectPage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/orders/history');
+    router.replace('/orders/me');
   }, [router]);
 
   return (

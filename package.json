@@ -4,6 +4,7 @@
   "description": "BrewLite Cashless Coffee Ordering Platform",
   "private": true,
   "scripts": {
+    "dev": "npm run dev:backend",
     "dev:backend": "npm --prefix backend run start:dev",
     "dev:frontend": "npm --prefix frontend run dev",
     "build:backend": "npm --prefix backend run build",

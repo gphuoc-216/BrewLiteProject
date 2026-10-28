@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCartStore } from '../../store/useCartStore';
@@ -26,16 +26,21 @@ import {
   Zap,
 } from 'lucide-react';
 import { useRequireRole } from '@/hooks/useRequireRole';
+import { OrderRecord } from '@/types';
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const retryOrderId = searchParams.get('orderId');
   const { ready, user } = useRequireRole(['CUSTOMER', 'STAFF', 'ADMIN']);
-  const { items, promotion, getFinalTotal, clearCart } = useCartStore();
+  const { items, promotion, getSubtotal, getFinalTotal, clearCart } = useCartStore();
 
   const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'WALLET'>('CARD');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [copiedText, setCopiedText] = useState<string | null>(null);
+  const [retryOrder, setRetryOrder] = useState<OrderRecord | null>(null);
+  const [simulatePaymentFailure, setSimulatePaymentFailure] = useState(false);
 
   // Trạng thái thanh toán: 'WAITING' (đang chờ) hoặc 'SUCCESS' (thành công)
   // Nếu chuyển sai nội dung -> Hệ thống giữ nguyên trạng thái WAITING, đứng im như người dùng yêu cầu
@@ -57,7 +62,15 @@ export default function CheckoutPage() {
   const idempotencyKeyRef = useRef<string | null>(null);
   const isPollingRef = useRef<boolean>(false);
 
-  const finalTotal = getFinalTotal();
+  const cartSubtotal = getSubtotal();
+  const cartDiscount = promotion ? promotion.discountAmount : 0;
+  const retryDiscount = Number(retryOrder?.discountAmount || 0);
+  const subtotal = retryOrder
+    ? Number(retryOrder.totalAfterDiscount || 0) + retryDiscount
+    : cartSubtotal;
+  const discountAmount = retryOrder ? retryDiscount : cartDiscount;
+  const finalTotal = retryOrder ? Number(retryOrder.totalAfterDiscount || 0) : getFinalTotal();
+  const hasPayableOrder = items.length > 0 || !!retryOrder;
   const [orderCodeDisplay, setOrderCodeDisplay] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       const saved =
@@ -79,6 +92,33 @@ export default function CheckoutPage() {
       localStorage.setItem('brewlite_pending_order', orderCodeDisplay);
     }
   }, [orderCodeDisplay]);
+
+  useEffect(() => {
+    if (!ready || !retryOrderId) return;
+
+    let cancelled = false;
+    const loadRetryOrder = async () => {
+      try {
+        const data = await fetchApi<OrderRecord>(`/orders/${retryOrderId}`);
+        if (cancelled) return;
+
+        if (data.status !== 'PAYMENT_FAILED' && data.status !== 'PENDING') {
+          setErrorMsg('Chỉ có thể thanh toán lại đơn đang chờ hoặc đã thanh toán lỗi.');
+          return;
+        }
+
+        setRetryOrder(data);
+        existingOrderRef.current = data.id;
+      } catch (err: unknown) {
+        if (!cancelled) setErrorMsg(getErrorMessage(err));
+      }
+    };
+
+    loadRetryOrder();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, retryOrderId]);
 
   // Âm thanh Ting Ting Web Audio API khi thanh toán thành công
   const playTingTing = useCallback(() => {
@@ -147,7 +187,7 @@ export default function CheckoutPage() {
         return false;
       }
 
-      if (items.length === 0) {
+      if (!hasPayableOrder) {
         router.push('/');
         return false;
       }
@@ -203,6 +243,7 @@ export default function CheckoutPage() {
           body: JSON.stringify({
             orderId,
             method: paymentMethod,
+            simulateError: simulatePaymentFailure ? 'FAIL' : undefined,
           }),
         });
 
@@ -231,7 +272,9 @@ export default function CheckoutPage() {
           // Bỏ qua lỗi kết nối
         }
 
-        clearCart();
+        if (!retryOrder) {
+          clearCart();
+        }
 
         // Chuyển hướng bằng router.replace để xóa bỏ trang checkout khỏi lịch sử duyệt web
         setTimeout(() => {
@@ -246,7 +289,21 @@ export default function CheckoutPage() {
         setLoading(false);
       }
     },
-    [user, items, isQrExpired, promotion, paymentMethod, playTingTing, orderCodeDisplay, finalTotal, clearCart, router]
+    [
+      user,
+      items,
+      hasPayableOrder,
+      isQrExpired,
+      promotion,
+      paymentMethod,
+      simulatePaymentFailure,
+      playTingTing,
+      orderCodeDisplay,
+      finalTotal,
+      retryOrder,
+      clearCart,
+      router,
+    ]
   );
 
   // Chặn tuyệt đối: Nếu giỏ hàng rỗng HOẶC mã đơn này đã thanh toán xong -> Tự động chuyển hướng về trang Thực đơn / Menu
@@ -257,19 +314,21 @@ export default function CheckoutPage() {
       typeof window !== 'undefined' &&
       sessionStorage.getItem('brewlite_completed_order_' + orderCodeDisplay);
 
-    if (items.length === 0 || isAlreadyCompleted) {
+    if ((items.length === 0 && !retryOrderId) || isAlreadyCompleted) {
       router.replace('/products');
     }
-  }, [ready, items.length, orderCodeDisplay, router]);
+  }, [ready, items.length, retryOrderId, orderCodeDisplay, router]);
 
-  // Bắt sự kiện người dùng bấm phím Back của trình duyệt (popstate) -> Tuyệt đối không cho quay lại mã QR
+  // Chỉ chặn Back sau khi thanh toán thành công để tránh quay lại mã QR đã hoàn tất.
   useEffect(() => {
     const handlePopState = () => {
-      router.replace('/products');
+      if (paymentStatus === 'SUCCESS') {
+        router.replace('/products');
+      }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [router]);
+  }, [paymentStatus, router]);
 
   // Lắng nghe sự kiện chuyển khoản: kết hợp localStorage (cùng tab) & Backend API Polling (qua điện thoại thật trong LAN)
   useEffect(() => {
@@ -442,7 +501,21 @@ export default function CheckoutPage() {
     );
   }
 
-  if (items.length === 0) {
+  if (retryOrderId && !retryOrder && !errorMsg) {
+    return (
+      <div className="max-w-md mx-auto py-20 text-center space-y-4 animate-fade-in">
+        <div className="w-12 h-12 mx-auto rounded-full bg-surface-2 flex items-center justify-center text-accent">
+          <Clock className="w-6 h-6 animate-spin" />
+        </div>
+        <div className="space-y-1">
+          <h3 className="font-display font-semibold text-base text-ink">Đang tải đơn thanh toán lại...</h3>
+          <p className="text-xs text-ink-3">BrewLite đang lấy thông tin đơn hàng cần thử lại.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasPayableOrder) {
     return (
       <div className="max-w-md mx-auto py-20 text-center space-y-4 animate-fade-in">
         <div className="w-12 h-12 mx-auto rounded-full bg-surface-2 flex items-center justify-center text-accent">
@@ -457,6 +530,9 @@ export default function CheckoutPage() {
   }
 
   const qrImageUrl = `https://img.vietqr.io/image/VCB-99998888-compact2.png?amount=${finalTotal}&addInfo=BREWLITE%20${orderCodeDisplay}&accountName=BREWLITE%20COFFEE`;
+  const selectedItemsText = retryOrder
+    ? `${retryOrder.items?.length || 0} món (${retryOrder.items?.map((i) => `${i.quantity}x ${i.variant?.product?.name || 'Món'}`).join(', ') || 'Đơn cũ'})`
+    : `${items.length} món (${items.map((i) => `${i.productName} (${i.size})`).join(', ')})`;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -469,37 +545,40 @@ export default function CheckoutPage() {
       </Link>
 
       <PageHeader
-        title="Cổng Thanh Toán & Quét Mã VietQR (Napas 247)"
-        description="Quét mã VietQR bằng ứng dụng ngân hàng bất kỳ hoặc ví điện tử để hoàn tất thanh toán nhanh chóng."
+        title="Thanh toán không dùng tiền mặt"
+        description="Chọn Ví điện tử hoặc Thẻ ngân hàng, sau đó xác nhận trả để hoàn tất đơn hàng."
       />
 
       {/* Tabs Chuyển Phương Thức Thanh Toán */}
-      <div className="flex border-b border-line gap-2">
-        <button
-          type="button"
-          onClick={() => setPaymentMethod('CARD')}
-          className={`pb-3 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-all ${
-            paymentMethod === 'CARD'
-              ? 'border-accent text-accent'
-              : 'border-transparent text-ink-3 hover:text-ink'
-          }`}
-        >
-          <CreditCard className="w-4 h-4" />
-          <span>🏦 Quét Mã VietQR (Mọi Ngân Hàng)</span>
-        </button>
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-ink">Không dùng tiền mặt</p>
+        <div className="flex border-b border-line gap-2">
+          <button
+            type="button"
+            onClick={() => setPaymentMethod('CARD')}
+            className={`pb-3 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-all ${
+              paymentMethod === 'CARD'
+                ? 'border-accent text-accent'
+                : 'border-transparent text-ink-3 hover:text-ink'
+            }`}
+          >
+            <CreditCard className="w-4 h-4" />
+            <span>Thẻ ngân hàng</span>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => setPaymentMethod('WALLET')}
-          className={`pb-3 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-all ${
-            paymentMethod === 'WALLET'
-              ? 'border-accent text-accent'
-              : 'border-transparent text-ink-3 hover:text-ink'
-          }`}
-        >
-          <Wallet className="w-4 h-4" />
-          <span>👛 Ví Thành Viên BrewLite</span>
-        </button>
+          <button
+            type="button"
+            onClick={() => setPaymentMethod('WALLET')}
+            className={`pb-3 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-all ${
+              paymentMethod === 'WALLET'
+                ? 'border-accent text-accent'
+                : 'border-transparent text-ink-3 hover:text-ink'
+            }`}
+          >
+            <Wallet className="w-4 h-4" />
+            <span>Ví điện tử</span>
+          </button>
+        </div>
       </div>
 
       {paymentMethod === 'CARD' ? (
@@ -660,9 +739,27 @@ export default function CheckoutPage() {
                 <div className="flex items-center justify-between text-ink-2">
                   <span>Món Đã Chọn:</span>
                   <span className="font-semibold text-ink text-right">
-                    {items.length} món ({items.map((i) => `${i.productName} (${i.size})`).join(', ')})
+                    {selectedItemsText}
                   </span>
                 </div>
+
+                <div className="flex items-center justify-between text-ink-2 pt-2 border-t border-line">
+                  <span>Tạm tính:</span>
+                  <span className="font-semibold text-ink">
+                    {subtotal.toLocaleString('vi-VN')} đ
+                  </span>
+                </div>
+
+                {discountAmount > 0 && (
+                  <div className="flex items-center justify-between text-success">
+                    <span>
+                      Giảm giá khuyến mãi{promotion?.code ? ` (${promotion.code})` : ''}
+                    </span>
+                    <span className="font-semibold">
+                      -{discountAmount.toLocaleString('vi-VN')} đ
+                    </span>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between text-ink-2 pt-2 border-t border-line">
                   <span className="font-semibold">Tổng Tiền Cần Thanh Toán:</span>
@@ -746,6 +843,16 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
+                <label className="flex items-center justify-between gap-3 p-3 rounded-xl border border-warning/30 bg-warning-soft text-xs text-warning">
+                  <span className="font-semibold">Giả lập lỗi thanh toán (PAYMENT_FAILED)</span>
+                  <input
+                    type="checkbox"
+                    checked={simulatePaymentFailure}
+                    onChange={(event) => setSimulatePaymentFailure(event.target.checked)}
+                    className="h-4 w-4 accent-current"
+                  />
+                </label>
+
                 <div className="text-center pt-1">
                   <button
                     type="button"
@@ -753,7 +860,7 @@ export default function CheckoutPage() {
                     disabled={loading || isQrExpired}
                     className="text-[11px] text-ink-3 hover:text-accent underline transition-colors"
                   >
-                    {loading ? 'Đang xác thực giao dịch...' : 'Hoặc bấm vào đây để xác nhận thủ công (nếu mạng yếu)'}
+                    {loading ? 'Đang xác thực giao dịch...' : 'Xác nhận trả'}
                   </button>
                 </div>
               </div>
@@ -840,6 +947,20 @@ export default function CheckoutPage() {
               <span className="font-semibold text-ink">{user.fullName || user.username}</span>
             </div>
             <div className="flex justify-between text-ink-2">
+              <span>Tạm tính:</span>
+              <span className="font-semibold text-ink">
+                {subtotal.toLocaleString('vi-VN')} đ
+              </span>
+            </div>
+            {discountAmount > 0 && (
+              <div className="flex justify-between text-success">
+                <span>Giảm giá khuyến mãi{promotion?.code ? ` (${promotion.code})` : ''}:</span>
+                <span className="font-semibold">
+                  -{discountAmount.toLocaleString('vi-VN')} đ
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between text-ink-2">
               <span>Tổng tiền thanh toán:</span>
               <span className="font-bold text-accent text-sm">
                 {finalTotal.toLocaleString('vi-VN')} đ
@@ -847,13 +968,23 @@ export default function CheckoutPage() {
             </div>
           </div>
 
+          <label className="flex items-center justify-between gap-3 p-3 rounded-xl border border-warning/30 bg-warning-soft text-xs text-warning">
+            <span className="font-semibold">Giả lập lỗi thanh toán (PAYMENT_FAILED)</span>
+            <input
+              type="checkbox"
+              checked={simulatePaymentFailure}
+              onChange={(event) => setSimulatePaymentFailure(event.target.checked)}
+              className="h-4 w-4 accent-current"
+            />
+          </label>
+
           <Button
             type="button"
             onClick={() => handlePay()}
             disabled={loading}
             className="w-full py-3 text-xs font-semibold"
           >
-            {loading ? 'Đang Xử Lý Giao Dịch...' : `Xác Nhận Thanh Toán (${finalTotal.toLocaleString('vi-VN')} đ)`}
+            {loading ? 'Đang Xử Lý Giao Dịch...' : `Xác nhận trả (${finalTotal.toLocaleString('vi-VN')} đ)`}
           </Button>
         </div>
       )}

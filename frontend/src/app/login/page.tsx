@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { fetchApi, getErrorMessage } from '../../lib/api';
 import { useAuthStore, User } from '../../store/useAuthStore';
 import { Button, Input, Card } from '../../components/ui';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 function LoginFormContent() {
   const router = useRouter();
@@ -16,6 +16,7 @@ function LoginFormContent() {
   const { setAuth } = useAuthStore();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -46,18 +47,6 @@ function LoginFormContent() {
       const msg = getErrorMessage(err);
       if (msg.includes('khóa') || msg.includes('khoá') || msg.includes('LOCKED') || u === 'customer_locked') {
         setErrorMsg('Tài khoản đã bị khoá, vui lòng liên hệ quầy');
-      } else if (u === 'admin' && p === '123456') {
-        const mockUser = { accountId: 'acc-admin', id: 'admin-1', username: 'admin', fullName: 'Quản Trị Viên', email: 'admin@brewlite.vn', role: 'ADMIN' as const };
-        setAuth(mockUser, 'mock_token_admin', 'mock_refresh');
-        router.push('/admin');
-      } else if (u === 'barista1' && p === '123456') {
-        const mockUser = { accountId: 'acc-staff-1', id: 'staff-1', username: 'barista1', fullName: 'Nguyễn Văn Pha', email: 'barista1@brewlite.vn', role: 'STAFF' as const };
-        setAuth(mockUser, 'mock_token_staff', 'mock_refresh');
-        router.push('/staff');
-      } else if (u === 'customer1' && p === '123456') {
-        const mockUser = { accountId: 'acc-cust-1', id: 'cust-1', username: 'customer1', fullName: 'Hoàng Minh Khách', email: 'khach1@gmail.com', role: 'CUSTOMER' as const, loyaltyPoints: 120 };
-        setAuth(mockUser, 'mock_token_cust', 'mock_refresh');
-        router.push(redirectUrl);
       } else {
         setErrorMsg(msg || 'Tên đăng nhập hoặc mật khẩu không chính xác.');
       }
@@ -100,15 +89,31 @@ function LoginFormContent() {
             placeholder="ví dụ: minhanh26"
           />
 
-          <Input
-            label="Mật khẩu"
-            type="password"
-            required
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••"
-          />
+          <div className="space-y-1.5 text-left">
+            <label htmlFor="login-password" className="block text-xs font-medium text-ink-2">
+              Mật khẩu
+            </label>
+            <div className="relative">
+              <input
+                id="login-password"
+                type={showPassword ? 'text' : 'password'}
+                required
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••"
+                className="w-full h-10 px-3 pr-10 py-2 text-sm bg-surface text-ink placeholder:text-ink-3 border border-line hover:border-line-strong rounded transition-colors focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+                className="absolute inset-y-0 right-2 flex items-center text-ink-3 hover:text-ink"
+                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
 
           <Button
             variant="primary"

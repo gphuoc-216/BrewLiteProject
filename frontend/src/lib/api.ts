@@ -32,11 +32,14 @@ export function getErrorMessage(err: unknown): string {
 
 export async function fetchApi<T = unknown>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('brewlite_token') : null;
+  const optionHeaders = (options.headers as Record<string, string> | undefined) || {};
+  const retryable = optionHeaders['X-Retry-After-Refresh'] !== '1';
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string>),
+    ...optionHeaders,
   };
+  delete headers['X-Retry-After-Refresh'];
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
@@ -49,8 +52,38 @@ export async function fetchApi<T = unknown>(endpoint: string, options: RequestIn
     headers,
   });
 
-  if (response.status === 401 && typeof window !== 'undefined') {
+  if (response.status === 401 && typeof window !== 'undefined' && retryable) {
+    const refreshToken = localStorage.getItem('brewlite_refresh_token');
+    if (refreshToken) {
+      try {
+        const refreshResponse = await fetch(`${baseUrl}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        });
+        const refreshJson = await refreshResponse.json();
+        const tokenData = refreshJson?.data || refreshJson;
+
+        if (refreshResponse.ok && tokenData?.accessToken) {
+          localStorage.setItem('brewlite_token', tokenData.accessToken);
+          if (tokenData.refreshToken) {
+            localStorage.setItem('brewlite_refresh_token', tokenData.refreshToken);
+          }
+          return fetchApi<T>(endpoint, {
+            ...options,
+            headers: {
+              ...optionHeaders,
+              'X-Retry-After-Refresh': '1',
+            },
+          });
+        }
+      } catch {
+        // Nếu refresh lỗi, tiếp tục đăng xuất ở bên dưới.
+      }
+    }
+
     localStorage.removeItem('brewlite_token');
+    localStorage.removeItem('brewlite_refresh_token');
     localStorage.removeItem('brewlite_user');
     if (!window.location.pathname.startsWith('/login')) {
       window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;

@@ -124,9 +124,14 @@ export class PromotionsService {
     }
 
     const codeUpper = code.trim().toUpperCase();
-    let promo = await this.prisma.promotion.findUnique({
-      where: { code: codeUpper },
-    });
+    let promo = null;
+    try {
+      promo = await this.prisma.promotion.findUnique({
+        where: { code: codeUpper },
+      });
+    } catch {
+      promo = null;
+    }
 
     // Fallback preset vouchers if not in DB
     if (!promo && VOUCHER_RULES[codeUpper]) {

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { fetchApi, getErrorMessage } from '../../lib/api';
 import { useAuthStore, User } from '../../store/useAuthStore';
 import { Button, Input, Card } from '../../components/ui';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -16,6 +16,9 @@ export default function RegisterPage() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -24,6 +27,17 @@ export default function RegisterPage() {
     try {
       setLoading(true);
       setErrorMsg(null);
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        setErrorMsg('Email không đúng định dạng.');
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        setErrorMsg('Mật khẩu xác nhận không khớp.');
+        return;
+      }
 
       const res = await fetchApi<{ user: User; accessToken: string; refreshToken?: string }>('/auth/register', {
         method: 'POST',
@@ -88,16 +102,59 @@ export default function RegisterPage() {
             placeholder="minhanh@example.com"
           />
 
-          <Input
-            label="Mật khẩu (tối thiểu 6 ký tự)"
-            type="password"
-            required
-            autoComplete="new-password"
-            minLength={6}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••"
-          />
+          <div className="space-y-1.5 text-left">
+            <label htmlFor="register-password" className="block text-xs font-medium text-ink-2">
+              Mật khẩu (tối thiểu 6 ký tự)
+            </label>
+            <div className="relative">
+              <input
+                id="register-password"
+                type={showPassword ? 'text' : 'password'}
+                required
+                autoComplete="new-password"
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••"
+                className="w-full h-10 px-3 pr-10 py-2 text-sm bg-surface text-ink placeholder:text-ink-3 border border-line hover:border-line-strong rounded transition-colors focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+                className="absolute inset-y-0 right-2 flex items-center text-ink-3 hover:text-ink"
+                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-1.5 text-left">
+            <label htmlFor="register-confirm-password" className="block text-xs font-medium text-ink-2">
+              Xác nhận mật khẩu
+            </label>
+            <div className="relative">
+              <input
+                id="register-confirm-password"
+                type={showConfirmPassword ? 'text' : 'password'}
+                required
+                autoComplete="new-password"
+                minLength={6}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="••••••"
+                className="w-full h-10 px-3 pr-10 py-2 text-sm bg-surface text-ink placeholder:text-ink-3 border border-line hover:border-line-strong rounded transition-colors focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword((value) => !value)}
+                className="absolute inset-y-0 right-2 flex items-center text-ink-3 hover:text-ink"
+                aria-label={showConfirmPassword ? 'Ẩn mật khẩu xác nhận' : 'Hiện mật khẩu xác nhận'}
+              >
+                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
 
           <div className="pt-2">
             <Button

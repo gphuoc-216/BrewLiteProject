@@ -563,7 +563,11 @@ export default function CartPage() {
               onClick={handleProceedToCheckout}
               className="w-full gap-2 font-semibold text-xs"
             >
-              <span>{user ? 'Tiến hành thanh toán' : 'Đăng nhập để thanh toán'}</span>
+              <span>
+                {user
+                  ? `Tiến hành thanh toán (${finalTotal.toLocaleString('vi-VN')}đ)`
+                  : `Đăng nhập để thanh toán (${finalTotal.toLocaleString('vi-VN')}đ)`}
+              </span>
               <ArrowRight className="w-4 h-4" strokeWidth={1.75} />
             </Button>
           </div>

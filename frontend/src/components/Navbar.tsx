@@ -57,9 +57,9 @@ export const Navbar: React.FC = () => {
 
             {mounted && user?.role === 'CUSTOMER' && (
               <Link
-                href="/orders/history"
+                href="/orders/me"
                 className={`transition-colors py-1 ${
-                  pathname === '/orders/history'
+                  pathname === '/orders/me'
                     ? 'text-white border-b-2 border-accent font-medium'
                     : 'text-espresso-muted hover:text-white'
                 }`}
@@ -116,14 +116,17 @@ export const Navbar: React.FC = () => {
           {mounted && user ? (
             <div className="hidden sm:flex items-center gap-3 pl-3 border-l border-espresso-line text-xs">
               <div className="text-right">
-                <span className="text-espresso-text font-medium block">
+                <Link
+                  href="/profile"
+                  className="text-espresso-text font-medium block hover:text-white transition-colors"
+                >
                   {user.fullName || user.username}
                   {user.role === 'CUSTOMER' && (
                     <span className="text-espresso-muted font-normal ml-1">
                       · {user.loyaltyPoints || 0} điểm
                     </span>
                   )}
-                </span>
+                </Link>
                 <span className="text-espresso-muted text-[11px]">
                   {getRoleLabel(user.role)}
                 </span>
@@ -181,13 +184,24 @@ export const Navbar: React.FC = () => {
             </Link>
             {mounted && user?.role === 'CUSTOMER' && (
               <Link
-                href="/orders/history"
+                href="/orders/me"
                 onClick={() => setMobileMenuOpen(false)}
                 className={`py-2 px-3 rounded transition-colors ${
-                  pathname === '/orders/history' ? 'bg-espresso-line text-white font-medium' : 'text-espresso-muted'
+                  pathname === '/orders/me' ? 'bg-espresso-line text-white font-medium' : 'text-espresso-muted'
                 }`}
               >
                 Lịch sử đơn
+              </Link>
+            )}
+            {mounted && user && (
+              <Link
+                href="/profile"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`py-2 px-3 rounded transition-colors ${
+                  pathname === '/profile' ? 'bg-espresso-line text-white font-medium' : 'text-espresso-muted'
+                }`}
+              >
+                Trang cá nhân
               </Link>
             )}
             {mounted && (user?.role === 'STAFF' || user?.role === 'ADMIN') && (

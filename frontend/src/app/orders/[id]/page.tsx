@@ -5,8 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { fetchApi, getErrorMessage } from '../../../lib/api';
 import { useAuthStore } from '../../../store/useAuthStore';
-import { StatusBadge, Button, Card, EmptyState, Skeleton } from '../../../components/ui';
-import { Check, ArrowLeft, Award } from 'lucide-react';
+import { StatusBadge, Button, Card, EmptyState, Skeleton, Modal, Toast } from '../../../components/ui';
+import { Check, ArrowLeft, Award, AlertTriangle, Home } from 'lucide-react';
 import { OrderRecord, OrderItemRecord, OrderStatus } from '@/types';
 import { ORDER_STATUS } from '@/lib/orderStatus';
 import { useRequireRole } from '@/hooks/useRequireRole';
@@ -19,6 +19,9 @@ export default function OrderConfirmationPage() {
 
   const [order, setOrder] = useState<OrderRecord | null>(null);
   const [loading, setLoading] = useState(true);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [toastMsg, setToastMsg] = useState<{ message: string; type: 'success' | 'danger' } | null>(null);
 
   const prevStatusRef = useRef<string | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -78,6 +81,23 @@ export default function OrderConfirmationPage() {
     };
   }, [ready, params.id, fetchOrder]);
 
+  const confirmCancelOrder = async () => {
+    if (!order) return;
+
+    try {
+      setCancelling(true);
+      await fetchApi(`/orders/${order.id}/cancel`, { method: 'POST' });
+      setToastMsg({ message: 'Đã hủy đơn hàng thành công.', type: 'success' });
+      setCancelModalOpen(false);
+      await fetchOrder();
+      fetchProfile();
+    } catch (err: unknown) {
+      setToastMsg({ message: getErrorMessage(err), type: 'danger' });
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   if (!ready || loading) {
     return (
       <div className="max-w-xl mx-auto py-12 space-y-4">
@@ -103,12 +123,21 @@ export default function OrderConfirmationPage() {
   const timelineSteps: OrderStatus[] = ['PAID', 'PREPARING', 'READY', 'COMPLETED'];
   const currentIndex = ORDER_STATUS[order.status]?.step ?? -1;
   const isSpecialStatus = ['PENDING', 'PAYMENT_FAILED', 'CANCELLED'].includes(order.status);
-  const earnedPoints = Math.floor((Number(order.totalAfterDiscount) || 0) / 1000);
+  const earnedPoints = Math.floor((Number(order.totalAfterDiscount) || 0) / 10000);
+  const canCancel = order.status === 'PENDING' || order.status === 'PAID';
 
   return (
     <div className="max-w-xl mx-auto space-y-6">
+      {toastMsg && (
+        <Toast
+          message={toastMsg.message}
+          type={toastMsg.type}
+          onClose={() => setToastMsg(null)}
+        />
+      )}
+
       <Link
-        href="/orders/history"
+        href="/orders/me"
         className="inline-flex items-center gap-1.5 text-xs text-ink-2 hover:text-ink font-medium transition-colors"
       >
         <ArrowLeft className="w-3.5 h-3.5" strokeWidth={1.75} />
@@ -118,8 +147,13 @@ export default function OrderConfirmationPage() {
       {/* Main Order Card */}
       <Card className="space-y-6">
         <div className="text-center space-y-2 border-b border-line pb-5">
+          {order.status === 'PAID' && (
+            <div className="mx-auto w-12 h-12 rounded-full bg-success-soft border border-success/30 flex items-center justify-center text-success">
+              <Check className="w-6 h-6" strokeWidth={2.2} />
+            </div>
+          )}
           <p className="text-xs text-ink-3">
-            Mã đơn hàng: <span className="font-mono font-medium text-ink">#{order.id.slice(0, 8).toUpperCase()}</span>
+            Mã đơn: <span className="font-mono font-medium text-ink">#{order.id.slice(0, 8).toUpperCase()}</span>
           </p>
           <h1 className="font-display text-2xl font-semibold text-ink">
             {order.status === 'COMPLETED'
@@ -129,12 +163,17 @@ export default function OrderConfirmationPage() {
               : order.status === 'PREPARING'
               ? 'Barista đang pha chế'
               : order.status === 'PAID'
-              ? 'Đã tiếp nhận đơn hàng'
+              ? 'Đặt hàng thành công'
               : ORDER_STATUS[order.status]?.label || 'Trạng thái đơn hàng'}
           </h1>
           <div>
             <StatusBadge status={order.status} />
           </div>
+          {order.status === 'PAID' && (
+            <p className="text-xs font-medium text-success">
+              Trạng thái: PAID · Mời tới quầy lấy nước
+            </p>
+          )}
         </div>
 
         {/* Special Status Handler */}
@@ -148,8 +187,8 @@ export default function OrderConfirmationPage() {
                 : 'Đơn hàng đang chờ thanh toán.'}
             </p>
             {order.status === 'PAYMENT_FAILED' && (
-              <Button variant="primary" size="sm" onClick={() => router.push('/checkout')}>
-                Quay lại thanh toán
+              <Button variant="primary" size="sm" onClick={() => router.push(`/checkout?orderId=${order.id}`)}>
+                Thanh toán lại ngay
               </Button>
             )}
           </div>
@@ -246,7 +285,58 @@ export default function OrderConfirmationPage() {
             </div>
           </div>
         </div>
+
+        <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-line">
+          <Button variant="secondary" size="sm" onClick={() => router.push('/')}>
+            <Home className="w-3.5 h-3.5" />
+            <span>Về trang chủ</span>
+          </Button>
+          {canCancel && (
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => setCancelModalOpen(true)}
+            >
+              Hủy đơn hàng
+            </Button>
+          )}
+        </div>
       </Card>
+
+      <Modal
+        isOpen={cancelModalOpen}
+        onClose={() => setCancelModalOpen(false)}
+        title="Xác nhận hủy đơn hàng"
+        description="Bạn có chắc chắn muốn hủy đơn hàng này không?"
+      >
+        <div className="space-y-4 text-xs text-left">
+          <div className="p-3 bg-warning-soft border border-warning/30 rounded text-warning flex items-start gap-2.5">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" strokeWidth={1.75} />
+            <p className="text-ink-2 leading-relaxed">
+              Đơn ở trạng thái PENDING hoặc PAID có thể hủy theo sơ đồ trạng thái. Nếu đã thanh toán,
+              hệ thống sẽ hoàn tồn kho và điểm thưởng tương ứng.
+            </p>
+          </div>
+          <div className="flex justify-end gap-2 pt-2 border-t border-line">
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={cancelling}
+              onClick={() => setCancelModalOpen(false)}
+            >
+              Giữ lại đơn
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              loading={cancelling}
+              onClick={confirmCancelOrder}
+            >
+              Xác nhận hủy
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
