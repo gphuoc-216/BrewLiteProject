@@ -3,6 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { fallbackStore } from '../../../prisma/fallback-store';
 import { AccountStatus } from '@prisma/client';
 
 @Injectable()
@@ -19,14 +20,26 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
-    const account = await this.prisma.account.findUnique({
-      where: { id: payload.sub },
-      include: {
-        customer: true,
-        staff: true,
-        admin: true,
-      },
-    });
+    let account = null;
+
+    if (this.prisma.isConnected) {
+      try {
+        account = await this.prisma.account.findUnique({
+          where: { id: payload.sub },
+          include: {
+            customer: true,
+            staff: true,
+            admin: true,
+          },
+        });
+      } catch {
+        account = null;
+      }
+    }
+
+    if (!account) {
+      account = fallbackStore.findAccountById(payload.sub) as any;
+    }
 
     if (!account) {
       throw new UnauthorizedException('Tài khoản không tồn tại trong hệ thống');
@@ -47,6 +60,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       role: account.role,
       status: account.status,
       profileId: profile?.id,
+      customerId: account.customer?.id,
       fullName: profile?.fullName,
       email: profile?.email,
       loyaltyPoints: account.customer?.loyaltyPoints || 0,
