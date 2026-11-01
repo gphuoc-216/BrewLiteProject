@@ -131,3 +131,21 @@ Tất cả 7 thành viên cam kết tuân thủ 3 nguyên tắc vàng trong quá
 2. **Kéo (pull) nhánh `develop` về giải quyết xung đột trước khi tạo Pull Request:** Đảm bảo mã nguồn luôn đồng bộ và không làm gián đoạn công việc của thành viên khác.
 3. **Đạt chuẩn Definition of Done (DoD):** Code chạy được, không lỗi build, có commit rõ ràng theo chuẩn Conventional Commits và có kiểm thử trước khi bàn giao.
 
+
+
+---
+
+## 4. Bảng Đối Chiếu Khớp 100% Với 10 Task Trong Đề Bài PDF (Thang Điểm 10/10)
+
+| Task | Tên Task Theo Đề Bài PDF | Sprint | Điểm | Thành Viên Đảm Nhận | Nhánh Git | Tiêu Chí Chấp Nhận (Acceptance Criteria) Trong Đề Bài |
+|:---:|:---|:---:|:---:|:---|:---|:---|
+| **Task 1** | **Khởi tạo dự án và cấu trúc** | Sprint 1 | 1.0 | Võ Đức Hoàng Vinh (FE)<br>Đặng Lương Thế Anh (BE) | `feat/p1-menu-page`<br>`feat/p5-api-products` | Tạo monorepo/2 thư mục frontend (Next.js) + backend (NestJS), chạy được "Hello", có README, Git, `.env.example`. |
+| **Task 2** | **API danh sách sản phẩm** | Sprint 1 | 1.0 | Đặng Lương Thế Anh | `feat/p5-api-products` | NestJS `GET /products` trả về JSON menu (id, tên, giá, ảnh) từ dữ liệu mẫu / CSDL. |
+| **Task 3** | **Trang Menu (Frontend)** | Sprint 1 | 1.0 | Võ Đức Hoàng Vinh | `feat/p1-menu-page` | Next.js gọi `/products`, render lưới sản phẩm, có trạng thái loading và empty state. |
+| **Task 4** | **Chi tiết và tùy chọn sản phẩm** | Sprint 1 | 1.0 | Hồ Hoàng Anh | `feat/p2-product-details` | Màn hình chi tiết: chọn size (S/M/L) và topping; tính giá tự động theo tùy chọn. |
+| **Task 5** | **Giỏ hàng (Cart)** | Sprint 2 | 1.0 | Dương Thành Phát | `feat/p3-cart-store` | Thêm/sửa số lượng/xóa; lưu state (Zustand); tự tính tổng tiền; badge số lượng giỏ hàng. |
+| **Task 6** | **API tạo đơn hàng** | Sprint 2 | 1.0 | Nguyễn Hoàng Anh | `feat/p6-payment-ingredients-orders` | NestJS `POST /orders` nhận giỏ hàng, validate (class-validator), lưu đơn trạng thái `PENDING`, trả mã đơn. |
+| **Task 7** | **Đăng ký / Đăng nhập (JWT)** | Sprint 2 | 1.0 | Quách Thanh Phú (FE)<br>Nguyễn Hoàng Anh (BE) | `feat/p4-checkout-history`<br>`feat/p6-payment-ingredients-orders` | `POST /auth/register`, `/auth/login`; băm mật khẩu (bcrypt); phát JWT; guard bảo vệ route đặt đơn; giao diện form đăng nhập/đăng ký. |
+| **Task 8** | **Thanh toán không tiền mặt** | Sprint 3 | 1.0 | Quách Thanh Phú (FE)<br>Nguyễn Hoàng Anh (BE) | `feat/p4-checkout-history`<br>`feat/p6-payment-ingredients-orders` | Tích hợp mock payment: chọn Ví/Thẻ, gọi `POST /payments`; đơn chuyển `PAID` khi thành công, `PAYMENT_FAILED` khi lỗi. Tích hợp thanh toán VietQR & MBBank Simulator. |
+| **Task 9** | **Xác nhận, lịch sử đơn & bàn giao** | Sprint 3 | 1.0 | Quách Thanh Phú (FE)<br>Hoàng Trần Gia Phước (BE) | `feat/p4-checkout-history`<br>`feature/p7-backend` | Màn hình xác nhận (mã đơn, trạng thái) và `GET /orders/me` (lịch sử đơn); `docker-compose` chạy cả 3 (frontend, backend, DB); README; demo end-to-end. |
+| **Task 10** | **Nghiệp vụ backend** | Sprint 3 | 1.0 | Nguyễn Hoàng Anh (Nguyên liệu)<br>Hoàng Trần Gia Phước (Core) | `feat/p6-payment-ingredients-orders`<br>`feature/p7-backend` | 1. Order State Machine (`PENDING` → `PAID` → `PREPARING` → `READY` → `COMPLETED`; chặn chuyển sai).<br>2. Thanh toán idempotent (`Idempotency-Key` chống trừ tiền 2 lần).<br>3. Kiểm soát tồn kho khi đặt đồng thời (Transaction + Optimistic Locking `version` trên `Ingredient` chống bán lố nguyên liệu).<br>4. Khuyến mãi voucher & điểm thưởng loyalty (+1 điểm / 10k).<br>*(Đủ 5 test suites Jest 43/43 tests pass)*. |
