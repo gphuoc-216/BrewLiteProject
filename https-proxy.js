@@ -9,6 +9,7 @@ const options = {
 };
 
 const server = https.createServer(options, (req, res) => {
+  console.log(`[Proxy] ${req.method} ${req.url} from ${req.socket.remoteAddress}`);
   const isApi = req.url.startsWith('/api');
   const targetPort = isApi ? 3001 : 3000;
 
@@ -25,13 +26,14 @@ const server = https.createServer(options, (req, res) => {
       headers: headers,
     },
     (proxyRes) => {
+      console.log(`[Proxy Response] ${req.url} -> ${proxyRes.statusCode}`);
       res.writeHead(proxyRes.statusCode, proxyRes.headers);
       proxyRes.pipe(res);
     }
   );
 
   proxyReq.on('error', (err) => {
-    console.error('Proxy error:', err.message);
+    console.error('[Proxy Error]:', err.message);
     if (!res.headersSent) {
       res.writeHead(502, { 'Content-Type': 'text/plain; charset=utf-8' });
       res.end('502 Bad Gateway: ' + err.message);
@@ -72,8 +74,23 @@ server.on('upgrade', (req, socket, head) => {
   proxyReq.end();
 });
 
+const os = require('os');
+
+function getLocalIp() {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal && !iface.address.startsWith('169.254.') && !iface.address.startsWith('172.19.')) {
+        return iface.address;
+      }
+    }
+  }
+  return 'localhost';
+}
+
 const PORT = 3443;
 server.listen(PORT, '0.0.0.0', () => {
+  const lanIp = getLocalIp();
   console.log(`🔒 HTTPS Reverse Proxy is running on https://0.0.0.0:${PORT}`);
-  console.log(`📱 iPhone Safari access: https://192.168.1.149:${PORT}/mbbank`);
+  console.log(`📱 iPhone Safari / Mobile access: https://${lanIp}:${PORT}/mbbank`);
 });
