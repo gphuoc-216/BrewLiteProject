@@ -40,7 +40,7 @@
 | 4 | **Quách Thanh Phú** | `quachthanhphuu-maker` | [P4 - FE] Auth UI + Checkout + Lịch sử đơn /orders/me | Task 7 FE, 8 FE, 9 FE | `feat/p4-checkout-history` |
 | 5 | **Đặng Lương Thế Anh** | `dangluongtheanh-max` | [P5 - BE] Khởi tạo NestJS + PostgreSQL + API /products | Task 1 BE, Task 2 | `feat/p5-api-products` |
 | 6 | **Nguyễn Hoàng Anh** | `hanhdevsgu` | [P6 - BE] Quản lý Nguyên liệu & Công thức + Mock Payment (Paymock/VietQR/MBBank) + API Orders & Auth JWT | Task 6 BE, 7 BE, 8 BE, Module Nguyên liệu | `feat/p6-payment-ingredients-orders` |
-| 7 | **Hoàng Trần Gia Phước** *(Lead)* | `gphuoc-216` | [P7 - BE/Lead] State Machine + Optimistic Locking + Docker Compose + Điều phối | Task 9 BE, Task 10 BE, DevOps | `feat/p7-core-business` |
+| 7 | **Hoàng Trần Gia Phước** | `gphuoc-216` | [P7 - BE] State Machine + Optimistic Locking + Docker Compose & Unit Test | Task 9 BE, Task 10 BE, DevOps | `feat/p7-core-business` |
 
 ---
 

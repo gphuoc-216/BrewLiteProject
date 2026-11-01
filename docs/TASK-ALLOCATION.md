@@ -17,7 +17,7 @@
 | **4** | **Quách Thanh Phú** | `quachthanhphuu-maker` | **[P4 - Frontend]** Giao diện Auth + Màn hình Checkout + Lịch sử đơn `/orders/me` | Task 7 FE, Task 8 FE, Task 9 FE | `feat/p4-checkout-history` | ✅ Hoàn thành |
 | **5** | **Đặng Lương Thế Anh** | `dangluongtheanh-max` | **[P5 - Backend]** Khởi tạo NestJS + PostgreSQL + API `GET /products` | Task 1 BE, Task 2 | `feat/p5-api-products` | ✅ Hoàn thành |
 | **6** | **Nguyễn Hoàng Anh** | `hanhdevsgu` | **[P6 - Backend]** Quản lý Nguyên liệu & Công thức + Mock Payment (Paymock/VietQR/MBBank) + API Đặt hàng & Auth JWT | Task 6 BE, Task 7 BE, Task 8 BE, Module Nguyên liệu | `feat/p6-payment-ingredients-orders` | ✅ Hoàn thành |
-| **7** | **Hoàng Trần Gia Phước** | `gphuoc-216` *(Lead)* | **[P7 - Backend/Lead]** Order State Machine + Optimistic Locking + Docker Compose + Điều phối dự án | Task 9 BE, Task 10 BE, DevOps | `feat/p7-core-business` | ✅ Hoàn thành |
+| **7** | **Hoàng Trần Gia Phước** | `gphuoc-216` | **[P7 - Backend]** Order State Machine + Optimistic Locking + Docker Compose & Unit Test | Task 9 BE, Task 10 BE, DevOps | `feat/p7-core-business` | ✅ Hoàn thành |
 
 ---
 
@@ -106,13 +106,13 @@
 
 ---
 
-### 👤 7. Hoàng Trần Gia Phước (`gphuoc-216` — Team Lead / Architect) — Gói P7 (Backend/Lead)
+### 👤 7. Hoàng Trần Gia Phước (`gphuoc-216`) — Gói P7 (Backend)
 - **Hạng mục phụ trách:**
   - **Task 8 BE & 10.2 (Idempotency Engine):** Triển khai cơ chế chống thanh toán trùng lặp bằng `Idempotency-Key` duy nhất, xử lý kịch bản Replay an toàn và ném lỗi `422 Unprocessable Entity` khi key bị sử dụng sai.
   - **Task 9 BE & 10.1 (Order State Machine):** Xây dựng ma trận máy trạng thái đơn hàng (`PENDING` → `PAID` → `PREPARING` → `READY` → `COMPLETED`), chặn gian lận nhảy cóc trạng thái và ghi Audit Log vào `order_status_histories`.
   - **Task 10.3 (Optimistic Concurrency Control):** Quản lý xung đột kho nguyên liệu đồng thời bằng trường `version` trên bảng `Ingredient` với raw atomic update và cơ chế Retry tự động tối đa 3 lần.
   - **Task 10.4 (Khuyến mãi & Loyalty):** Logic tích lũy điểm thưởng thành viên (+1 điểm / 10.000 VNĐ) và tự động hoàn kho/hoàn điểm khi đơn bị hủy trước khi pha chế.
-  - **DevOps & Điều phối dự án:** Thiết lập `docker-compose.yml`, viết Dockerfile tối ưu đa tầng (Multi-stage build), viết trọn bộ 5 test suites (43 unit tests Jest) và script kiểm thử đồng thời `scripts/test-race-condition.js`.
+  - **DevOps & Đóng gói hệ thống:** Thiết lập `docker-compose.yml`, viết Dockerfile tối ưu đa tầng (Multi-stage build), viết trọn bộ 5 test suites (43 unit tests Jest) và script kiểm thử đồng thời `scripts/test-race-condition.js`.
 - **Files code phụ trách:**
   - `backend/src/modules/orders/order-state-machine.ts`
   - `backend/src/modules/orders/order-state-machine.spec.ts`
@@ -130,3 +130,4 @@ Tất cả 7 thành viên cam kết tuân thủ 3 nguyên tắc vàng trong quá
 1. **KHÔNG push trực tiếp lên nhánh `main` hoặc `develop`:** Mọi thành viên chỉ làm việc trên nhánh tính năng được phân công (`feat/...`).
 2. **Kéo (pull) nhánh `develop` về giải quyết xung đột trước khi tạo Pull Request:** Đảm bảo mã nguồn luôn đồng bộ và không làm gián đoạn công việc của thành viên khác.
 3. **Đạt chuẩn Definition of Done (DoD):** Code chạy được, không lỗi build, có commit rõ ràng theo chuẩn Conventional Commits và có kiểm thử trước khi bàn giao.
+
