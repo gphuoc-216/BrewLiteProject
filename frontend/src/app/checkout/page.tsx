@@ -28,7 +28,7 @@ import {
 import { useRequireRole } from '@/hooks/useRequireRole';
 import { OrderRecord } from '@/types';
 
-export default function CheckoutPage() {
+function CheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const retryOrderId = searchParams.get('orderId');
@@ -989,5 +989,20 @@ export default function CheckoutPage() {
         </div>
       )}
     </div>
+  );
+}
+
+
+export default function CheckoutPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="min-h-[60vh] flex items-center justify-center">
+          <div className="w-8 h-8 border-4 border-amber-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <CheckoutContent />
+    </React.Suspense>
   );
 }
