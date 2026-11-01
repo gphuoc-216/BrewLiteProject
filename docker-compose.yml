@@ -1,24 +1,40 @@
+# =========================================================================================
+# DOCKER COMPOSE CONFIGURATION (TRIỂN KHAI HỆ THỐNG BREWLITE - TASK 10 DEVOPS)
+# =========================================================================================
+# File cấu hình điều phối các container chạy toàn bộ giải pháp:
+# 1. postgres: Database PostgreSQL 16 Alpine lưu trữ dữ liệu
+# 2. backend : API Service NestJS cổng 3001
+# 3. frontend: Web App Next.js 14 cổng 3000
+# Tự động kết nối mạng nội bộ (brewlite_network) và gắn ổ đĩa bền vững (brewlite_postgres_data).
+# =========================================================================================
 version: '3.8'
 
 services:
+  # ---------------------------------------------------------------------------------------
+  # SERVICE 1: POSTGRESQL DATABASE (CƠ SỞ DỮ LIỆU)
+  # ---------------------------------------------------------------------------------------
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16-alpine # Sử dụng bản Alpine siêu nhẹ, tối ưu tài nguyên RAM/CPU
     container_name: brewlite_postgres
-    restart: always
+    restart: always # Tự động khởi động lại container nếu gặp sự cố hoặc máy chủ reboot
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgrespassword
       POSTGRES_DB: brewlite_db
     ports:
-      - "5432:5432"
+      - "5432:5432" # Ánh xạ cổng 5432 từ máy Host vào Container
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data # Gắn volume lưu dữ liệu bền vững, không bị mất khi tắt container
     healthcheck:
+      # Kiểm tra PostgreSQL đã thực sự sẵn sàng nhận kết nối trước khi khởi động Backend
       test: ["CMD-SHELL", "pg_isready -U postgres -d brewlite_db"]
       interval: 5s
       timeout: 5s
       retries: 5
 
+  # ---------------------------------------------------------------------------------------
+  # SERVICE 2: BACKEND API SERVICE (NESTJS)
+  # ---------------------------------------------------------------------------------------
   backend:
     build:
       context: ./backend
@@ -26,7 +42,7 @@ services:
     container_name: brewlite_backend
     restart: always
     ports:
-      - "3001:3001"
+      - "3001:3001" # Cổng API NestJS: http://localhost:3001
     environment:
       - NODE_ENV=production
       - PORT=3001
@@ -35,30 +51,36 @@ services:
       - JWT_REFRESH_SECRET=brewlite_refresh_secret_key_2026
       - FRONTEND_URL=http://localhost:3000
     depends_on:
+      # Chỉ khởi động Backend sau khi PostgreSQL đã hoàn toàn pass bài test sức khỏe (service_healthy)
       postgres:
         condition: service_healthy
 
+  # ---------------------------------------------------------------------------------------
+  # SERVICE 3: FRONTEND WEB APP (NEXT.JS 14 APP ROUTER)
+  # ---------------------------------------------------------------------------------------
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=http://localhost:3001/api
+        - NEXT_PUBLIC_API_URL=http://localhost:3001/api # Đường dẫn API nạp vào lúc build Next.js
     container_name: brewlite_frontend
     restart: always
     ports:
-      - "3000:3000"
+      - "3000:3000" # Cổng giao diện người dùng: http://localhost:3000
     environment:
       - NODE_ENV=production
       - PORT=3000
       - NEXT_PUBLIC_API_URL=http://localhost:3001/api
     depends_on:
-      - backend
+      - backend # Đảm bảo Backend chạy trước Frontend
 
+# Khai báo Volume bền vững cho Database PostgreSQL
 volumes:
   postgres_data:
     name: brewlite_postgres_data
 
+# Khai báo Network nội bộ riêng biệt giúp các container phân giải tên miền (DNS) cho nhau
 networks:
   default:
     name: brewlite_network
