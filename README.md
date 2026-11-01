@@ -24,6 +24,23 @@
 5. [Mô Hình Dữ Liệu Thực Thể (Database Schema)](#5-mô-hình-dữ-liệu-thực-thể-database-schema)
 6. [Hướng Dẫn Cài Đặt & Chạy Demo Toàn Bộ Hệ Thống](#6-hướng-dẫn-cài-đặt--chạy-demo-toàn-bộ-hệ-thống)
 7. [Tài Khoản Mẫu Để Kiểm Thử Nghiệm Thu](#7-tài-khoản-mẫu-để-kiểm-thử-nghiệm-thu)
+8. [Bảng Phân Công Công Việc 7 Thành Viên](#8-bảng-phân-công-công-việc-7-thành-viên)
+
+---
+
+## 8. Bảng Phân Công Công Việc 7 Thành Viên
+
+> Chi tiết đầy đủ xem tại file: **[docs/TASK-ALLOCATION.md](./docs/TASK-ALLOCATION.md)**
+
+| STT | Thành Viên | GitHub | Gói Đảm Nhận | Task Phụ Trách | Nhánh Git |
+|:---:|:---|:---|:---|:---:|:---|
+| 1 | **Võ Đức Hoàng Vinh** | `V9vinh` | [P1 - FE] Dựng nền Next.js + Menu món | Task 1 FE, Task 3 | `feat/p1-menu-page` |
+| 2 | **Hồ Hoàng Anh** | `anhho7303-source` | [P2 - FE] Chi tiết món + Size & Topping | Task 4 | `feat/p2-product-details` |
+| 3 | **Dương Thành Phát** | `phatthanh-kiko` | [P3 - FE] Giỏ hàng Zustand + Trang /cart | Task 5 | `feat/p3-cart-store` |
+| 4 | **Quách Thanh Phú** | `quachthanhphuu-maker` | [P4 - FE] Auth UI + Checkout + Lịch sử đơn /orders/me | Task 7 FE, 8 FE, 9 FE | `feat/p4-checkout-history` |
+| 5 | **Đặng Lương Thế Anh** | `dangluongtheanh-max` | [P5 - BE] Khởi tạo NestJS + PostgreSQL + API /products | Task 1 BE, Task 2 | `feat/p5-api-products` |
+| 6 | **Nguyễn Hoàng Anh** | `hanhdevsgu` | [P6 - BE] Quản lý Nguyên liệu & Công thức + Mock Payment (Paymock/VietQR/MBBank) + API Orders & Auth JWT | Task 6 BE, 7 BE, 8 BE, Module Nguyên liệu | `feat/p6-payment-ingredients-orders` |
+| 7 | **Hoàng Trần Gia Phước** *(Lead)* | `gphuoc-216` | [P7 - BE/Lead] State Machine + Optimistic Locking + Docker Compose + Điều phối | Task 9 BE, Task 10 BE, DevOps | `feat/p7-core-business` |
 
 ---
 
