@@ -32,6 +32,7 @@ function ProductCard({
   const [imgSrc, setImgSrc] = useState(product.imageUrl || FALLBACK_IMAGE);
   const defaultVariant = product.variants?.[0];
   const minPrice = defaultVariant ? defaultVariant.price : product.minPrice || 0;
+  const isOutOfStock = Boolean(product.isOutOfStock);
 
   return (
     <div
@@ -48,12 +49,20 @@ function ProductCard({
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             unoptimized
             onError={() => setImgSrc(FALLBACK_IMAGE)}
-            className="object-cover group-hover:scale-[1.02] transition-transform duration-300"
+            className={`object-cover transition-transform duration-300 ${
+              isOutOfStock ? 'opacity-65 grayscale-[30%]' : 'group-hover:scale-[1.02]'
+            }`}
           />
-          {/* Category Badge overlay */}
-          <span className="absolute top-2.5 left-2.5 px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase rounded bg-ink/75 text-white backdrop-blur-sm">
-            {product.category}
-          </span>
+          {/* Category or Out-of-Stock Badge overlay */}
+          {isOutOfStock ? (
+            <span className="absolute top-2.5 left-2.5 px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase rounded bg-rose-600 text-white shadow-sm flex items-center gap-1 backdrop-blur-sm">
+              <span>⛔</span> Tạm hết hàng
+            </span>
+          ) : (
+            <span className="absolute top-2.5 left-2.5 px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase rounded bg-ink/75 text-white backdrop-blur-sm">
+              {product.category}
+            </span>
+          )}
         </div>
 
         {/* Product Info */}
@@ -92,18 +101,30 @@ function ProductCard({
           </span>
         </div>
 
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenModal(product);
-          }}
-          className="w-8 h-8 rounded-full bg-ink text-white flex items-center justify-center hover:bg-accent hover:scale-105 active:scale-95 transition-all shadow-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          title="Chọn món"
-          aria-label={`Chọn món ${product.name}`}
-        >
-          <Plus className="w-4 h-4" strokeWidth={2.25} />
-        </button>
+        {isOutOfStock ? (
+          <button
+            type="button"
+            disabled
+            className="px-2.5 py-1 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-500 text-xs font-semibold cursor-not-allowed opacity-85"
+            title="Món này hiện đang tạm hết nguyên liệu pha chế"
+            aria-label={`Món ${product.name} tạm hết`}
+          >
+            Hết
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenModal(product);
+            }}
+            className="w-8 h-8 rounded-full bg-ink text-white flex items-center justify-center hover:bg-accent hover:scale-105 active:scale-95 transition-all shadow-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            title="Chọn món"
+            aria-label={`Chọn món ${product.name}`}
+          >
+            <Plus className="w-4 h-4" strokeWidth={2.25} />
+          </button>
+        )}
       </div>
     </div>
   );

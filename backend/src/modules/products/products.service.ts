@@ -155,6 +155,13 @@ export class ProductsService {
           include: {
             variants: {
               orderBy: { price: 'asc' },
+              include: {
+                recipes: {
+                  include: {
+                    ingredient: true,
+                  },
+                },
+              },
             },
             reviews: {
               where: { status: 'VISIBLE' },
@@ -172,6 +179,21 @@ export class ProductsService {
           const avgRating = p.reviews.length > 0 ? Number((totalStars / p.reviews.length).toFixed(1)) : null;
           const minPrice = p.variants.length > 0 ? p.variants[0].price : 0;
 
+          const formattedVariants = p.variants.map((v: any) => {
+            const isOutOfStock = v.recipes && v.recipes.length > 0
+              ? v.recipes.some((r: any) => Number(r.ingredient?.stockQuantity ?? 0) < Number(r.quantityRequired ?? 0))
+              : false;
+            return {
+              id: v.id,
+              size: v.size,
+              price: v.price,
+              topping: v.topping,
+              isOutOfStock,
+            };
+          });
+
+          const isProductOutOfStock = formattedVariants.length > 0 && formattedVariants.every((v) => v.isOutOfStock);
+
           return {
             id: p.id,
             name: p.name,
@@ -181,7 +203,8 @@ export class ProductsService {
             minPrice,
             rating: avgRating,
             reviewCount: p.reviews.length,
-            variants: p.variants,
+            isOutOfStock: isProductOutOfStock,
+            variants: formattedVariants,
           };
         });
 
@@ -255,8 +278,22 @@ export class ProductsService {
         const totalStars = product.reviews.reduce((acc, r) => acc + r.stars, 0);
         const avgRating = product.reviews.length > 0 ? Number((totalStars / product.reviews.length).toFixed(1)) : null;
 
+        const formattedVariants = product.variants.map((v) => {
+          const isOutOfStock = v.recipes && v.recipes.length > 0
+            ? v.recipes.some((r) => Number(r.ingredient?.stockQuantity ?? 0) < Number(r.quantityRequired ?? 0))
+            : false;
+          return {
+            ...v,
+            isOutOfStock,
+          };
+        });
+
+        const isProductOutOfStock = formattedVariants.length > 0 && formattedVariants.every((v) => v.isOutOfStock);
+
         return {
           ...product,
+          variants: formattedVariants,
+          isOutOfStock: isProductOutOfStock,
           avgRating,
           reviewCount: product.reviews.length,
         };
