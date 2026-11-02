@@ -218,7 +218,6 @@ Dữ liệu tài khoản đã nạp sẵn trong lệnh `npm run seed`:
 ---
 
 ## 📚 TÀI LIỆU CHUYÊN SÂU DỰ ÁN
-- **Báo cáo Tiến độ Giữa kỳ Assignment 1 (2 trang)**: [docs/BAO_CAO_ASSIGNMENT_1_BREWLITE.md](./docs/BAO_CAO_ASSIGNMENT_1_BREWLITE.md) (hoặc mở file [docs/BAO_CAO_ASSIGNMENT_1_BREWLITE.html](./docs/BAO_CAO_ASSIGNMENT_1_BREWLITE.html) bấm `Ctrl + P` lưu PDF).
 - **Phân chia chi tiết 7 Task cho nhóm**: [docs/TASK-ALLOCATION.md](./docs/TASK-ALLOCATION.md).
 - **Tài liệu Đặc tả Kỹ thuật & 81 hàm nguyên tử**: [docs/01-analysis-spec.md](./docs/01-analysis-spec.md).
 - **Kế hoạch Triển khai Chi tiết**: [docs/02-implementation-plan.md](./docs/02-implementation-plan.md).
