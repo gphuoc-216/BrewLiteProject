@@ -40,7 +40,7 @@
 | 4 | **Quách Thanh Phú** | `quachthanhphuu-maker` | [P4 - FE] Auth UI + Checkout + Lịch sử đơn /orders/me | Task 7 FE, 8 FE, 9 FE | `feat/p4-checkout-history` |
 | 5 | **Đặng Lương Thế Anh** | `dangluongtheanh-max` | [P5 - BE] Khởi tạo NestJS + PostgreSQL + API /products | Task 1 BE, Task 2 | `feat/p5-api-products` |
 | 6 | **Nguyễn Hoàng Anh** | `hanhdevsgu` | [P6 - BE] Quản lý Nguyên liệu & Công thức + Mock Payment (Paymock/VietQR/MBBank) + API Orders & Auth JWT | Task 6 BE, 7 BE, 8 BE, Module Nguyên liệu | `feat/p6-payment-ingredients-orders` |
-| 7 | **Hoàng Trần Gia Phước** | `gphuoc-216` | [P7 - BE] State Machine + Optimistic Locking + Docker Compose & Unit Test | Task 9 BE, Task 10 BE, DevOps | `feat/p7-core-business` |
+| 7 | **Hoàng Trần Gia Phước** | `gphuoc-216` | [P7 - BE] State Machine + Optimistic Locking + Docker Compose & Unit Test | Task 9 BE, Task 10 BE, DevOps | `feature/p7-backend` |
 
 ---
 
@@ -274,54 +274,195 @@ Hệ thống được thiết kế trên PostgreSQL với **17 Models & Enums** 
 
 ---
 
-## 6. Hướng Dẫn Cài Đặt & Chạy Demo Toàn Bộ Hệ Thống
+## 6. Hướng Dẫn Cài Đặt & Khởi Chạy Toàn Bộ Hệ Thống (Từ A đến Z)
 
-### 6.1 Khởi chạy bằng Docker Compose (Khuyên dùng)
-Tại thư mục gốc dự án:
+### 6.1 Yêu Cầu Môi Trường Tiên Quyết (Prerequisites)
+Trước khi cài đặt, máy tính cần chuẩn bị:
+- **Node.js**: Phiên bản `18.x` hoặc `20.x LTS` (Khuyến nghị `Node.js 20.x`). Kiểm tra bằng: `node -v`.
+- **NPM**: Phiên bản `9.x` hoặc `10.x` (đi kèm Node.js). Kiểm tra bằng: `npm -v`.
+- **Git**: Đã cài đặt để quản trị mã nguồn. Kiểm tra bằng: `git --version`.
+- **Docker Desktop**: (Tùy chọn nhưng **khuyến nghị mạnh mẽ**) để chạy CSDL PostgreSQL và trọn bộ hệ thống chỉ với 1 câu lệnh duy nhất.
+
+---
+
+### 6.2 Bước 1: Tải Mã Nguồn & Cấu Hình Biến Môi Trường (.env)
+
+#### 1. Clone repository về máy:
 ```bash
-# Khởi chạy toàn bộ CSDL PostgreSQL, Backend API và Frontend Web App
-docker compose up --build
+git clone https://github.com/gphuoc-216/BrewLiteProject.git
+cd BrewLiteProject
 ```
 
-### 6.2 Khởi chạy thủ công từng phần (Development)
+#### 2. Cấu hình biến môi trường Backend:
+Sao chép file mẫu `backend/.env.example` thành `backend/.env`:
+```powershell
+# Trên Windows PowerShell:
+copy backend\.env.example backend\.env
+```
+*(Nội dung file `backend/.env` đã được cấu hình mặc định chuẩn kết nối local/Docker, bao gồm `DATABASE_URL`, `PORT=3001`, `JWT_SECRET`, `FRONTEND_URL="http://localhost:3000"`).*
 
-#### Bước 1: Khởi động Backend (NestJS)
+#### 3. Cấu hình biến môi trường Frontend:
+Sao chép file mẫu `frontend/.env.example` thành `frontend/.env.local`:
+```powershell
+# Trên Windows PowerShell:
+copy frontend\.env.example frontend\.env.local
+```
+*(Nội dung file `frontend/.env.local` chứa `NEXT_PUBLIC_API_URL="http://localhost:3001/api"`).*
+
+---
+
+### 6.3 Cách 1: Khởi Chạy 1-Click Bằng Docker Compose (Khuyên Dùng Cho Giảng Viên & Nghiệm Thu)
+
+Đây là cách nhanh nhất và chuẩn xác nhất: Docker sẽ tự động dựng toàn bộ PostgreSQL 16, Backend NestJS và Frontend Next.js trong mạng nội bộ độc lập.
+
+#### Khởi chạy:
+Tại thư mục gốc dự án, thực thi lệnh:
+```bash
+docker compose up -d --build
+```
+> Hệ thống sẽ tự động:
+> 1. Tải image PostgreSQL 16 Alpine và khởi chạy database `brewlite_db`.
+> 2. Build multi-stage image cho Backend NestJS, generate Prisma Client, kết nối DB.
+> 3. Build tối ưu production Next.js 14 Frontend.
+> 4. Khởi động cả 3 container và tự động gắn healthcheck kiểm tra độ sẵn sàng.
+
+#### Kiểm tra trạng thái các dịch vụ:
+```bash
+docker compose ps
+```
+*Kết quả hiển thị 3 container: `brewlite_postgres` (cổng 5432), `brewlite_backend` (cổng 3001), `brewlite_frontend` (cổng 3000) đều ở trạng thái `Up / Healthy`.*
+
+#### Nạp dữ liệu mẫu ban đầu (Seed Database):
+Nếu khởi chạy lần đầu trên máy mới, hãy nạp dữ liệu menu đồ uống, công thức và tài khoản mẫu:
+```bash
+docker exec -it brewlite_backend npm run seed
+```
+
+#### Xem logs trực tiếp khi cần theo dõi:
+```bash
+docker compose logs -f
+# Hoặc xem riêng từng dịch vụ:
+docker compose logs -f backend
+docker compose logs -f frontend
+```
+
+#### Dừng hệ thống:
+```bash
+# Dừng các container (dữ liệu CSDL vẫn được lưu bền vững trên Volume):
+docker compose down
+
+# Dừng và XÓA TOÀN BỘ dữ liệu CSDL để nạp lại từ đầu:
+docker compose down -v
+```
+
+---
+
+### 6.4 Cách 2: Khởi Chạy Thủ Công Từng Phần (Local Development Cho Lập Trình Viên)
+
+Dành cho thành viên nhóm muốn chạy mã nguồn trực tiếp trên máy không thông qua container backend/frontend:
+
+#### Bước 1: Khởi động CSDL PostgreSQL
+Bạn có thể dùng PostgreSQL đã cài trên máy, hoặc bật nhanh PostgreSQL bằng Docker:
+```bash
+docker run --name brewlite_postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgrespassword -e POSTGRES_DB=brewlite_db -p 5432:5432 -d postgres:16-alpine
+```
+
+#### Bước 2: Cài đặt và khởi chạy Backend (NestJS)
+Mở một cửa sổ Terminal:
 ```powershell
 cd backend
 npm install
 npx prisma generate
 npx prisma migrate deploy
-npm run seed              # Nạp dữ liệu sản phẩm, nguyên liệu và tài khoản mẫu
+npm run seed              # Nạp danh mục đồ uống, nguyên liệu tồn kho và tài khoản mẫu
 npm run start:dev
 ```
-*API Backend chạy tại: `http://localhost:3001` (Tài liệu Swagger: `http://localhost:3001/api/docs`)*
+> ✅ Backend sẵn sàng tại: `http://localhost:3001`  
+> 📑 Tài liệu Swagger API tại: `http://localhost:3001/api/docs`
 
-#### Bước 2: Khởi động Frontend (Next.js)
+#### Bước 3: Cài đặt và khởi chạy Frontend (Next.js)
+Mở một cửa sổ Terminal thứ hai:
 ```powershell
 cd frontend
 npm install
 npm run dev
 ```
-*Giao diện Web chạy tại: `http://localhost:3000`*
-
-#### Bước 3: Bật HTTPS Proxy để quét mã QR bằng Camera điện thoại
-Mở một cửa sổ Terminal tại thư mục gốc:
-```powershell
-node https-proxy.js
-```
-*Terminal sẽ báo: `🔒 HTTPS Reverse Proxy is running on https://0.0.0.0:3443`*
+> ✅ Giao diện Web khách hàng sẵn sàng tại: `http://localhost:3000`
 
 ---
 
-## 7. Tài Khoản Mẫu Để Kiểm Thử Nghiệm Thu
+### 6.5 Cách 3: Trải Nghiệm Demo Quét Mã QR Bằng Điện Thoại Thật (Mobile QR Payment)
 
-Hệ thống đã nạp sẵn các tài khoản demo đầy đủ phân quyền trong lệnh Seed:
+Hệ thống hỗ trợ 2 phương án để demo tính năng quét mã QR thanh toán trên điện thoại di động thật:
 
-| Vai trò | Tên đăng nhập (Username) | Mật khẩu | Quyền hạn & Chức năng kiểm thử |
-|:---|:---|:---:|:---|
-| **Khách Hàng (Customer)** | `customer1` | `123456` | Đặt món, áp mã giảm giá, quét mã VietQR, thanh toán OTP MBBank, theo dõi đơn, đánh giá sản phẩm. |
-| **Nhân Viên Pha Chế (Staff)** | `barista1` | `123456` | Truy cập `/staff`: Tiếp nhận đơn từ cột "Đã thanh toán" ➔ Chuyển "Đang pha chế" ➔ "Sẵn sàng lấy món" ➔ "Hoàn thành". |
-| **Quản Trị Viên (Admin)** | `admin` | `admin123` | Truy cập `/admin`: Xem thống kê doanh thu, quản lý danh mục, cảnh báo nguyên liệu chạm ngưỡng, tạo phiếu nhập kho, kiểm duyệt đánh giá. |
+#### Phương án A — Dùng Cloudflare Tunnel tích hợp sẵn (Khuyên Dùng):
+Không cần cùng mạng Wi-Fi, tự động có HTTPS chuẩn quốc tế để bật Camera:
+```powershell
+# Tại thư mục gốc:
+npm run phone
+# Hoặc:
+node scripts/tunnel.js
+```
+> Terminal sẽ hiển thị **Mã QR to rõ ngay trong console** và một đường link HTTPS công khai (VD: `https://xxxx.trycloudflare.com`). Dùng camera điện thoại quét để mở ngay ứng dụng MBBank Simulator!
+
+#### Phương án B — Dùng HTTPS Reverse Proxy nội bộ qua mạng LAN:
+Yêu cầu điện thoại và máy tính kết nối chung một mạng Wi-Fi:
+1. Mở Terminal gõ `ipconfig` xem địa chỉ IPv4 máy tính (VD: `192.168.1.149`).
+2. Chạy proxy:
+```powershell
+node https-proxy.js
+```
+3. Mở trình duyệt Safari/Chrome trên điện thoại truy cập: `https://<Địa_Chỉ_IP>:3443/mbbank` (bấm Cho phép chứng chỉ tự ký).
+
+---
+
+### 6.6 Cách 4: Chạy Kiểm Thử Tự Động (Automated Testing & Concurrency)
+
+#### 1. Chạy toàn bộ 5 Test Suites Unit Tests Backend (43 unit tests):
+```powershell
+# Chạy từ thư mục gốc:
+npm run test
+# Hoặc:
+npm --prefix backend test
+```
+*Kiểm thử toàn diện: Order State Machine, Khóa Idempotency, Logic Điểm thưởng Loyalty, Khóa lạc quan OCC tồn kho.*
+
+#### 2. Chạy kịch bản Kiểm thử Xung đột đồng thời (Race Condition Test):
+Mô phỏng 10 giao dịch đặt hàng đồng thời tranh chấp kho nguyên liệu:
+```powershell
+node scripts/test-race-condition.js
+```
+*Kết quả chứng minh Optimistic Concurrency Control (OCC) xử lý thành công không để xảy ra bán lố nguyên liệu.*
+
+#### 3. Kiểm tra tính hợp lệ Build Production:
+```powershell
+npm run build:backend
+npm run build:frontend
+```
+
+---
+
+## 7. Bảng Tài Khoản Mẫu Để Kiểm Thử Nghiệm Thu
+
+Hệ thống đã nạp sẵn dữ liệu tài khoản đầy đủ phân quyền trong lệnh `npm run seed`:
+
+| Vai Trò Phân Quyền | Tên Đăng Nhập | Mật Khẩu | Đường Dẫn Kiểm Thử | Quyền Hạn & Tính Năng Trải Nghiệm |
+|:---|:---|:---:|:---:|:---|
+| **Khách Hàng (Customer)** | `customer1` | `123456` | `/login` ➔ `/` | Đặt món, chọn size/topping, áp mã voucher thông minh, dùng điểm tích lũy, quét mã QR VietQR, nhận diện thanh toán tự động, đánh giá sao. |
+| **Nhân Viên Pha Chế (Staff)** | `barista1` | `123456` | `/staff` | **Bảng Kanban Barista (FIFO):** Tiếp nhận đơn từ cột "Đã thanh toán" ➔ Kéo chuyển "Đang pha chế" ➔ "Sẵn sàng nhận món" ➔ "Hoàn thành". |
+| **Quản Trị Viên (Admin)** | `admin` | `admin123` | `/admin` | **Dashboard Quản Trị:** Thống kê doanh thu theo ngày/tháng, cảnh báo tồn kho nguyên liệu chạm ngưỡng đỏ, tạo phiếu nhập kho, kiểm duyệt đánh giá. |
+
+---
+
+## 8. Hướng Dẫn Khắc Phục Sự Cố Thường Gặp (Troubleshooting / FAQ)
+
+| Hiện Tượng / Lỗi | Nguyên Nhân | Cách Khắc Phục Nhanh |
+|:---|:---|:---|
+| **Lỗi `EADDRINUSE: port 3000/3001`** | Cổng bị chiếm bởi tiến trình cũ chưa tắt | Chạy PowerShell lệnh: `Get-Process -Id (Get-NetTCPConnection -LocalPort 3000).OwningProcess | Stop-Process -Force` (thay 3000 hoặc 3001). |
+| **Lỗi `Can't reach database server at localhost:5432`** | PostgreSQL chưa bật hoặc container DB chưa chạy | Chạy `docker compose up -d postgres` hoặc kiểm tra dịch vụ PostgreSQL trên máy đã khởi động. |
+| **Lỗi `Camera access denied` trên điện thoại** | Trình duyệt di động chặn Camera trên giao thức HTTP thường | Dùng phương án Cloudflare Tunnel (`npm run phone`) hoặc bật `node https-proxy.js` để có kết nối HTTPS. |
+| **Muốn reset sạch dữ liệu đơn hàng về mặc định** | Cần làm mới đơn thử nghiệm trước giờ báo cáo | Chạy lệnh: `npm --prefix backend run clean:orders` hoặc chạy lại `npm --prefix backend run seed`. |
+| **Sản phẩm báo `⛔ Tạm hết hàng`** | Tồn kho của nguyên liệu trong công thức bằng 0 | Đăng nhập tài khoản `admin` vào `/admin` mục "Quản lý nguyên vật liệu" bấm "Nhập thêm kho" hoặc chạy lại `seed`. |
 
 ---
 
@@ -332,5 +473,4 @@ Hệ thống đã nạp sẵn các tài khoản demo đầy đủ phân quyền 
 - **Bảng Kanban Quầy Pha Chế Barista**: [http://localhost:3000/staff](http://localhost:3000/staff)
 - **Dashboard Báo Cáo Doanh Thu & Quản Trị**: [http://localhost:3000/admin](http://localhost:3000/admin)
 - **Ứng Dụng Giả Lập MBBank Mobile (Trên PC)**: [http://localhost:3000/mbbank](http://localhost:3000/mbbank)
-- **Quét Mã QR Bằng Camera Điện Thoại (Wi-Fi LAN)**: `https://192.168.1.149:3443/mbbank`
 - **Tài Liệu API Chuẩn OpenAPI / Swagger**: [http://localhost:3001/api/docs](http://localhost:3001/api/docs)
