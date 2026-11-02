@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+
 export interface CartItem {
   id: string; // Unique line key: `${variantId}:${topping || 'default'}`
   variantId: string;
@@ -21,6 +22,7 @@ export interface AppliedPromotion {
   discountAmount: number;
   minOrder?: number;
 }
+
 
 interface CartState {
   items: CartItem[];
