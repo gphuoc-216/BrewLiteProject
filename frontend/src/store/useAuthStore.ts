@@ -14,6 +14,7 @@ export interface User {
   loyaltyPoints?: number;
 }
 
+
 interface AuthState {
   user: User | null;
   token: string | null;                      
@@ -33,6 +34,7 @@ const getStoredUser = (): User | null => {
     return null;
   }
 };
+
 
 const getStoredToken = (): string | null => {
   if (typeof window === 'undefined') return null;                    
