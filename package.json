@@ -17,8 +17,6 @@
     "docker:build": "docker compose up --build",
     "tunnel": "node scripts/tunnel.js",
     "phone": "node scripts/tunnel.js",
-    "start": "cmd /c start.bat",
-    "demo": "cmd /c start.bat",
     "test:race": "node scripts/test-race-condition.js"
   },
   "keywords": [
