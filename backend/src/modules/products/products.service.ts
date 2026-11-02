@@ -169,7 +169,7 @@ export class ProductsService {
       if (items && items.length > 0) {
         const formattedItems = items.map((p) => {
           const totalStars = p.reviews.reduce((acc, r) => acc + r.stars, 0);
-          const avgRating = p.reviews.length > 0 ? Number((totalStars / p.reviews.length).toFixed(1)) : 5.0;
+          const avgRating = p.reviews.length > 0 ? Number((totalStars / p.reviews.length).toFixed(1)) : null;
           const minPrice = p.variants.length > 0 ? p.variants[0].price : 0;
 
           return {
@@ -253,7 +253,7 @@ export class ProductsService {
 
       if (product) {
         const totalStars = product.reviews.reduce((acc, r) => acc + r.stars, 0);
-        const avgRating = product.reviews.length > 0 ? Number((totalStars / product.reviews.length).toFixed(1)) : 5.0;
+        const avgRating = product.reviews.length > 0 ? Number((totalStars / product.reviews.length).toFixed(1)) : null;
 
         return {
           ...product,

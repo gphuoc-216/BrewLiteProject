@@ -58,11 +58,16 @@ function ProductCard({
 
         {/* Product Info */}
         <div className="p-3.5 space-y-1">
-          {product.rating && (
+          {(product.reviewCount || 0) > 0 ? (
             <div className="flex items-center gap-1 text-xs text-ink-2">
-              <Star className="w-3 h-3 text-ink fill-ink" strokeWidth={1.5} />
+              <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" strokeWidth={1.5} />
               <span className="font-medium text-ink tabular-nums">{product.rating}</span>
-              <span className="text-ink-3">({product.reviewCount || 0})</span>
+              <span className="text-ink-3">({product.reviewCount})</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-[11px] text-ink-3">
+              <span className="text-[10px] bg-amber-500/10 text-amber-700 dark:text-amber-400 font-medium px-1.5 py-0.5 rounded">Mới</span>
+              <span>Chưa có đánh giá</span>
             </div>
           )}
 

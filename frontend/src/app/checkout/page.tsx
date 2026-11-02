@@ -202,14 +202,18 @@ function CheckoutContent() {
     ? Number(retryOrder.totalAfterDiscount || 0) + retryDiscount
     : cartSubtotal;
 
+  const buyNowItem = isBuyNow && buyNowItems.length > 0 ? buyNowItems[0] : null;
   const voucherDiscount = retryOrder
     ? retryDiscount
     : (isBuyNow
-        ? 0
+        ? Number(buyNowItem?.voucherDiscount || 0)
         : (promotions && promotions.length > 0
             ? promotions.reduce((sum, p) => sum + (p.discountAmount || 0), 0)
             : (promotion ? promotion.discountAmount : 0)));
-  const pointsDiscount = isBuyNow ? 0 : (loyaltyPointsUsed || 0) * 100;
+  const pointsDiscount = isBuyNow
+    ? Number(buyNowItem?.pointsDiscount || 0)
+    : (loyaltyPointsUsed || 0) * 100;
+  const buyNowLoyaltyPoints = isBuyNow ? Number(buyNowItem?.loyaltyPointsUsed || 0) : 0;
   const discountAmount = voucherDiscount + pointsDiscount;
   const finalTotal = Math.max(0, subtotal - discountAmount);
   const hasPayableOrder = activeItems.length > 0 || !!retryOrder;
@@ -303,9 +307,9 @@ function CheckoutContent() {
 
   // Sinh mã QR thanh toán chuẩn ngân hàng VietQR EMVCo (chứa chính xác số tiền, STK, người thụ hưởng, nội dung)
   useEffect(() => {
-    if (!ready || finalTotal <= 0) return;
+    if (finalTotal <= 0) return;
 
-    let isCancelled = false;
+    let isMounted = true;
     const emvPayload = generateVietQrEmvString({
       bankBin: '970436', // VCB
       accountNumber: '99998888',
@@ -336,13 +340,14 @@ function CheckoutContent() {
       },
     })
       .then((url) => {
-        if (!isCancelled) setQrDataUrl(url);
+        if (isMounted) setQrDataUrl(url);
       })
       .catch((err) => {
         console.error('Lỗi tạo mã QR:', err);
       });
+
     return () => {
-      isCancelled = true;
+      isMounted = false;
     };
   }, [ready, orderCodeDisplay, finalTotal]);
 
@@ -464,11 +469,13 @@ function CheckoutContent() {
               toppings: i.topping && i.topping !== 'Tiêu chuẩn' ? i.topping.split(',').map((t: string) => t.trim()) : undefined,
             })),
             promotionCode: isBuyNow
-              ? undefined
+              ? (buyNowItem?.appliedVouchers?.length > 0 ? buyNowItem.appliedVouchers.join(',') : undefined)
               : (promotions && promotions.length > 0)
               ? promotions.map((p) => p.code).join(',')
               : (promotion ? promotion.code : undefined),
-            loyaltyPointsToUse: (!isBuyNow && loyaltyPointsUsed > 0) ? loyaltyPointsUsed : undefined,
+            loyaltyPointsToUse: isBuyNow
+              ? (buyNowLoyaltyPoints > 0 ? buyNowLoyaltyPoints : undefined)
+              : (loyaltyPointsUsed > 0 ? loyaltyPointsUsed : undefined),
           };
 
           const orderRes = await fetchApi<any>('/orders', {
@@ -863,7 +870,7 @@ function CheckoutContent() {
             )}
             {pointsDiscount > 0 && (
               <div className="flex justify-between text-amber-600 dark:text-amber-400 font-medium">
-                <span>Điểm tích lũy đã dùng ({loyaltyPointsUsed} điểm):</span>
+                <span>Điểm tích lũy đã dùng ({isBuyNow ? buyNowLoyaltyPoints : loyaltyPointsUsed} điểm):</span>
                 <span className="font-mono">-{pointsDiscount.toLocaleString('vi-VN')} đ</span>
               </div>
             )}
@@ -972,18 +979,22 @@ function CheckoutContent() {
             {/* Khung QR Code kèm Overlay khi hết hạn 5 phút */}
             <div className="relative inline-block mx-auto">
               <div className="bg-white p-3.5 rounded-2xl border-2 border-blue-600 shadow-md inline-block">
-                <div className="flex items-center justify-center min-w-[210px] min-h-[210px] bg-white rounded overflow-hidden">
-                  <img
-                    src={
-                      qrDataUrl ||
-                      `https://img.vietqr.io/image/970436-99998888-compact.png?amount=${finalTotal}&addInfo=BREWLITE%20${orderCodeDisplay}&accountName=BREWLITE%20COFFEE`
-                    }
-                    alt="Mã QR Thanh Toán BrewLite"
+                <div className="flex items-center justify-center min-w-[210px] min-h-[210px] bg-white rounded overflow-hidden relative">
+                  {qrDataUrl ? (
+                    <img
+                      src={qrDataUrl}
+                      alt="Mã QR Thanh Toán BrewLite"
+                      width={210}
+                      height={210}
+                      className="block mx-auto rounded"
+                    />
+                  ) : null}
+                  <canvas
+                    ref={canvasRef}
                     width={210}
                     height={210}
-                    className="block mx-auto rounded"
+                    className={qrDataUrl ? 'hidden' : 'block mx-auto rounded'}
                   />
-                  <canvas ref={canvasRef} width={210} height={210} className="hidden" />
                 </div>
                 <div className="mt-2.5 text-[11px] text-slate-800 font-bold leading-relaxed border-t border-slate-100 pt-2 text-left space-y-0.5">
                   <div className="flex justify-between"><span>Đơn vị nhận:</span> <b>BrewLite Coffee</b></div>
@@ -1096,11 +1107,13 @@ function CheckoutContent() {
                   <div className="flex items-center justify-between text-success">
                     <span>
                       Voucher giảm giá
-                      {promotions && promotions.length > 0
-                        ? ` (${promotions.map((p) => p.code).join(', ')})`
-                        : promotion?.code
-                        ? ` (${promotion.code})`
-                        : ''}
+                      {isBuyNow
+                        ? (buyNowItem?.appliedVouchers?.length > 0 ? ` (${buyNowItem.appliedVouchers.join(', ')})` : '')
+                        : (promotions && promotions.length > 0
+                            ? ` (${promotions.map((p) => p.code).join(', ')})`
+                            : promotion?.code
+                            ? ` (${promotion.code})`
+                            : '')}
                       :
                     </span>
                     <span className="font-semibold">
@@ -1113,7 +1126,7 @@ function CheckoutContent() {
                   <div className="flex items-center justify-between text-amber-600 dark:text-amber-400">
                     <span className="flex items-center gap-1">
                       <Sparkles className="w-3.5 h-3.5" />
-                      <span>Điểm tích lũy đã dùng ({loyaltyPointsUsed} điểm):</span>
+                      <span>Điểm tích lũy đã dùng ({isBuyNow ? buyNowLoyaltyPoints : loyaltyPointsUsed} điểm):</span>
                     </span>
                     <span className="font-semibold font-mono">
                       -{pointsDiscount.toLocaleString('vi-VN')} đ
@@ -1424,7 +1437,7 @@ function CheckoutContent() {
               <div className="flex justify-between text-amber-600 dark:text-amber-400">
                 <span className="flex items-center gap-1">
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>Điểm tích lũy đã dùng ({loyaltyPointsUsed} điểm):</span>
+                  <span>Điểm tích lũy đã dùng ({isBuyNow ? buyNowLoyaltyPoints : loyaltyPointsUsed} điểm):</span>
                 </span>
                 <span className="font-semibold font-mono">
                   -{pointsDiscount.toLocaleString('vi-VN')} đ
