@@ -7,17 +7,17 @@
 
 ---
 
-## 1. Bảng Tổng Hợp Phân Công Nhiệm Vụ 7 Thành Viên
+## 1. Bảng Tổng Hợp Phân Công Nhiệm Vụ 7 Thành Viên (Chuẩn 7 Nhánh Git)
 
-| STT | Họ và Tên | GitHub Username | Gói Công Việc Đảm Nhận | Task Đề Bài Phụ Trách | Nhánh Git (Feature Branch) | Trạng Thái |
+| STT | Họ và Tên | GitHub Username | Gói Công Việc Đảm Nhận | Nhánh Git (Feature Branch) | Trọng Tâm Nghiệp Vụ Thực Tế | Trạng Thái |
 |:---:|:---|:---|:---|:---:|:---|:---:|
-| **1** | **Võ Đức Hoàng Vinh** | `V9vinh` | **[P1 - Frontend]** Dựng nền Next.js + Trang hiển thị Menu món | Task 1 FE, Task 3 | `feat/p1-menu-page` | ✅ Hoàn thành |
-| **2** | **Hồ Hoàng Anh** | `anhho7303-source` | **[P2 - Frontend]** Màn hình Chi tiết món + Chọn Size & Topping | Task 4 | `feat/p2-product-details` | ✅ Hoàn thành |
-| **3** | **Dương Thành Phát** | `phatthanh-kiko` | **[P3 - Frontend]** Quản lý Giỏ hàng Zustand + Tính tổng tiền + Trang `/cart` | Task 5 | `feat/p3-cart-store` | ✅ Hoàn thành |
-| **4** | **Quách Thanh Phú** | `quachthanhphuu-maker` | **[P4 - Frontend]** Giao diện Auth + Màn hình Checkout + Lịch sử đơn `/orders/me` | Task 7 FE, Task 8 FE, Task 9 FE | `feat/p4-checkout-history` | ✅ Hoàn thành |
-| **5** | **Đặng Lương Thế Anh** | `dangluongtheanh-max` | **[P5 - Backend]** Khởi tạo NestJS + PostgreSQL + API `GET /products` | Task 1 BE, Task 2 | `feat/p5-api-products` | ✅ Hoàn thành |
-| **6** | **Nguyễn Hoàng Anh** | `hanhdevsgu` | **[P6 - Backend]** Quản lý Nguyên liệu & Công thức + Mock Payment (Paymock/VietQR/MBBank) + API Đặt hàng & Auth JWT | Task 6 BE, Task 7 BE, Task 8 BE, Module Nguyên liệu | `feat/p6-payment-ingredients-orders` | ✅ Hoàn thành |
-| **7** | **Hoàng Trần Gia Phước** | `gphuoc-216` | **[P7 - Backend]** Order State Machine + Optimistic Locking + Docker Compose & Unit Test | Task 9 BE, Task 10 BE, DevOps | `feat/p7-core-business` | ✅ Hoàn thành |
+| **1** | **Võ Đức Hoàng Vinh** | `V9vinh` | **[P1 - Frontend]** Layout Hệ Thống & Thực Đơn Số Thông Minh | `feat/p1-menu-page` | Next.js 14, Navbar, Catalog Menu, Bộ lọc/Search debounce, Badge cảnh báo hết hàng thời gian thực | ✅ Hoàn thành |
+| **2** | **Hồ Hoàng Anh** | `anhho7303-source` | **[P2 - Frontend]** Chi Tiết Món, Tùy Chọn Topping & Đánh Giá Tức Thì | `feat/p2-product-details` | Modal Quick Select, Tùy chỉnh Đường/Đá/Topping, Tự động vô hiệu hóa Size hết nguyên liệu, Gửi & xem đánh giá | ✅ Hoàn thành |
+| **3** | **Dương Thành Phát** | `phatthanh-kiko` | **[P3 - Frontend]** Quản Lý Giỏ Hàng Zustand, Voucher & Loyalty | `feat/p3-cart-store` | Zustand Store persist, Gộp món cùng biến thể, Trang `/cart`, Áp dụng Voucher thông minh, Dùng Điểm thưởng (1đ = 100đ) | ✅ Hoàn thành |
+| **4** | **Quách Thanh Phú** | `quachthanhphuu-maker` | **[P4 - Frontend]** Xác Thực Tài Khoản & Màn Hình Checkout Tự Động | `feat/p4-checkout-history` | Trang Đăng nhập/Đăng ký, Luồng Mua ngay & Giỏ hàng, Mã QR chuyển khoản Canvas, Mô phỏng MBBank gạch nợ tự động | ✅ Hoàn thành |
+| **5** | **Đặng Lương Thế Anh** | `dangluongtheanh-max` | **[P5 - Backend]** Cơ Sở Dữ Liệu PostgreSQL & API Tính Tồn Kho Thời Gian Thực | `feat/p5-api-products` | Schema Prisma, Seed CSDL mẫu, API `GET /products` đối chiếu công thức định lượng ra cờ `isOutOfStock`, API Đánh giá | ✅ Hoàn thành |
+| **6** | **Nguyễn Hoàng Anh** | `hanhdevsgu` | **[P6 - Backend]** Quản Lý Nguyên Liệu, Đơn Hàng & Cổng Thanh Toán | `feat/p6-payment-ingredients-orders` | Entity `Ingredient` & `Recipe`, API `POST /orders`, Auth JWT/Bcrypt, Mock Gateway Service, API MBBank Sync thời gian thực | ✅ Hoàn thành |
+| **7** | **Hoàng Trần Gia Phước** | `gphuoc-216` | **[P7 - Fullstack & DevOps]** Core State Machine, Kanban Barista & Docker | `feature/p7-backend` | Order State Machine chống gian lận, Idempotency-Key, Khóa lạc quan OCC, Kanban Barista (`/staff`), Admin (`/admin`), Docker Compose | ✅ Hoàn thành |
 
 ---
 
@@ -25,127 +25,116 @@
 
 ### 👤 1. Võ Đức Hoàng Vinh (`V9vinh`) — Gói P1 (Frontend)
 - **Hạng mục phụ trách:**
-  - **Task 1 FE**: Khởi tạo dự án Next.js 14 App Router, thiết lập TailwindCSS, cấu trúc thư mục UI components và layout dùng chung.
-  - **Task 3 FE**: Dựng trang chủ thực đơn `/` (Menu món), gọi API `GET /api/products`, hiển thị lưới sản phẩm responsive kèm trạng thái loading skeleton và empty state khi không có món.
+  - Khởi tạo nền tảng Next.js 14 App Router, thiết lập TailwindCSS, Typography System, cấu trúc layout và components dùng chung (`Navbar`, `Footer`, `ThemeToggle`, `ui/*`).
+  - Dựng trang chủ thực đơn `/` (Menu món), gọi API `GET /api/products` hiển thị danh mục linh hoạt (Cà phê, Trà, Đá xay...).
+  - Tích hợp thanh tìm kiếm thời gian thực (Debounce 200ms) và phân trang mượt mà.
+  - Xây dựng component `ProductCard`: Hiển thị số sao thực tế từ database, badge danh mục, **tự động hiển thị badge `⛔ Tạm hết hàng`, làm mờ ảnh và vô hiệu hóa nút chọn nhanh khi món hết nguyên liệu**.
 - **Files code phụ trách:**
   - `frontend/src/app/page.tsx`
   - `frontend/src/components/Navbar.tsx`
-  - `frontend/src/components/ProductCard.tsx`
   - `frontend/src/components/ui/*`
 
 ---
 
 ### 👤 2. Hồ Hoàng Anh (`anhho7303-source`) — Gói P2 (Frontend)
 - **Hạng mục phụ trách:**
-  - **Task 4 FE**: Dựng màn hình / modal Chi tiết sản phẩm (`/products/[id]`), cho phép khách chọn kích cỡ (Size S / M / L) và danh sách Topping kèm theo (Trân châu, Kem cheese...).
-  - Tự động tính toán lại đơn giá hiển thị theo thời gian thực dựa trên size và số lượng topping được chọn.
+  - Xây dựng Modal tùy chọn nhanh `ProductQuickSelectModal.tsx` và trang Chi tiết món đầy đủ `/products/[id]`.
+  - Tùy chỉnh kích cỡ (Size S / M / L): **Tự động gắn tag `Hết` và vô hiệu hóa kích cỡ nếu thiếu nguyên liệu trong kho**, tự động chọn kích cỡ còn hàng mặc định.
+  - Tùy chọn mức đường (100%, 70%, 50%, 0%), lượng đá (100%, 50%, Nóng).
+  - Tùy chọn Topping đi kèm có ảnh minh họa chuẩn F&B (Trân châu đường đen, Kem Cheese Macchiato, Thạch đào, Nha đam, Hạt sen, Khúc bạch...), tự động tăng giảm đơn giá tức thì.
+  - **Khu vực Đánh giá sản phẩm (Reviews):** Hiển thị danh sách nhận xét, phân bố sao, form viết đánh giá cập nhật ngay lập tức vào database không cần tải lại trang.
 - **Files code phụ trách:**
   - `frontend/src/app/products/[id]/page.tsx`
-  - `frontend/src/components/ProductDetailModal.tsx`
+  - `frontend/src/components/ProductQuickSelectModal.tsx`
+  - `frontend/src/lib/toppings.ts`
 
 ---
 
 ### 👤 3. Dương Thành Phát (`phatthanh-kiko`) — Gói P3 (Frontend)
 - **Hạng mục phụ trách:**
-  - **Task 5 FE**: Xây dựng kho lưu trữ trạng thái giỏ hàng (Cart Store) sử dụng **Zustand** (hỗ trợ persist localStorage).
-  - Tính toán tổng tiền gốc (`subtotal`), cộng dồn các món cùng biến thể size/topping, hiển thị badge số lượng món trên Navbar.
-  - Dựng trang giỏ hàng `/cart` với các thao tác tăng/giảm số lượng, xóa món và nút điều hướng sang trang Thanh toán.
+  - Xây dựng kho lưu trữ trạng thái giỏ hàng toàn cục `useCartStore` bằng **Zustand** (đồng bộ localStorage).
+  - Thuật toán gộp dòng giỏ hàng: Cùng món + cùng size + cùng topping thì tăng số lượng; khác tùy chọn thì tách dòng riêng biệt.
+  - Dựng trang giỏ hàng `/cart` với đầy đủ chức năng: Tăng/giảm số lượng ly, xóa món, xóa toàn bộ giỏ, hiển thị badge số lượng món trên Navbar.
+  - **Tích hợp cơ chế Khuyến mãi thông minh:**
+    - Tính toán áp dụng Voucher theo điều kiện (chặn chọn khi đơn 0đ, không cho chọn chồng chéo voucher cùng loại, loại bỏ mã freeship).
+    - Tích hợp điểm thưởng thành viên theo tỉ lệ **1 điểm = 100đ**, khấu trừ trực tiếp vào tổng tiền thanh toán.
 - **Files code phụ trách:**
   - `frontend/src/store/useCartStore.ts`
   - `frontend/src/app/cart/page.tsx`
+  - `frontend/src/lib/vouchers.ts`
 
 ---
 
 ### 👤 4. Quách Thanh Phú (`quachthanhphuu-maker`) — Gói P4 (Frontend)
 - **Hạng mục phụ trách:**
-  - **Task 7 FE**: Giao diện Đăng nhập (`/login`) và Đăng ký (`/register`), lưu trữ JWT Token vào Auth Store (`useAuthStore`).
-  - **Task 8 FE**: Màn hình Thanh toán (`/checkout`), chọn phương thức (Ví điện tử / Thẻ / Chuyển khoản VietQR), sinh mã đơn và xử lý trạng thái chờ.
-  - **Task 9 FE**: Màn hình Xác nhận đơn thành công và trang **Lịch sử đơn hàng cá nhân** (`/orders/me` & `/profile`), lọc theo trạng thái (Đang xử lý, Hoàn tất, Đã hủy) kèm tính năng đánh giá món.
+  - Phân hệ Xác thực: Giao diện Đăng nhập (`/login`) và Đăng ký (`/register`), quản lý trạng thái phiên người dùng trong `useAuthStore`.
+  - Màn hình Thanh toán `/checkout`: Hỗ trợ luồng **"Mua ngay" (Buy Now 1 món)** không làm mất giỏ hàng, và luồng thanh toán toàn bộ giỏ hàng.
+  - Sinh mã đơn hàng chuẩn `BLxxxxxx`, **tự động vẽ mã QR chuyển khoản ngân hàng trực tiếp bằng Canvas & Data URL nội bộ** (không phụ thuộc dịch vụ ảnh bên ngoài).
+  - **Trình mô phỏng MBBank Mobile Simulator:** Lắng nghe giao dịch chuyển khoản thời gian thực, tự động gạch nợ thành công trên màn hình khách hàng mà không cần bấm nút thủ công.
+  - Màn hình Xác nhận đơn thành công và trang **Lịch sử đơn hàng cá nhân** (`/orders/me`), hiển thị chi tiết món, giá trị đã thanh toán và nút đánh giá.
 - **Files code phụ trách:**
   - `frontend/src/app/login/page.tsx`, `frontend/src/app/register/page.tsx`
   - `frontend/src/app/checkout/page.tsx`
   - `frontend/src/app/orders/me/page.tsx`, `frontend/src/app/profile/page.tsx`
   - `frontend/src/store/useAuthStore.ts`
+  - `frontend/src/components/checkout/*`
 
 ---
 
 ### 👤 5. Đặng Lương Thế Anh (`dangluongtheanh-max`) — Gói P5 (Backend)
 - **Hạng mục phụ trách:**
-  - **Task 1 BE**: Khởi tạo dự án NestJS 10, cấu hình kết nối CSDL PostgreSQL với Prisma ORM, thiết lập biến môi trường `.env.example`.
-  - **Task 2 BE**: Xây dựng API `GET /api/products` và `GET /api/products/:id` trả về danh sách đồ uống (kèm biến thể size, giá, ảnh) từ PostgreSQL.
-  - Viết script nạp dữ liệu mẫu ban đầu (`prisma/seed.ts`).
+  - Khởi tạo kiến trúc NestJS 10, cấu hình kết nối CSDL PostgreSQL với Prisma ORM, quản lý migrations và biến môi trường `.env`.
+  - Xây dựng kịch bản nạp dữ liệu hạt giống ban đầu (`prisma/seed.ts`) với đầy đủ danh mục đồ uống và công thức định lượng nguyên liệu.
+  - **Xây dựng API Sản phẩm thông minh (`GET /api/products`, `GET /api/products/:id`):**
+    - Hỗ trợ tìm kiếm theo tên, lọc danh mục, phân trang.
+    - **Thuật toán tính tồn kho Real-Time:** Đọc bảng `Recipe` đối chiếu với `Ingredient.stockQuantity` trong CSDL, tính toán cờ `isOutOfStock` theo từng kích cỡ và cho toàn sản phẩm.
+  - **Xây dựng API Đánh giá (`/api/reviews`):** Cho phép khách hàng gửi đánh giá (`POST /api/reviews`), tự động tính lại điểm sao trung bình và số lượt đánh giá của sản phẩm trong CSDL.
 - **Files code phụ trách:**
-  - `backend/src/main.ts`, `backend/src/app.module.ts`
-  - `backend/src/modules/products/products.controller.ts`
-  - `backend/src/modules/products/products.service.ts`
+  - `backend/src/modules/products/*`
+  - `backend/src/modules/reviews/*`
+  - `backend/prisma/schema.prisma`
   - `backend/prisma/seed.ts`
 
 ---
 
 ### 👤 6. Nguyễn Hoàng Anh (`hanhdevsgu`) — Gói P6 (Backend)
-- **Hạng mục phụ trách (Mở rộng toàn diện theo nghiệp vụ đề bài):**
-  - **1. Phân hệ Cổng thanh toán giả lập (Mock Payment / Paymock):**
-    - Xây dựng `MockGatewayService` xử lý thanh toán mô phỏng (`POST /api/mock-gateway/charge`), hỗ trợ các kịch bản thành công (`SUCCESS`), từ chối giao dịch (`FAIL`) và mô phỏng nghẽn mạng (`TIMEOUT`).
-    - Tích hợp bộ xử lý chuyển khoản thời gian thực **VietQR Napas 247 & MBBank Mobile Simulator** (`syncMbPayment`, `checkMbPayment`, `invalidateMbPayment`), nhận diện sai nội dung chuyển tiền trong vòng 2 phút.
-  - **2. Quản lý Nguyên liệu & Công thức Pha chế (Ingredients & Recipes):**
-    - Thiết kế và quản lý bảng thực thể `Ingredient` (kho nguyên liệu: Hạt cà phê, Sữa đặc, Trà, Siro...) và bảng định lượng `Recipe` tương ứng với từng kích cỡ ly đồ uống.
-    - Xây dựng thuật toán tính toán tổng định lượng nguyên liệu tiêu hao cho toàn bộ các món trong đơn hàng phục vụ việc xuất kho khi pha chế.
-  - **3. API Đặt hàng & Xác thực JWT (Task 6 & Task 7 BE):**
-    - Endpoint `POST /api/orders`: Nhận giỏ hàng từ Frontend, thẩm định dữ liệu bằng `class-validator`, khởi tạo đơn ở trạng thái `PENDING`.
-    - Endpoint `POST /api/auth/register` và `POST /api/auth/login`: Băm mật khẩu một chiều bằng `bcrypt`, cấp phát JWT Token (Access Token 15 phút, Refresh Token 7 ngày), xây dựng `JwtAuthGuard` bảo vệ các route riêng tư.
-  - **4. Cơ chế Fallback Store:**
-    - Xây dựng `fallback-store.ts` lưu trữ in-memory đảm bảo hệ thống Auth, Orders và Payment vẫn hoạt động ổn định khi CSDL offline.
-- **Files code phụ trách:**
-  - `backend/src/modules/payment/mock-gateway/mock-gateway.controller.ts`
-  - `backend/src/modules/payment/mock-gateway/mock-gateway.service.ts`
-  - `backend/src/modules/payment/payment.service.ts` (Phần Mock Payment & Realtime Sync)
-  - `backend/src/modules/orders/orders.controller.ts`, `backend/src/modules/orders/orders.service.ts`
-  - `backend/src/modules/auth/auth.service.ts`, `backend/src/modules/auth/strategies/jwt.strategy.ts`
-  - `backend/src/prisma/fallback-store.ts`
-  - `backend/prisma/schema.prisma` (Model `Ingredient`, `Recipe`, `Account`, `Customer`)
-
----
-
-### 👤 7. Hoàng Trần Gia Phước (`gphuoc-216`) — Gói P7 (Backend)
 - **Hạng mục phụ trách:**
-  - **Task 8 BE & 10.2 (Idempotency Engine):** Triển khai cơ chế chống thanh toán trùng lặp bằng `Idempotency-Key` duy nhất, xử lý kịch bản Replay an toàn và ném lỗi `422 Unprocessable Entity` khi key bị sử dụng sai.
-  - **Task 9 BE & 10.1 (Order State Machine):** Xây dựng ma trận máy trạng thái đơn hàng (`PENDING` → `PAID` → `PREPARING` → `READY` → `COMPLETED`), chặn gian lận nhảy cóc trạng thái và ghi Audit Log vào `order_status_histories`.
-  - **Task 10.3 (Optimistic Concurrency Control):** Quản lý xung đột kho nguyên liệu đồng thời bằng trường `version` trên bảng `Ingredient` với raw atomic update và cơ chế Retry tự động tối đa 3 lần.
-  - **Task 10.4 (Khuyến mãi & Loyalty):** Logic tích lũy điểm thưởng thành viên (+1 điểm / 10.000 VNĐ) và tự động hoàn kho/hoàn điểm khi đơn bị hủy trước khi pha chế.
-  - **DevOps & Đóng gói hệ thống:** Thiết lập `docker-compose.yml`, viết Dockerfile tối ưu đa tầng (Multi-stage build), viết trọn bộ 5 test suites (43 unit tests Jest) và script kiểm thử đồng thời `scripts/test-race-condition.js`.
+  - **Quản lý Nguyên liệu & Định lượng:** Thiết kế và duy trì bảng thực thể `Ingredient` (Hạt cà phê, Sữa đặc, Trà, Siro, Topping...) và bảng công thức `Recipe` theo từng biến thể sản phẩm.
+  - **API Tạo đơn hàng (`POST /api/orders`):** Nhận giỏ hàng từ Frontend, thẩm định dữ liệu bằng `class-validator`, tính toán tổng tiền, lưu đơn ở trạng thái `PENDING`.
+  - **API Xác thực JWT:** Đăng ký (`POST /api/auth/register`), Đăng nhập (`POST /api/auth/login`), băm mật khẩu một chiều bằng `bcrypt`, cấp phát JWT Token (Access/Refresh Token) và cấu hình `JwtAuthGuard`.
+  - **Phân hệ Cổng thanh toán giả lập (Mock Gateway):** Xử lý thanh toán mô phỏng (`POST /api/mock-gateway/charge`), API webhook đồng bộ chuyển khoản MBBank thời gian thực (`/api/payments/mbbank-sync`, `/api/payments/mbbank-check/:orderCode`).
+  - **Cơ chế Fallback Store (`fallback-store.ts`):** Bộ nhớ in-memory dự phòng giúp hệ thống Auth, Orders và Payment duy trì hoạt động ngay cả khi CSDL offline.
 - **Files code phụ trách:**
-  - `backend/src/modules/orders/order-state-machine.ts`
-  - `backend/src/modules/orders/order-state-machine.spec.ts`
-  - `backend/src/modules/payment/payment.service.ts` (Phần Idempotency & Optimistic Locking)
-  - `backend/src/modules/payment/payment.service.spec.ts`
+  - `backend/src/modules/orders/orders.controller.ts`, `backend/src/modules/orders/orders.service.ts`
+  - `backend/src/modules/auth/*`
+  - `backend/src/modules/payment/mock-gateway/*`
+  - `backend/src/prisma/fallback-store.ts`
+
+---
+
+### 👤 7. Hoàng Trần Gia Phước (`gphuoc-216`) — Gói P7 (Fullstack & DevOps)
+- **Hạng mục phụ trách:**
+  - **Order State Machine (`order-state-machine.ts`):** Quản lý nghiêm ngặt vòng đời đơn hàng (`PENDING` → `PAID` → `PREPARING` → `READY` → `COMPLETED`), ngăn chặn nhảy cóc trạng thái và ghi Audit Log vào `order_status_histories`.
+  - **Idempotency Engine:** Khóa chống trừ tiền trùng lặp bằng `idempotencyKey` duy nhất trên mỗi giao dịch, xử lý kịch bản gửi lại (Replay) an toàn.
+  - **Optimistic Concurrency Control (OCC):** Trừ kho nguyên liệu đồng thời qua cột `version` trên `Ingredient`, tự động retry tối đa 3 lần khi nhiều khách đặt cùng lúc.
+  - **Bảng Kanban Pha chế Barista (`/staff`):** Màn hình theo dõi và điều phối đơn hàng thời gian thực cho nhân viên quầy bar theo nguyên tắc FIFO (vào trước làm trước).
+  - **Admin Dashboard (`/admin`):** Màn hình quản trị doanh thu, tồn kho nguyên liệu, nhập hàng và lịch sử thanh toán.
+  - **DevOps & Testing:** Cấu hình `docker-compose.yml` (Postgres, NestJS, Next.js), Dockerfile tối ưu đa tầng (Multi-stage build), trọn bộ 5 test suites (43 unit tests Jest) và script kiểm thử đồng thời `scripts/test-race-condition.js`.
+- **Files code phụ trách:**
+  - `backend/src/modules/orders/order-state-machine.*`
+  - `backend/src/modules/payment/payment.service.ts` (OCC & Idempotency)
+  - `frontend/src/app/staff/page.tsx`
+  - `frontend/src/app/admin/page.tsx`
   - `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile`
-  - `scripts/test-race-condition.js`
-  - `docs/BrewLite_P7_Core_Business_Collection.postman_collection.json`
+  - `backend/src/modules/orders/orders.service.spec.ts`, `backend/src/modules/payment/payment.service.spec.ts`
 
 ---
 
-## 3. Cam Kết Quy Tắc Làm Việc Nhóm (Team Working Rules)
+## 3. Quy Tắc Phối Hợp Nhóm (Agile Scrum Workflow)
 
-Tất cả 7 thành viên cam kết tuân thủ 3 nguyên tắc vàng trong quá trình phát triển dự án:
-1. **KHÔNG push trực tiếp lên nhánh `main` hoặc `develop`:** Mọi thành viên chỉ làm việc trên nhánh tính năng được phân công (`feat/...`).
-2. **Kéo (pull) nhánh `develop` về giải quyết xung đột trước khi tạo Pull Request:** Đảm bảo mã nguồn luôn đồng bộ và không làm gián đoạn công việc của thành viên khác.
-3. **Đạt chuẩn Definition of Done (DoD):** Code chạy được, không lỗi build, có commit rõ ràng theo chuẩn Conventional Commits và có kiểm thử trước khi bàn giao.
-
-
-
----
-
-## 4. Bảng Đối Chiếu Khớp 100% Với 10 Task Trong Đề Bài PDF (Thang Điểm 10/10)
-
-| Task | Tên Task Theo Đề Bài PDF | Sprint | Điểm | Thành Viên Đảm Nhận | Nhánh Git | Tiêu Chí Chấp Nhận (Acceptance Criteria) Trong Đề Bài |
-|:---:|:---|:---:|:---:|:---|:---|:---|
-| **Task 1** | **Khởi tạo dự án và cấu trúc** | Sprint 1 | 1.0 | Võ Đức Hoàng Vinh (FE)<br>Đặng Lương Thế Anh (BE) | `feat/p1-menu-page`<br>`feat/p5-api-products` | Tạo monorepo/2 thư mục frontend (Next.js) + backend (NestJS), chạy được "Hello", có README, Git, `.env.example`. |
-| **Task 2** | **API danh sách sản phẩm** | Sprint 1 | 1.0 | Đặng Lương Thế Anh | `feat/p5-api-products` | NestJS `GET /products` trả về JSON menu (id, tên, giá, ảnh) từ dữ liệu mẫu / CSDL. |
-| **Task 3** | **Trang Menu (Frontend)** | Sprint 1 | 1.0 | Võ Đức Hoàng Vinh | `feat/p1-menu-page` | Next.js gọi `/products`, render lưới sản phẩm, có trạng thái loading và empty state. |
-| **Task 4** | **Chi tiết và tùy chọn sản phẩm** | Sprint 1 | 1.0 | Hồ Hoàng Anh | `feat/p2-product-details` | Màn hình chi tiết: chọn size (S/M/L) và topping; tính giá tự động theo tùy chọn. |
-| **Task 5** | **Giỏ hàng (Cart)** | Sprint 2 | 1.0 | Dương Thành Phát | `feat/p3-cart-store` | Thêm/sửa số lượng/xóa; lưu state (Zustand); tự tính tổng tiền; badge số lượng giỏ hàng. |
-| **Task 6** | **API tạo đơn hàng** | Sprint 2 | 1.0 | Nguyễn Hoàng Anh | `feat/p6-payment-ingredients-orders` | NestJS `POST /orders` nhận giỏ hàng, validate (class-validator), lưu đơn trạng thái `PENDING`, trả mã đơn. |
-| **Task 7** | **Đăng ký / Đăng nhập (JWT)** | Sprint 2 | 1.0 | Quách Thanh Phú (FE)<br>Nguyễn Hoàng Anh (BE) | `feat/p4-checkout-history`<br>`feat/p6-payment-ingredients-orders` | `POST /auth/register`, `/auth/login`; băm mật khẩu (bcrypt); phát JWT; guard bảo vệ route đặt đơn; giao diện form đăng nhập/đăng ký. |
-| **Task 8** | **Thanh toán không tiền mặt** | Sprint 3 | 1.0 | Quách Thanh Phú (FE)<br>Nguyễn Hoàng Anh (BE) | `feat/p4-checkout-history`<br>`feat/p6-payment-ingredients-orders` | Tích hợp mock payment: chọn Ví/Thẻ, gọi `POST /payments`; đơn chuyển `PAID` khi thành công, `PAYMENT_FAILED` khi lỗi. Tích hợp thanh toán VietQR & MBBank Simulator. |
-| **Task 9** | **Xác nhận, lịch sử đơn & bàn giao** | Sprint 3 | 1.0 | Quách Thanh Phú (FE)<br>Hoàng Trần Gia Phước (BE) | `feat/p4-checkout-history`<br>`feature/p7-backend` | Màn hình xác nhận (mã đơn, trạng thái) và `GET /orders/me` (lịch sử đơn); `docker-compose` chạy cả 3 (frontend, backend, DB); README; demo end-to-end. |
-| **Task 10** | **Nghiệp vụ backend** | Sprint 3 | 1.0 | Nguyễn Hoàng Anh (Nguyên liệu)<br>Hoàng Trần Gia Phước (Core) | `feat/p6-payment-ingredients-orders`<br>`feature/p7-backend` | 1. Order State Machine (`PENDING` → `PAID` → `PREPARING` → `READY` → `COMPLETED`; chặn chuyển sai).<br>2. Thanh toán idempotent (`Idempotency-Key` chống trừ tiền 2 lần).<br>3. Kiểm soát tồn kho khi đặt đồng thời (Transaction + Optimistic Locking `version` trên `Ingredient` chống bán lố nguyên liệu).<br>4. Khuyến mãi voucher & điểm thưởng loyalty (+1 điểm / 10k).<br>*(Đủ 5 test suites Jest 43/43 tests pass)*. |
+1. **Phân nhánh độc lập:** Mỗi thành viên code trên nhánh tính năng riêng (`feat/p1-...` đến `feature/p7-...`). Tuyệt đối không push đè trực tiếp lên `develop` hoặc `main`.
+2. **Đồng bộ liên tục:** Trước khi tạo Pull Request, thành viên phải pull nhánh `develop` mới nhất về máy để giải quyết xung đột cục bộ.
+3. **Tiêu chuẩn bàn giao (Definition of Done - DoD):**
+   - Mã nguồn không có lỗi TypeScript, lint pass (`npm run build` thành công cả FE và BE).
+   - Đảm bảo đầy đủ xử lý ngoại lệ biên (Network error, out of stock, zero price, session expired).
+   - Docker container khởi động và hoạt động trơn tru bằng lệnh `docker compose up -d`.
