@@ -4,7 +4,9 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import QRCode from 'qrcode';
 import { useCartStore } from '../../store/useCartStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { fetchApi, getErrorMessage } from '../../lib/api';
 import { Button, PageHeader } from '../../components/ui';
 import {
@@ -24,6 +26,11 @@ import {
   Sparkles,
   Info,
   Zap,
+  X,
+  Plus,
+  Trash2,
+  ShieldCheck,
+  Ticket,
 } from 'lucide-react';
 import { useRequireRole } from '@/hooks/useRequireRole';
 import { OrderRecord } from '@/types';
@@ -33,19 +40,131 @@ function CheckoutContent() {
   const searchParams = useSearchParams();
   const retryOrderId = searchParams.get('orderId');
   const { ready, user } = useRequireRole(['CUSTOMER', 'STAFF', 'ADMIN']);
-  const { items, promotion, getSubtotal, getFinalTotal, clearCart } = useCartStore();
+  const { items, promotion, promotions, loyaltyPointsUsed, getSubtotal, getFinalTotal, clearCart } = useCartStore();
+  const { fetchProfile, updateLoyaltyPoints } = useAuthStore();
+
+  useEffect(() => {
+    if (ready) {
+      fetchProfile();
+    }
+  }, [ready, fetchProfile]);
 
   const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'WALLET'>('CARD');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [retryOrder, setRetryOrder] = useState<OrderRecord | null>(null);
-  const [simulatePaymentFailure, setSimulatePaymentFailure] = useState(false);
 
   // Trạng thái thanh toán: 'WAITING' (đang chờ) hoặc 'SUCCESS' (thành công)
   // Nếu chuyển sai nội dung -> Hệ thống giữ nguyên trạng thái WAITING, đứng im như người dùng yêu cầu
+  // --- QUẢN LÝ VÍ ĐIỆN TỬ LIÊN KẾT (MOMO / ZALOPAY / SHOPEEPAY) ---
+  interface LinkedWallet {
+    id: 'momo' | 'zalopay' | 'shopeepay';
+    name: string;
+    phone: string;
+    balance: number;
+    color: string;
+  }
+
+  const WALLET_PROVIDERS: { id: 'momo' | 'zalopay' | 'shopeepay'; name: string; defaultBalance: number; color: string }[] = [
+    { id: 'momo', name: 'Ví MoMo', defaultBalance: 10000000, color: '#d82d8b' },
+    { id: 'zalopay', name: 'Ví ZaloPay', defaultBalance: 10000000, color: '#0068ff' },
+    { id: 'shopeepay', name: 'Ví ShopeePay', defaultBalance: 10000000, color: '#ee4d2d' },
+  ];
+
+  const [linkedWallets, setLinkedWallets] = useState<LinkedWallet[]>([]);
+  const [selectedWalletId, setSelectedWalletId] = useState<'momo' | 'zalopay' | 'shopeepay' | null>(null);
+  const [linkingProvider, setLinkingProvider] = useState<{ id: 'momo' | 'zalopay' | 'shopeepay'; name: string; defaultBalance: number; color: string } | null>(null);
+  const [linkPhone, setLinkPhone] = useState('');
+  const [linkOtp, setLinkOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [linkingLoading, setLinkingLoading] = useState(false);
+  const [walletNotice, setWalletNotice] = useState<string | null>(null);
+
+    const userKey = (user as any)?.id || (user as any)?.accountId || (user as any)?.profileId || user?.username || 'customer';
+
+  // Mặc định tài khoản mới đăng ký là CHƯA liên kết ví nào
+  useEffect(() => {
+    if (!userKey) return;
+    try {
+      const saved = localStorage.getItem(`brewlite_wallets_${userKey}`);
+      if (saved) {
+        const parsed: LinkedWallet[] = JSON.parse(saved);
+        setLinkedWallets(parsed);
+        if (parsed.length > 0) {
+          setSelectedWalletId(parsed[0].id);
+        } else {
+          setSelectedWalletId(null);
+        }
+      } else {
+        setLinkedWallets([]);
+        setSelectedWalletId(null);
+      }
+    } catch {
+      setLinkedWallets([]);
+      setSelectedWalletId(null);
+    }
+  }, [userKey]);
+
+  const openLinkModal = (providerId: 'momo' | 'zalopay' | 'shopeepay') => {
+    const prov = WALLET_PROVIDERS.find((p) => p.id === providerId);
+    if (!prov) return;
+    setLinkingProvider(prov);
+    setLinkPhone(((user as any)?.phone as string) || '0988888888');
+    setLinkOtp('888999'); // Tự động điền sẵn mã OTP demo để người dùng bấm là được ngay
+    setOtpSent(true);
+  };
+
+  const handleSendOtp = () => {
+    setOtpSent(true);
+    setLinkOtp('888999');
+  };
+
+  const handleConfirmLink = () => {
+    if (!linkingProvider) return;
+    setLinkingLoading(true);
+    setTimeout(() => {
+      let currentWallets = linkedWallets;
+      try {
+        const saved = localStorage.getItem(`brewlite_wallets_${userKey}`);
+        if (saved) currentWallets = JSON.parse(saved);
+      } catch {}
+
+      const existing = currentWallets.find((w) => w.id === linkingProvider.id);
+      const initialBalance = existing && typeof existing.balance === 'number' ? existing.balance : linkingProvider.defaultBalance;
+
+      const newWallet: LinkedWallet = {
+        id: linkingProvider.id,
+        name: linkingProvider.name,
+        phone: linkPhone || ((user as any)?.phone as string) || '0988888888',
+        balance: initialBalance,
+        color: linkingProvider.color,
+      };
+      const updated = [...currentWallets.filter((w) => w.id !== linkingProvider.id), newWallet];
+      setLinkedWallets(updated);
+      setSelectedWalletId(newWallet.id);
+      localStorage.setItem(`brewlite_wallets_${userKey}`, JSON.stringify(updated));
+      setLinkingLoading(false);
+      setLinkingProvider(null);
+      setOtpSent(false);
+      setLinkOtp('');
+      setWalletNotice(`🎉 Đã liên kết ${newWallet.name} thành công! Số dư khả dụng: ${newWallet.balance.toLocaleString('vi-VN')} đ`);
+      setTimeout(() => setWalletNotice(null), 4000);
+    }, 300);
+  };
+
+  const handleUnlinkWallet = (walletId: 'momo' | 'zalopay' | 'shopeepay') => {
+    const updated = linkedWallets.filter((w) => w.id !== walletId);
+    setLinkedWallets(updated);
+    if (selectedWalletId === walletId) {
+      setSelectedWalletId(updated.length > 0 ? updated[0].id : null);
+    }
+    localStorage.setItem(`brewlite_wallets_${userKey}`, JSON.stringify(updated));
+  };
+
+  const selectedWallet = linkedWallets.find((w) => w.id === selectedWalletId);
+
   const [paymentStatus, setPaymentStatus] = useState<'WAITING' | 'SUCCESS'>('WAITING');
-  const [paymentWarning, setPaymentWarning] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<{
     amount: number;
     senderStk: string;
@@ -61,15 +180,22 @@ function CheckoutContent() {
   const existingOrderRef = useRef<string | null>(null);
   const idempotencyKeyRef = useRef<string | null>(null);
   const isPollingRef = useRef<boolean>(false);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const cartSubtotal = getSubtotal();
-  const cartDiscount = promotion ? promotion.discountAmount : 0;
   const retryDiscount = Number(retryOrder?.discountAmount || 0);
   const subtotal = retryOrder
     ? Number(retryOrder.totalAfterDiscount || 0) + retryDiscount
     : cartSubtotal;
-  const discountAmount = retryOrder ? retryDiscount : cartDiscount;
-  const finalTotal = retryOrder ? Number(retryOrder.totalAfterDiscount || 0) : getFinalTotal();
+
+  const voucherDiscount = retryOrder
+    ? retryDiscount
+    : (promotions && promotions.length > 0
+        ? promotions.reduce((sum, p) => sum + (p.discountAmount || 0), 0)
+        : (promotion ? promotion.discountAmount : 0));
+  const pointsDiscount = (loyaltyPointsUsed || 0) * 100;
+  const discountAmount = voucherDiscount + pointsDiscount;
+  const finalTotal = Math.max(0, subtotal - discountAmount);
   const hasPayableOrder = items.length > 0 || !!retryOrder;
   const [orderCodeDisplay, setOrderCodeDisplay] = useState<string>(() => {
     if (typeof window !== 'undefined') {
@@ -92,6 +218,115 @@ function CheckoutContent() {
       localStorage.setItem('brewlite_pending_order', orderCodeDisplay);
     }
   }, [orderCodeDisplay]);
+
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+
+  // Sinh chuỗi VietQR chuẩn quốc tế EMVCo (tương thích 100% app ngân hàng thật & MBBank Simulator)
+  function generateVietQrEmvString({
+    bankBin = '970436', // Vietcombank (VCB)
+    accountNumber = '99998888',
+    amount,
+    orderCode,
+    beneficiaryName = 'BREWLITE COFFEE',
+  }: {
+    bankBin?: string;
+    accountNumber?: string;
+    amount: number;
+    orderCode: string;
+    beneficiaryName?: string;
+  }): string {
+    function formatTlv(tag: string, value: string): string {
+      const len = String(value.length).padStart(2, '0');
+      return `${tag}${len}${value}`;
+    }
+
+    function crc16(str: string): string {
+      let crc = 0xffff;
+      for (let i = 0; i < str.length; i++) {
+        crc ^= str.charCodeAt(i) << 8;
+        for (let j = 0; j < 8; j++) {
+          if ((crc & 0x8000) !== 0) {
+            crc = ((crc << 1) ^ 0x1021) & 0xffff;
+          } else {
+            crc = (crc << 1) & 0xffff;
+          }
+        }
+      }
+      return crc.toString(16).toUpperCase().padStart(4, '0');
+    }
+
+    const sub38_00 = formatTlv('00', 'A000000727');
+    const sub01_00 = formatTlv('00', bankBin);
+    const sub01_01 = formatTlv('01', accountNumber);
+    const sub38_01 = formatTlv('01', `${sub01_00}${sub01_01}`);
+    const sub38_02 = formatTlv('02', 'QRIBFTTA');
+    const tag38 = formatTlv('38', `${sub38_00}${sub38_01}${sub38_02}`);
+
+    const memo = `BREWLITE ${orderCode}`;
+    const sub62_08 = formatTlv('08', memo);
+    const tag62 = formatTlv('62', sub62_08);
+
+    const cleanAmount = Math.max(0, Math.round(amount));
+
+    const rawWithoutCrc = [
+      formatTlv('00', '01'),
+      formatTlv('01', cleanAmount > 0 ? '12' : '11'),
+      tag38,
+      formatTlv('53', '704'),
+      cleanAmount > 0 ? formatTlv('54', String(cleanAmount)) : '',
+      formatTlv('58', 'VN'),
+      formatTlv('59', beneficiaryName),
+      formatTlv('60', 'HO CHI MINH'),
+      tag62,
+      '6304',
+    ].join('');
+
+    const checksum = crc16(rawWithoutCrc);
+    return `${rawWithoutCrc}${checksum}`;
+  }
+
+  // Sinh mã QR thanh toán chuẩn ngân hàng VietQR EMVCo (chứa chính xác số tiền, STK, người thụ hưởng, nội dung)
+  useEffect(() => {
+    let isCancelled = false;
+    const emvPayload = generateVietQrEmvString({
+      bankBin: '970436', // VCB
+      accountNumber: '99998888',
+      amount: finalTotal,
+      orderCode: orderCodeDisplay,
+      beneficiaryName: 'BREWLITE COFFEE',
+    });
+
+    if (canvasRef.current) {
+      QRCode.toCanvas(canvasRef.current, emvPayload, {
+        width: 210,
+        margin: 1,
+        color: {
+          dark: '#000000',
+          light: '#ffffff',
+        },
+      }).catch((err) => {
+        console.error('Lỗi vẽ QR Canvas:', err);
+      });
+    }
+
+    QRCode.toDataURL(emvPayload, {
+      width: 280,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#ffffff',
+      },
+    })
+      .then((url) => {
+        if (!isCancelled) setQrDataUrl(url);
+      })
+      .catch((err) => {
+        console.error('Lỗi tạo mã QR:', err);
+      });
+    return () => {
+      isCancelled = true;
+    };
+  }, [orderCodeDisplay, finalTotal]);
 
   useEffect(() => {
     if (!ready || !retryOrderId) return;
@@ -174,7 +409,6 @@ function CheckoutContent() {
     setTtlSeconds(300);
     setIsQrExpired(false);
     setPaymentStatus('WAITING');
-    setPaymentWarning(null);
     setErrorMsg(null);
   };
 
@@ -209,8 +443,12 @@ function CheckoutContent() {
             items: items.map((i) => ({
               variantId: i.variantId,
               quantity: i.quantity,
+              toppings: i.topping && i.topping !== 'Tiêu chuẩn' ? i.topping.split(',').map((t) => t.trim()) : undefined,
             })),
-            promotionCode: promotion ? promotion.code : undefined,
+            promotionCode: (promotions && promotions.length > 0)
+              ? promotions.map((p) => p.code).join(',')
+              : (promotion ? promotion.code : undefined),
+            loyaltyPointsToUse: loyaltyPointsUsed > 0 ? loyaltyPointsUsed : undefined,
           };
 
           const orderRes = await fetchApi<any>('/orders', {
@@ -243,9 +481,27 @@ function CheckoutContent() {
           body: JSON.stringify({
             orderId,
             method: paymentMethod,
-            simulateError: simulatePaymentFailure ? 'FAIL' : undefined,
           }),
         });
+
+        // Nếu thanh toán qua Ví điện tử, trừ số dư trên ví của tài khoản này
+        if (paymentMethod === 'WALLET' && selectedWalletId) {
+          try {
+            const saved = localStorage.getItem(`brewlite_wallets_${userKey}`);
+            const currentWallets = saved ? JSON.parse(saved) : linkedWallets;
+            const updatedWallets = currentWallets.map((w: LinkedWallet) => {
+              if (w.id === selectedWalletId) {
+                const newBal = Math.max(0, Number(w.balance || 0) - finalTotal);
+                return { ...w, balance: newBal };
+              }
+              return w;
+            });
+            setLinkedWallets(updatedWallets);
+            localStorage.setItem(`brewlite_wallets_${userKey}`, JSON.stringify(updatedWallets));
+          } catch (e) {
+            console.error('Lỗi trừ tiền ví:', e);
+          }
+        }
 
         // 4. Phát chuông Ting Ting và đổi trạng thái hoàn tất
         playTingTing();
@@ -276,6 +532,13 @@ function CheckoutContent() {
           clearCart();
         }
 
+        // Tích lũy điểm thưởng cho đơn hàng (5%)
+        const earnedPoints = Math.floor((finalTotal * 0.05) / 1000);
+        if (earnedPoints > 0) {
+          updateLoyaltyPoints(earnedPoints);
+        }
+        fetchProfile();
+
         // Chuyển hướng bằng router.replace để xóa bỏ trang checkout khỏi lịch sử duyệt web
         setTimeout(() => {
           router.replace(`/orders/${orderId}`);
@@ -296,13 +559,14 @@ function CheckoutContent() {
       isQrExpired,
       promotion,
       paymentMethod,
-      simulatePaymentFailure,
       playTingTing,
       orderCodeDisplay,
       finalTotal,
       retryOrder,
       clearCart,
       router,
+      updateLoyaltyPoints,
+      fetchProfile,
     ]
   );
 
@@ -314,8 +578,10 @@ function CheckoutContent() {
       typeof window !== 'undefined' &&
       sessionStorage.getItem('brewlite_completed_order_' + orderCodeDisplay);
 
+    // Khi đã thanh toán thành công, không điều hướng về trang chủ mà để chuyển sang trang chi tiết đơn
+    if (paymentStatus === 'SUCCESS') return;
     if ((items.length === 0 && !retryOrderId) || isAlreadyCompleted) {
-      router.replace('/products');
+      router.replace('/');
     }
   }, [ready, items.length, retryOrderId, orderCodeDisplay, router]);
 
@@ -323,7 +589,7 @@ function CheckoutContent() {
   useEffect(() => {
     const handlePopState = () => {
       if (paymentStatus === 'SUCCESS') {
-        router.replace('/products');
+        router.replace('/');
       }
     };
     window.addEventListener('popstate', handlePopState);
@@ -341,40 +607,33 @@ function CheckoutContent() {
 
       // 1. Kiểm tra nếu mã QR đã hết hạn (quá 5 phút)
       if (isQrExpired || ttlSeconds <= 0) {
-        setPaymentWarning(
-          `⛔ Giao dịch nhận được nhưng MÃ QR ĐÃ HẾT HẠN (quá 5 phút). Quý khách vui lòng bấm nút "Làm Mới Mã QR (+5 Phút)" để cập nhật mã đơn hàng!`
-        );
         return;
       }
 
-      // 2. KIỂM TRA SAI NỘI DUNG CHUYỂN KHOẢN (NGHIỆP VỤ BẮT BUỘC)
-      const hasCode = content.includes(targetCode) || (data.orderCode && String(data.orderCode).toUpperCase().includes(targetCode));
+      // 2. Kiểm tra nội dung chuyển khoản: Phải chứa mã đơn hàng
+      const hasCode =
+        content.includes(targetCode) ||
+        (data.orderCode && String(data.orderCode).toUpperCase().includes(targetCode));
       if (!hasCode || isMismatched) {
-        setPaymentWarning(
-          `⚠️ CẢNH BÁO: CHUYỂN TIỀN SAI NỘI DUNG!\n` +
-          `• Số tiền nhận được: ${paidAmt.toLocaleString('vi-VN')} đ (Mã GD: ${data.transId || 'N/A'})\n` +
-          `• Nội dung thực tế khách nhập: "${data.content || 'Trống'}"\n` +
-          `• Nội dung chuẩn bắt buộc: "BREWLITE ${orderCodeDisplay}"\n\n` +
-          `👉 Theo quy chế đối soát tự động: Đơn hàng TỪ CHỐI kích hoạt tự động. Giao dịch đã được chuyển sang diện Tra soát thủ công tại quầy (khấu trừ 10% phí vận hành theo quy chế) hoặc vui lòng liên hệ nhân viên quầy/hotline để được đối chiếu gạch nợ.`
-        );
         return;
       }
 
-      // 3. Kiểm tra nếu SAI SỐ TIỀN:
-      // a) Chuyển THIẾU TIỀN:
+      // 3. Kiểm tra số tiền:
+      // Chuyển thiếu tiền (ví dụ chuyển 48k trong khi đơn 49k): Tuyệt đối KHÔNG báo gì hết, tiếp tục chờ khách chuyển đủ
       if (paidAmt < finalTotal) {
-        const missing = finalTotal - paidAmt;
-        setPaymentWarning(
-          `❌ Chuyển THIẾU TIỀN: Đã nhận ${paidAmt.toLocaleString('vi-VN')} đ (Còn thiếu ${missing.toLocaleString('vi-VN')} đ so với tổng đơn hàng ${finalTotal.toLocaleString('vi-VN')} đ). Quý khách vui lòng chuyển tiếp ${missing.toLocaleString('vi-VN')} đ với cùng nội dung "BREWLITE ${orderCodeDisplay}" để hoàn tất đơn hàng!`
-        );
         return;
       }
 
-      // b) Chuyển ĐỦ TIỀN hoặc THỪA TIỀN & ĐÚNG NỘI DUNG:
-      setPaymentWarning(null);
+      // 4. Khách chuyển ĐỦ TIỀN hoặc THỪA TIỀN & ĐÚNG NỘI DUNG (paidAmt >= finalTotal):
+      // Tự động gạch nợ thành công ngay lập tức! (Tiền dư sẽ tới quầy tính)
       handlePay({
         senderStk: data.sender || '0589822346',
-        senderName: data.senderName || data.sender_name || user?.fullName || user?.username || 'NGUYEN HOANG ANH',
+        senderName:
+          data.senderName ||
+          data.sender_name ||
+          user?.fullName ||
+          user?.username ||
+          'NGUYEN HOANG ANH',
       });
       return;
     };
@@ -401,10 +660,6 @@ function CheckoutContent() {
             if (content.includes(targetCode)) {
               processIncomingPayment(data, false);
               return;
-            } else if (Date.now() - data.time < 40000) {
-              // Giao dịch vừa diễn ra trong 40s nhưng SAI NỘI DUNG!
-              processIncomingPayment(data, true);
-              return;
             }
           }
         } catch {
@@ -421,9 +676,6 @@ function CheckoutContent() {
           );
           if (res && res.paid && res.payment) {
             processIncomingPayment(res.payment, false);
-          } else if (res && res.mismatched && res.latestPayment) {
-            // Backend phát hiện giao dịch sai nội dung!
-            processIncomingPayment(res.latestPayment, true);
           }
         } catch {
           // Bỏ qua lỗi polling khi đang chờ
@@ -480,7 +732,7 @@ function CheckoutContent() {
             Yêu Cầu Đăng Nhập Tài Khoản
           </h2>
           <p className="text-xs text-ink-2 leading-relaxed">
-            BrewLite áp dụng cơ chế thanh toán định danh để sinh mã VietQR cá nhân hóa và tích lũy điểm thưởng thành viên. Vui lòng đăng nhập tài khoản khách hàng để tiếp tục thanh toán.
+            BrewLite áp dụng cơ chế thanh toán định danh để sinh mã QR cá nhân hóa và tích lũy điểm thưởng thành viên. Vui lòng đăng nhập tài khoản khách hàng để tiếp tục thanh toán.
           </p>
         </div>
         <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center">
@@ -529,7 +781,6 @@ function CheckoutContent() {
     );
   }
 
-  const qrImageUrl = `https://img.vietqr.io/image/VCB-99998888-compact2.png?amount=${finalTotal}&addInfo=BREWLITE%20${orderCodeDisplay}&accountName=BREWLITE%20COFFEE`;
   const selectedItemsText = retryOrder
     ? `${retryOrder.items?.length || 0} món (${retryOrder.items?.map((i) => `${i.quantity}x ${i.variant?.product?.name || 'Món'}`).join(', ') || 'Đơn cũ'})`
     : `${items.length} món (${items.map((i) => `${i.productName} (${i.size})`).join(', ')})`;
@@ -583,18 +834,18 @@ function CheckoutContent() {
 
       {paymentMethod === 'CARD' ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* CỘT TRÁI: MÃ VIETQR VỚI THỜI GIAN 5 PHÚT */}
+          {/* CỘT TRÁI: MÃ QR THANH TOÁN VỚI THỜI GIAN 5 PHÚT */}
           <div className="lg:col-span-5 bg-surface border border-line-strong rounded-2xl p-5 shadow-sm text-center space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-line">
               <div className="text-left">
                 <h3 className="font-display font-semibold text-sm text-ink flex items-center gap-1.5">
-                  <span>🏦 Mã VietQR Chuẩn Napas 247</span>
+                  <span>🏦 Mã QR Thanh Toán</span>
                 </h3>
                 <span className="text-[11px] text-ink-3">Chấp nhận chuyển từ mọi ngân hàng</span>
               </div>
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-success bg-success-soft px-2.5 py-1 rounded-full border border-success/20">
                 <span className="w-2 h-2 rounded-full bg-success animate-pulse"></span>
-                <span>Napas 247 Live</span>
+                <span>Đang hoạt động</span>
               </span>
             </div>
 
@@ -615,18 +866,30 @@ function CheckoutContent() {
             {/* Khung QR Code kèm Overlay khi hết hạn 5 phút */}
             <div className="relative inline-block mx-auto">
               <div className="bg-white p-3.5 rounded-2xl border-2 border-blue-600 shadow-md inline-block">
-                <Image
-                  src={qrImageUrl}
-                  alt="Mã VietQR BrewLite Napas 247"
-                  width={210}
-                  height={210}
-                  unoptimized
-                  className="object-contain block mx-auto rounded"
-                />
-                <div className="mt-2.5 text-[11px] text-slate-800 font-bold leading-relaxed border-t border-slate-100 pt-2">
-                  <div>Ngân hàng nhận: <b>Vietcombank (VCB)</b></div>
-                  <div>Số TK nhận: <b className="text-blue-700 text-xs font-mono">99998888</b></div>
-                  <div>Chủ TK nhận: <b>BREWLITE COFFEE</b></div>
+                <div className="flex items-center justify-center min-w-[210px] min-h-[210px] bg-white rounded overflow-hidden">
+                  {qrDataUrl ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={qrDataUrl}
+                      alt="Mã QR Thanh Toán BrewLite"
+                      width={210}
+                      height={210}
+                      className="block mx-auto rounded"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center w-[210px] h-[210px] text-xs text-slate-400 gap-2">
+                      <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                      <span>Đang tạo mã QR thanh toán...</span>
+                    </div>
+                  )}
+                  <canvas ref={canvasRef} width={210} height={210} className="hidden" />
+                </div>
+                <div className="mt-2.5 text-[11px] text-slate-800 font-bold leading-relaxed border-t border-slate-100 pt-2 text-left space-y-0.5">
+                  <div className="flex justify-between"><span>Đơn vị nhận:</span> <b>BrewLite Coffee</b></div>
+                  <div className="flex justify-between"><span>Ngân hàng:</span> <b>Vietcombank (STK: 99998888)</b></div>
+                  <div className="flex justify-between"><span>Mã đơn hàng:</span> <b className="text-blue-700 font-mono">{orderCodeDisplay}</b></div>
+                  <div className="flex justify-between"><span>Số tiền:</span> <b className="text-emerald-700 font-mono">{finalTotal.toLocaleString('vi-VN')} đ</b></div>
+                  <div className="flex justify-between"><span>Chủ TK nhận:</span> <b>BREWLITE COFFEE</b></div>
                 </div>
               </div>
 
@@ -638,7 +901,7 @@ function CheckoutContent() {
                     MÃ QR ĐÃ HẾT HẠN (5 PHÚT)
                   </div>
                   <p className="text-[11px] text-slate-300 leading-tight mb-3">
-                    Mã VietQR đã hết 300 giây. Vui lòng bấm tạo lại mã mới để cập nhật thông tin chính xác.
+                    Mã QR đã hết hạn. Vui lòng bấm tạo lại mã mới để tiếp tục thanh toán.
                   </p>
                   <button
                     type="button"
@@ -678,28 +941,6 @@ function CheckoutContent() {
                 </span>
               )}
             </div>
-
-            {/* Cảnh báo Chuyển tiền sai nội dung / Thiếu tiền */}
-            {paymentWarning && (
-              <div className="text-left bg-danger-soft/90 border border-danger/40 rounded-xl p-3.5 space-y-2 animate-fade-in shadow-sm">
-                <div className="flex items-center gap-2 text-danger font-bold text-xs">
-                  <AlertTriangle className="w-4 h-4 shrink-0 text-danger" />
-                  <span>CẢNH BÁO GIAO DỊCH CHUYỂN KHOẢN</span>
-                </div>
-                <div className="text-[11.5px] text-danger/95 leading-relaxed whitespace-pre-line font-medium">
-                  {paymentWarning}
-                </div>
-                <div className="pt-1 flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentWarning(null)}
-                    className="px-2.5 py-1 text-[11px] bg-danger text-white font-semibold rounded-md hover:bg-danger/90 transition-colors"
-                  >
-                    Đóng cảnh báo & Tra soát lại
-                  </button>
-                </div>
-              </div>
-            )}
 
             {/* Hướng dẫn ngắn về nội dung chuyển tiền */}
             <div className="text-left bg-surface-2/60 border border-line rounded-xl p-3 space-y-1.5 text-[11px] text-ink-2">
@@ -750,19 +991,38 @@ function CheckoutContent() {
                   </span>
                 </div>
 
-                {discountAmount > 0 && (
+                {voucherDiscount > 0 && (
                   <div className="flex items-center justify-between text-success">
                     <span>
-                      Giảm giá khuyến mãi{promotion?.code ? ` (${promotion.code})` : ''}
+                      Voucher giảm giá
+                      {promotions && promotions.length > 0
+                        ? ` (${promotions.map((p) => p.code).join(', ')})`
+                        : promotion?.code
+                        ? ` (${promotion.code})`
+                        : ''}
+                      :
                     </span>
                     <span className="font-semibold">
-                      -{discountAmount.toLocaleString('vi-VN')} đ
+                      -{voucherDiscount.toLocaleString('vi-VN')} đ
                     </span>
                   </div>
                 )}
 
-                <div className="flex items-center justify-between text-ink-2 pt-2 border-t border-line">
-                  <span className="font-semibold">Tổng Tiền Cần Thanh Toán:</span>
+                {pointsDiscount > 0 && (
+                  <div className="flex items-center justify-between text-amber-600 dark:text-amber-400">
+                    <span className="flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Điểm tích lũy đã dùng ({loyaltyPointsUsed} điểm):</span>
+                    </span>
+                    <span className="font-semibold font-mono">
+                      -{pointsDiscount.toLocaleString('vi-VN')} đ
+                    </span>
+                  </div>
+                )}
+
+
+                <div className="flex items-center justify-between text-ink pt-2 border-t border-line">
+                  <span className="font-bold">Tổng Tiền Cần Thanh Toán:</span>
                   <span className="font-bold text-base text-accent">
                     {finalTotal.toLocaleString('vi-VN')} đ
                   </span>
@@ -811,7 +1071,7 @@ function CheckoutContent() {
                 <div className="p-3 bg-surface-2/60 border border-line rounded-xl space-y-1">
                   <div className="font-bold text-accent">Bước 2</div>
                   <p className="text-ink-2 text-[11.5px] leading-relaxed">
-                    Chọn tính năng <b>Quét mã QR</b> và hướng camera vào mã VietQR bên cạnh.
+                    Chọn tính năng <b>Quét mã QR</b> và hướng camera vào mã QR bên cạnh.
                   </p>
                 </div>
 
@@ -834,7 +1094,7 @@ function CheckoutContent() {
                       <span className="text-emerald-700 dark:text-emerald-300">Tự động hoàn tất ngay khi chuyển tiền thành công</span>
                       <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/50 px-2 py-0.5 rounded-full border border-emerald-500/20">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                        Napas 247 Live
+                        Xác nhận tức thì
                       </span>
                     </div>
                     <p className="text-[12px] text-ink-2 leading-relaxed">
@@ -843,55 +1103,10 @@ function CheckoutContent() {
                   </div>
                 </div>
 
-                <label className="flex items-center justify-between gap-3 p-3 rounded-xl border border-warning/30 bg-warning-soft text-xs text-warning">
-                  <span className="font-semibold">Giả lập lỗi thanh toán (PAYMENT_FAILED)</span>
-                  <input
-                    type="checkbox"
-                    checked={simulatePaymentFailure}
-                    onChange={(event) => setSimulatePaymentFailure(event.target.checked)}
-                    className="h-4 w-4 accent-current"
-                  />
-                </label>
 
-                <div className="text-center pt-1">
-                  <button
-                    type="button"
-                    onClick={() => handlePay()}
-                    disabled={loading || isQrExpired}
-                    className="text-[11px] text-ink-3 hover:text-accent underline transition-colors"
-                  >
-                    {loading ? 'Đang xác thực giao dịch...' : 'Xác nhận trả'}
-                  </button>
-                </div>
+
               </div>
             </div>
-
-            {/* THÔNG BÁO CẢNH BÁO ĐỐI SOÁT (SAI NỘI DUNG / THIẾU TIỀN / HẾT HẠN) */}
-            {paymentWarning && (
-              <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-500 rounded-2xl text-amber-950 dark:text-amber-200 text-xs space-y-2 animate-fade-in shadow-md">
-                <div className="flex items-center gap-2 font-display text-sm font-bold text-amber-800 dark:text-amber-300">
-                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>Cảnh Báo Đối Soát Chuyển Khoản</span>
-                </div>
-                <p className="leading-relaxed font-medium">{paymentWarning}</p>
-                <div className="pt-1 flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentWarning(null)}
-                    className="px-2.5 py-1 bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 rounded text-[11px] font-semibold hover:bg-amber-300 transition-colors"
-                  >
-                    Đóng cảnh báo
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => refreshCurrentQr()}
-                    className="px-2.5 py-1 bg-accent text-on-accent rounded text-[11px] font-semibold hover:bg-accent-hover transition-colors"
-                  >
-                    Tạo lại mã mới (+5 phút)
-                  </button>
-                </div>
-              </div>
-            )}
 
             {/* THÔNG BÁO THÀNH CÔNG (TING TING) */}
             {paymentStatus === 'SUCCESS' && successNotice && (
@@ -902,7 +1117,7 @@ function CheckoutContent() {
                 </div>
                 <div className="text-xs space-y-1">
                   <div>
-                    Đã nhận <b>{successNotice.amount.toLocaleString('vi-VN')} đ</b> qua chuyển khoản Napas 247 (STK gửi: <b>{successNotice.senderStk}</b> - {successNotice.senderName}).
+                    Đã nhận <b>{successNotice.amount.toLocaleString('vi-VN')} đ</b> qua thanh toán điện tử (STK gửi: <b>{successNotice.senderStk}</b> - {successNotice.senderName}).
                   </div>
                   <div>
                     Khớp chính xác mã đơn hàng: <b className="font-mono">{successNotice.code}</b>. Đơn hàng đã được ghi nhận và tự động gửi tới quầy pha chế!
@@ -925,26 +1140,162 @@ function CheckoutContent() {
           </div>
         </div>
       ) : (
-        /* PHƯƠNG THỨC 2: VÍ THÀNH VIÊN BREWLITE */
-        <div className="max-w-xl mx-auto bg-surface border border-line-strong rounded-2xl p-6 shadow-sm space-y-5">
+        /* PHƯƠNG THỨC 2: VÍ ĐIỆN TỬ LIÊN KẾT 1-CHẠM (MOMO / ZALOPAY / SHOPEEPAY) */
+        <div className="max-w-xl mx-auto bg-surface border border-line-strong rounded-2xl p-6 shadow-sm space-y-6 animate-fade-in">
+          {/* Tiêu đề & Giới thiệu */}
           <div className="flex items-center gap-3 pb-4 border-b border-line">
             <div className="p-3 bg-accent-soft text-accent rounded-xl">
               <Wallet className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="font-display font-semibold text-base text-ink">
-                Ví Điện Tử Thành Viên BrewLite
+              <h3 className="font-display font-semibold text-base text-ink flex items-center gap-2">
+                <span>Ví Điện Tử 1-Chạm</span>
+                <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                  Tự động trừ ví
+                </span>
               </h3>
               <p className="text-xs text-ink-3">
-                Thanh toán trực tiếp từ số dư tài khoản đã liên kết
+                Liên kết ví điện tử thanh toán an toàn, không cần mở máy ảnh quét QR
               </p>
             </div>
           </div>
 
+          {/* Toast thông báo liên kết thành công */}
+          {walletNotice && (
+            <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/30 rounded-xl text-xs text-emerald-800 dark:text-emerald-200 flex items-center gap-2 animate-fade-in">
+              <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>{walletNotice}</span>
+            </div>
+          )}
+
+          {/* Danh sách 3 Ví điện tử hỗ trợ */}
+          <div className="space-y-3">
+            <div className="flex justify-between items-center text-xs">
+              <span className="font-semibold text-ink">Danh sách ví của bạn:</span>
+              <span className="text-ink-3 text-[11px]">Chọn ví để thanh toán</span>
+            </div>
+
+            <div className="space-y-2.5">
+              {WALLET_PROVIDERS.map((prov) => {
+                const linked = linkedWallets.find((w) => w.id === prov.id);
+                const isSelected = selectedWalletId === prov.id;
+
+                return (
+                  <div
+                    key={prov.id}
+                    onClick={() => {
+                      if (linked) setSelectedWalletId(prov.id);
+                    }}
+                    className={`relative p-4 rounded-xl border-2 transition-all flex items-center justify-between gap-3 ${
+                      linked
+                        ? isSelected
+                          ? 'border-accent bg-accent-soft/30 shadow-sm cursor-pointer'
+                          : 'border-line hover:border-line-strong bg-surface cursor-pointer'
+                        : 'border-line/70 bg-surface-2/40'
+                    }`}
+                  >
+                    {/* Cột trái: Logo & Thông tin */}
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      {/* Logo Icon đại diện thương hiệu ví */}
+                      <div
+                        className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm"
+                        style={{ backgroundColor: prov.color }}
+                      >
+                        {prov.id === 'momo' ? 'MoMo' : prov.id === 'zalopay' ? 'Zalo' : 'Shopee'}
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-display font-semibold text-sm text-ink truncate">
+                            {prov.name}
+                          </h4>
+                          {linked ? (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              <span>Đã liên kết</span>
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-medium text-ink-3 bg-surface-2 px-1.5 py-0.5 rounded border border-line">
+                              Chưa liên kết
+                            </span>
+                          )}
+                        </div>
+
+                        {linked ? (
+                          <div className="flex items-center gap-2 text-xs mt-0.5">
+                            <span className="text-ink-3 text-[11px] font-mono">
+                              {linked.phone.replace(/(\d{4})\d{3}(\d{3})/, '$1•••$2')}
+                            </span>
+                            <span className="text-ink-3">•</span>
+                            <span className="font-bold text-accent text-xs">
+                              Số dư: {linked.balance.toLocaleString('vi-VN')} đ
+                            </span>
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-ink-3 mt-0.5">
+                            Chưa liên kết. Bấm để liên kết ví thanh toán 1-chạm.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Cột phải: Nút thao tác */}
+                    <div className="shrink-0 flex items-center gap-2">
+                      {linked ? (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            title="Hủy liên kết ví này"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleUnlinkWallet(prov.id);
+                            }}
+                            className="p-1.5 text-ink-3 hover:text-danger hover:bg-danger-soft rounded-lg transition-colors text-[11px]"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                          <input
+                            type="radio"
+                            name="selected_wallet"
+                            checked={isSelected}
+                            onChange={() => setSelectedWalletId(prov.id)}
+                            className="w-4 h-4 text-accent accent-accent cursor-pointer"
+                          />
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => openLinkModal(prov.id)}
+                          className="text-[11px] h-8 px-3 font-semibold hover:border-accent hover:text-accent"
+                        >
+                          <Plus className="w-3 h-3 mr-1" />
+                          <span>Liên kết ví</span>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Chi tiết thanh toán & Trừ số dư */}
           <div className="bg-surface-2 p-4 rounded-xl space-y-2 text-xs">
             <div className="flex justify-between text-ink-2">
               <span>Chủ tài khoản:</span>
               <span className="font-semibold text-ink">{user.fullName || user.username}</span>
+            </div>
+            <div className="flex justify-between text-ink-2">
+              <span>Nguồn tiền thanh toán:</span>
+              <span className="font-semibold text-ink">
+                {selectedWallet ? (
+                  <span className="text-accent font-bold">{selectedWallet.name} (Số dư: {selectedWallet.balance.toLocaleString('vi-VN')} đ)</span>
+                ) : (
+                  <span className="text-ink-3 italic">Chưa chọn ví</span>
+                )}
+              </span>
             </div>
             <div className="flex justify-between text-ink-2">
               <span>Tạm tính:</span>
@@ -952,40 +1303,182 @@ function CheckoutContent() {
                 {subtotal.toLocaleString('vi-VN')} đ
               </span>
             </div>
-            {discountAmount > 0 && (
+            {voucherDiscount > 0 && (
               <div className="flex justify-between text-success">
-                <span>Giảm giá khuyến mãi{promotion?.code ? ` (${promotion.code})` : ''}:</span>
+                <span>
+                  Voucher giảm giá
+                  {promotions && promotions.length > 0
+                    ? ` (${promotions.map((p) => p.code).join(', ')})`
+                    : promotion?.code
+                    ? ` (${promotion.code})`
+                    : ''}
+                  :
+                </span>
                 <span className="font-semibold">
-                  -{discountAmount.toLocaleString('vi-VN')} đ
+                  -{voucherDiscount.toLocaleString('vi-VN')} đ
                 </span>
               </div>
             )}
-            <div className="flex justify-between text-ink-2">
-              <span>Tổng tiền thanh toán:</span>
+            {pointsDiscount > 0 && (
+              <div className="flex justify-between text-amber-600 dark:text-amber-400">
+                <span className="flex items-center gap-1">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Điểm tích lũy đã dùng ({loyaltyPointsUsed} điểm):</span>
+                </span>
+                <span className="font-semibold font-mono">
+                  -{pointsDiscount.toLocaleString('vi-VN')} đ
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between text-ink-2 border-t border-line pt-2">
+              <span className="font-semibold">Tổng tiền thanh toán:</span>
               <span className="font-bold text-accent text-sm">
                 {finalTotal.toLocaleString('vi-VN')} đ
               </span>
             </div>
+            {selectedWallet && (
+              <div className="flex justify-between text-[11px] text-ink-3 pt-1">
+                <span>Số dư còn lại sau khi thanh toán:</span>
+                <span className="font-mono font-semibold text-ink">
+                  {Math.max(0, selectedWallet.balance - finalTotal).toLocaleString('vi-VN')} đ
+                </span>
+              </div>
+            )}
           </div>
 
-          <label className="flex items-center justify-between gap-3 p-3 rounded-xl border border-warning/30 bg-warning-soft text-xs text-warning">
-            <span className="font-semibold">Giả lập lỗi thanh toán (PAYMENT_FAILED)</span>
-            <input
-              type="checkbox"
-              checked={simulatePaymentFailure}
-              onChange={(event) => setSimulatePaymentFailure(event.target.checked)}
-              className="h-4 w-4 accent-current"
-            />
-          </label>
+          {/* Nút Thanh toán */}
+          {selectedWallet ? (
+            <Button
+              type="button"
+              onClick={() => handlePay()}
+              disabled={loading || selectedWallet.balance < finalTotal}
+              className="w-full py-3 text-xs font-semibold"
+            >
+              {loading ? (
+                'Đang Xử Lý Giao Dịch...'
+              ) : selectedWallet.balance < finalTotal ? (
+                'Số dư ví không đủ để thanh toán'
+              ) : (
+                `Xác nhận trả bằng ${selectedWallet.name} (${finalTotal.toLocaleString('vi-VN')} đ)`
+              )}
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => openLinkModal('momo')}
+              className="w-full py-3 text-xs font-semibold border-accent text-accent hover:bg-accent-soft"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5" />
+              <span>Liên kết Ví MoMo để thanh toán ngay</span>
+            </Button>
+          )}
 
-          <Button
-            type="button"
-            onClick={() => handlePay()}
-            disabled={loading}
-            className="w-full py-3 text-xs font-semibold"
-          >
-            {loading ? 'Đang Xử Lý Giao Dịch...' : `Xác nhận trả (${finalTotal.toLocaleString('vi-VN')} đ)`}
-          </Button>
+          
+        </div>
+      )}
+
+      {/* MODAL MÔ PHỎNG LIÊN KẾT VÍ ĐIỆN TỬ */}
+      {linkingProvider && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-surface border border-line rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-scale-up">
+            {/* Header Modal */}
+            <div className="flex items-center justify-between pb-3 border-b border-line">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs"
+                  style={{ backgroundColor: linkingProvider.color }}
+                >
+                  {linkingProvider.id === 'momo' ? 'M' : linkingProvider.id === 'zalopay' ? 'Z' : 'S'}
+                </div>
+                <div>
+                  <h3 className="font-display font-semibold text-sm text-ink">
+                    Liên Kết {linkingProvider.name}
+                  </h3>
+                  <p className="text-[11px] text-ink-3">Xác thực OTP 2 lớp bảo mật</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLinkingProvider(null)}
+                className="p-1 rounded-lg text-ink-3 hover:text-ink hover:bg-surface-2 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body Modal */}
+            <div className="space-y-4 text-xs">
+              <div>
+                <label className="block font-semibold text-ink mb-1.5">Số điện thoại đăng ký ví:</label>
+                <input
+                  type="text"
+                  value={linkPhone}
+                  onChange={(e) => setLinkPhone(e.target.value)}
+                  placeholder="0988 888 888"
+                  className="w-full px-3 py-2 bg-surface-2 border border-line rounded-xl text-ink font-mono text-xs focus:outline-none focus:border-accent"
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-1.5">
+                  <label className="font-semibold text-ink">Mã xác thực OTP:</label>
+                  {!otpSent ? (
+                    <button
+                      type="button"
+                      onClick={handleSendOtp}
+                      className="text-accent hover:underline text-[11px] font-semibold"
+                    >
+                      Nhận mã OTP qua SMS
+                    </button>
+                  ) : (
+                    <span className="text-success text-[11px] flex items-center gap-1 font-medium">
+                      <Check className="w-3 h-3" /> Đã gửi mã OTP qua SMS (Mã: 888999)
+                    </span>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  value={linkOtp}
+                  onChange={(e) => setLinkOtp(e.target.value)}
+                  placeholder="Nhập 6 số OTP (VD: 888999)"
+                  maxLength={6}
+                  className="w-full px-3 py-2 bg-surface-2 border border-line rounded-xl text-ink font-mono tracking-widest text-sm text-center focus:outline-none focus:border-accent"
+                />
+              </div>
+
+              {/* Hộp thông tin số dư demo */}
+              <div className="p-3 bg-accent-soft/40 border border-accent/20 rounded-xl space-y-1">
+                <div className="flex items-center gap-1.5 font-semibold text-accent text-xs">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Hạn mức số dư ví khả dụng:</span>
+                </div>
+                <p className="text-[11px] text-ink-2">
+                  Số dư khả dụng trong ví: <b>{linkingProvider.defaultBalance.toLocaleString('vi-VN')} đ</b> để thực hiện thanh toán trực tiếp.
+                </p>
+              </div>
+            </div>
+
+            {/* Footer Modal */}
+            <div className="flex gap-2.5 pt-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setLinkingProvider(null)}
+                className="w-1/2 text-xs"
+              >
+                Hủy bỏ
+              </Button>
+              <Button
+                type="button"
+                onClick={handleConfirmLink}
+                disabled={linkingLoading}
+                className="w-1/2 text-xs font-semibold"
+              >
+                {linkingLoading ? 'Đang Liên Kết...' : 'Xác Nhận Liên Kết'}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React from 'react';
 import { X, ExternalLink, Smartphone } from 'lucide-react';
@@ -48,7 +48,7 @@ export default function MbBankSimulatorModal({
         <div className="flex items-center justify-between px-4 pt-3 pb-2 bg-[#001f70] text-white z-10 border-b border-blue-900/40">
           <div className="flex items-center gap-1.5 text-xs font-semibold">
             <Smartphone className="w-4 h-4 text-cyan-400" />
-            <span>MBBank Mobile</span>
+            <span>Trình mô phỏng thanh toán</span>
           </div>
 
           <div className="flex items-center gap-2">
@@ -72,12 +72,12 @@ export default function MbBankSimulatorModal({
           </div>
         </div>
 
-        {/* MBBank Iframe Container */}
+        {/* Payment Simulator Iframe Container */}
         <div className="flex-1 w-full h-full bg-slate-900 overflow-hidden relative">
           <iframe
             src={fullUrl}
             className="w-full h-full border-0 select-none"
-            title="MBBank Simulator"
+            title="Payment Simulator"
           />
         </div>
       </div>
