@@ -60,6 +60,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       role: account.role,
       status: account.status,
       profileId: profile?.id,
+      customerId: account.customer?.id,
       fullName: profile?.fullName,
       email: profile?.email,
       loyaltyPoints: account.customer?.loyaltyPoints || 0,

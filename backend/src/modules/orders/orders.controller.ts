@@ -33,7 +33,8 @@ export class OrdersController {
   @ApiOperation({ summary: 'Tạo đơn hàng mới (Trạng thái PENDING)' })
   @ApiResponse({ status: 201, description: 'Đơn hàng được khởi tạo thành công' })
   create(@CurrentUser() user: any, @Body() dto: CreateOrderDto) {
-    return this.ordersService.createOrder(user.profileId, dto);
+    const customerId = user.customerId || user.profileId;
+    return this.ordersService.createOrder(customerId, dto);
   }
 
   /**
@@ -42,7 +43,8 @@ export class OrdersController {
   @Get('me')
   @ApiOperation({ summary: 'Lấy danh sách lịch sử đơn hàng của tôi' })
   getMyOrders(@CurrentUser() user: any) {
-    return this.ordersService.getMyOrders(user.profileId);
+    const customerId = user.customerId || user.profileId;
+    return this.ordersService.getMyOrders(customerId);
   }
 
   /**
@@ -58,10 +60,10 @@ export class OrdersController {
   /**
    * Endpoint: Hủy đơn hàng
    * Chỉ cho phép khi đơn ở trạng thái PENDING hoặc PAID.
-   * Nếu đơn đã PAID, tự động kích hoạt hoàn kho nguyên liệu và thu hồi điểm loyalty.
    */
   @Post(':id/cancel')
-  @ApiOperation({ summary: 'Hủy đơn hàng (Chỉ cho phép khi đơn còn PENDING hoặc PAID)' })
+  @ApiOperation({ summary: 'Hủy đơn hàng (Kèm hoàn tiền & hoàn kho nếu đã thanh toán)' })
+  @ApiResponse({ status: 200, description: 'Đơn hàng đã được hủy thành công' })
   cancelOrder(@Param('id') id: string, @CurrentUser() user: any) {
     return this.ordersService.cancelOrder(id, user);
   }

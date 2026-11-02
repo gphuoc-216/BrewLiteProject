@@ -1,4 +1,4 @@
-import { IsArray, IsNotEmpty, IsNumber, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+﻿import { IsArray, IsNotEmpty, IsNumber, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -12,6 +12,11 @@ export class CreateOrderItemDto {
   @IsNumber()
   @Min(1, { message: 'Số lượng tối thiểu là 1' })
   quantity: number;
+
+  @ApiPropertyOptional({ description: 'Danh sách topping thêm (Shopee/Grab model)', example: ['Khúc bạch phô mai', 'Trân châu đường đen'] })
+  @IsOptional()
+  @IsArray()
+  toppings?: string[];
 }
 
 export class CreateOrderDto {
@@ -25,4 +30,9 @@ export class CreateOrderDto {
   @IsOptional()
   @IsString()
   promotionCode?: string;
+
+  @ApiPropertyOptional({ description: 'Số điểm thưởng muốn sử dụng để trừ tiền (1 điểm = 1.000 VNĐ)', example: 10 })
+  @IsOptional()
+  @IsNumber()
+  loyaltyPointsToUse?: number;
 }
