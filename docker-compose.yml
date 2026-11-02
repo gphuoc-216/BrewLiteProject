@@ -7,7 +7,6 @@
 # 3. frontend: Web App Next.js 14 cổng 3000
 # Tự động kết nối mạng nội bộ (brewlite_network) và gắn ổ đĩa bền vững (brewlite_postgres_data).
 # =========================================================================================
-version: '3.8'
 
 services:
   # ---------------------------------------------------------------------------------------
@@ -72,6 +71,7 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - NEXT_PUBLIC_API_URL=http://localhost:3001/api
+      - INTERNAL_BACKEND_URL=http://backend:3001/api/:path*
     depends_on:
       - backend # Đảm bảo Backend chạy trước Frontend
 
