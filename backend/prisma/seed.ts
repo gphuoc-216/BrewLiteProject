@@ -386,8 +386,14 @@ async function main() {
         variants: {
           create: [
             { size: 'S', price: item.basePrice, topping: 'Tiêu chuẩn' },
+            { size: 'S', price: item.basePrice + 6000, topping: 'Thêm Trân châu đường đen' },
+            { size: 'S', price: item.basePrice + 10000, topping: 'Thêm Kem Cheese Macchiato' },
             { size: 'M', price: item.basePrice + 6000, topping: 'Tiêu chuẩn' },
-            { size: 'L', price: item.basePrice + 12000, topping: 'Kèm Trân châu / Kem' },
+            { size: 'M', price: item.basePrice + 12000, topping: 'Thêm Trân châu đường đen' },
+            { size: 'M', price: item.basePrice + 16000, topping: 'Thêm Kem Cheese Macchiato' },
+            { size: 'L', price: item.basePrice + 12000, topping: 'Tiêu chuẩn' },
+            { size: 'L', price: item.basePrice + 18000, topping: 'Thêm Trân châu đường đen' },
+            { size: 'L', price: item.basePrice + 22000, topping: 'Thêm Kem Cheese Macchiato' },
           ],
         },
       },
@@ -396,7 +402,7 @@ async function main() {
 
     createdProducts.push(p);
 
-    // Tạo công thức cho từng size
+    // Tạo công thức cho từng size và topping
     for (const v of p.variants) {
       createdVariants.push(v);
       const multiplier = v.size === 'S' ? 1 : v.size === 'M' ? 1.3 : 1.6;
@@ -407,13 +413,32 @@ async function main() {
           quantityRequired: Math.round(item.q1 * multiplier),
         },
       });
-      await prisma.recipe.create({
-        data: {
-          variantId: v.id,
-          ingredientId: item.ing2,
-          quantityRequired: Math.round(item.q2 * multiplier),
-        },
-      });
+      if (item.ing2 !== (v.topping === 'Thêm Trân châu đường đen' ? ingBoba.id : v.topping === 'Thêm Kem Cheese Macchiato' ? ingCheese.id : null)) {
+        await prisma.recipe.create({
+          data: {
+            variantId: v.id,
+            ingredientId: item.ing2,
+            quantityRequired: Math.round(item.q2 * multiplier),
+          },
+        });
+      }
+      if (v.topping === 'Thêm Trân châu đường đen' && item.ing2 !== ingBoba.id) {
+        await prisma.recipe.create({
+          data: {
+            variantId: v.id,
+            ingredientId: ingBoba.id,
+            quantityRequired: 30,
+          },
+        });
+      } else if (v.topping === 'Thêm Kem Cheese Macchiato' && item.ing2 !== ingCheese.id) {
+        await prisma.recipe.create({
+          data: {
+            variantId: v.id,
+            ingredientId: ingCheese.id,
+            quantityRequired: 25,
+          },
+        });
+      }
     }
   }
 
