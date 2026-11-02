@@ -1,0 +1,290 @@
+<mxfile host="app.diagrams.net" modified="2026-11-01T21:30:00.000Z" agent="BrewLite" version="24.7.5">
+  <diagram id="BrewLite-Class-Diagram" name="Class Diagram - CSDL Cốt Lõi BrewLite">
+    <mxGraphModel dx="1800" dy="2400" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1800" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ==================== BANNER TIÊU ĐỀ ==================== -->
+        <mxCell id="title" value="SƠ ĐỒ LỚP THỰC THỂ CSDL CỐT LÕI (CORE DOMAIN CLASS DIAGRAM) - HỆ THỐNG BREWLITE" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0f172a;strokeColor=#1e293b;fontColor=#ffffff;fontStyle=1;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1680" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== GROUP 1: USER DOMAIN ==================== -->
+        <!-- Group Box User -->
+        <mxCell id="grp_user" value="CỤM QUẢN LÝ NGƯỜI DÙNG &amp; TÀI KHOẢN (USER DOMAIN)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#94a3b8;fontColor=#334155;fontStyle=1;fontSize=12;startSize=25;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="600" height="520" as="geometry" />
+        </mxCell>
+
+        <!-- Class: Account -->
+        <mxCell id="cls_account" value="&lt;&lt;Entity&gt;&gt;&#xa;&lt;b&gt;Account (Tài khoản)&lt;/b&gt;&#xa;--&#xa;+ id: String [PK, UUID]&#xa;+ username: String [Unique]&#xa;+ passwordHash: String&#xa;+ role: Role [Enum]&#xa;+ status: AccountStatus [Enum]&#xa;+ createdAt: DateTime&#xa;+ updatedAt: DateTime&#xa;--" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=170;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#eff6ff;strokeColor=#3b82f6;fontColor=#1e3a8a;fontSize=11;align=left;spacingLeft=10;" vertex="1" parent="grp_user">
+          <mxGeometry x="30" y="40" width="240" height="175" as="geometry" />
+        </mxCell>
+
+        <!-- Class: Customer -->
+        <mxCell id="cls_customer" value="&lt;&lt;Entity&gt;&gt;&#xa;&lt;b&gt;Customer (Khách hàng)&lt;/b&gt;&#xa;--&#xa;+ id: String [PK, UUID]&#xa;+ accountId: String [FK, Unique]&#xa;+ fullName: String&#xa;+ email: String [Unique]&#xa;+ loyaltyPoints: Int = 0&#xa;+ createdAt: DateTime&#xa;+ updatedAt: DateTime&#xa;--&#xa;+ addLoyaltyPoints(pts: Int)&#xa;+ refundLoyaltyPoints(pts: Int)" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=210;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#22c55e;fontColor=#15803d;fontSize=11;align=left;spacingLeft=10;" vertex="1" parent="grp_user">
+          <mxGeometry x="30" y="270" width="240" height="215" as="geometry" />
+        </mxCell>
+
+        <!-- Class: Staff -->
+        <mxCell id="cls_staff" value="&lt;&lt;Entity&gt;&gt;&#xa;&lt;b&gt;Staff (Nhân viên / Barista)&lt;/b&gt;&#xa;--&#xa;+ id: String [PK, UUID]&#xa;+ accountId: String [FK, Unique]&#xa;+ fullName: String&#xa;+ email: String&#xa;+ createdAt: DateTime&#xa;+ updatedAt: DateTime&#xa;--&#xa;+ updateOrderStatus()" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=170;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#fefce8;strokeColor=#eab308;fontColor=#854d0e;fontSize=11;align=left;spacingLeft=10;" vertex="1" parent="grp_user">
+          <mxGeometry x="330" y="40" width="240" height="175" as="geometry" />
+        </mxCell>
+
+        <!-- Class: LoyaltyTransaction -->
+        <mxCell id="cls_loyalty" value="&lt;&lt;Entity / Log&gt;&gt;&#xa;&lt;b&gt;LoyaltyTransaction&lt;/b&gt;&#xa;--&#xa;+ id: String [PK, UUID]&#xa;+ customerId: String [FK]&#xa;+ orderId: String [FK, Nullable]&#xa;+ pointsChanged: Int&#xa;+ balanceAfter: Int&#xa;+ type: String [EARN|REFUND]&#xa;+ note: String [Nullable]&#xa;+ createdAt: DateTime&#xa;--" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=190;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#f5f3ff;strokeColor=#8b5cf6;fontColor=#5b21b6;fontSize=11;align=left;spacingLeft=10;" vertex="1" parent="grp_user">
+          <mxGeometry x="330" y="270" width="240" height="195" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== GROUP 2: ORDER & PAYMENT DOMAIN ==================== -->
+        <mxCell id="grp_order" value="CỤM ĐẶT HÀNG, THANH TOÁN &amp; KHUYẾN MÃI (ORDER, PAYMENT, PROMOTION)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#94a3b8;fontColor=#334155;fontStyle=1;fontSize=12;startSize=25;" vertex="1" parent="1">
+          <mxGeometry x="680" y="80" width="530" height="880" as="geometry" />
+        </mxCell>
+
+        <!-- Class: Order -->
+        <mxCell id="cls_order" value="&lt;&lt;Entity - Aggregate Root&gt;&gt;&#xa;&lt;b&gt;Order (Đơn hàng)&lt;/b&gt;&#xa;--&#xa;+ id: String [PK, UUID]&#xa;+ customerId: String [FK]&#xa;+ staffId: String [FK, Nullable]&#xa;+ promotionId: String [FK, Nullable]&#xa;+ status: OrderStatus [Enum]&#xa;+ discountAmount: Decimal(12,2)&#xa;+ totalAfterDiscount: Decimal(12,2)&#xa;+ createdAt: DateTime&#xa;+ updatedAt: DateTime&#xa;--&#xa;+ calculateTotal(): Decimal&#xa;+ applyPromotion(promo: Promotion)&#xa;+ transitionTo(newStatus: OrderStatus)" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=240;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#fff7ed;strokeColor=#f97316;fontColor=#9a3412;fontSize=11;align=left;spacingLeft=10;" vertex="1" parent="grp_order">
+          <mxGeometry x="30" y="40" width="250" height="245" as="geometry" />
+        </mxCell>
+
+        <!-- Class: OrderItem (Association Table N-N) -->
+        <mxCell id="cls_order_item" value="&lt;&lt;Association Class / Entity&gt;&gt;&#xa;&lt;b&gt;OrderItem (Chi tiết đơn hàng)&lt;/b&gt;&#xa;--&#xa;+ id: Int [PK, AutoIncrement]&#xa;+ orderId: String [FK]&#xa;+ variantId: String [FK]&#xa;+ quantity: Int&#xa;+ lineTotal: Decimal(12,2)&#xa;--&#xa;+ calculateLineTotal(): Decimal" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=160;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#fef2f2;strokeColor=#ef4444;fontColor=#991b1b;fontSize=11;align=left;spacingLeft=10;" vertex="1" parent="grp_order">
+          <mxGeometry x="310" y="40" width="190" height="165" as="geometry" />
+        </mxCell>
+
+        <!-- Class: Payment -->
+        <mxCell id="cls_payment" value="&lt;&lt;Entity&gt;&gt;&#xa;&lt;b&gt;Payment (Giao dịch thanh toán)&lt;/b&gt;&#xa;--&#xa;+ id: String [PK, UUID]&#xa;+ orderId: String [FK]&#xa;+ idempotencyKey: String [Unique]&#xa;+ amount: Decimal(12,2)&#xa;+ status: PaymentStatus [Enum]&#xa;+ method: PaymentMethod [Enum]&#xa;+ createdAt: DateTime&#xa;--&#xa;+ verifyIdempotency(): Boolean" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=190;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#fdf4ff;strokeColor=#d946ef;fontColor=#86198f;fontSize=11;align=left;spacingLeft=10;" vertex="1" parent="grp_order">
+          <mxGeometry x="30" y="340" width="250" height="195" as="geometry" />
+        </mxCell>
+
+        <!-- Class: Promotion -->
+        <mxCell id="cls_promotion" value="&lt;&lt;Entity&gt;&gt;&#xa;&lt;b&gt;Promotion (Mã khuyến mãi)&lt;/b&gt;&#xa;--&#xa;+ id: String [PK, UUID]&#xa;+ code: String [Unique]&#xa;+ name: String&#xa;+ discountType: PromotionType [Enum]&#xa;+ discountValue: Decimal(12,2)&#xa;+ quantity: Int&#xa;+ usedCount: Int = 0&#xa;+ startDate: DateTime&#xa;+ endDate: DateTime&#xa;+ status: String = 'ACTIVE'&#xa;+ createdAt: DateTime&#xa;+ updatedAt: DateTime&#xa;--&#xa;+ isValid(subtotal: Decimal): Boolean&#xa;+ calculateDiscount(subtotal): Decimal" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=260;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#ecfdf5;strokeColor=#10b981;fontColor=#065f46;fontSize=11;align=left;spacingLeft=10;" vertex="1" parent="grp_order">
+          <mxGeometry x="30" y="580" width="250" height="265" as="geometry" />
+        </mxCell>
+
+        <!-- Class: OrderStatusHistory -->
+        <mxCell id="cls_history" value="&lt;&lt;Audit Log Entity&gt;&gt;&#xa;&lt;b&gt;OrderStatusHistory&lt;/b&gt;&#xa;--&#xa;+ id: String [PK, UUID]&#xa;+ orderId: String [FK]&#xa;+ fromStatus: OrderStatus&#xa;+ toStatus: OrderStatus&#xa;+ actorId: String [Nullable]&#xa;+ note: String [Nullable]&#xa;+ createdAt: DateTime&#xa;--" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=170;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#64748b;fontColor=#334155;fontSize=11;align=left;spacingLeft=10;" vertex="1" parent="grp_order">
+          <mxGeometry x="310" y="340" width="190" height="175" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== GROUP 3: PRODUCT & INVENTORY DOMAIN ==================== -->
+        <mxCell id="grp_prod" value="CỤM SẢN PHẨM, CÔNG THỨC &amp; KHO NGUYÊN LIỆU (PRODUCT &amp; INVENTORY)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#94a3b8;fontColor=#334155;fontStyle=1;fontSize=12;startSize=25;" vertex="1" parent="1">
+          <mxGeometry x="1250" y="80" width="470" height="880" as="geometry" />
+        </mxCell>
+
+        <!-- Class: Product -->
+        <mxCell id="cls_product" value="&lt;&lt;Entity&gt;&gt;&#xa;&lt;b&gt;Product (Sản phẩm)&lt;/b&gt;&#xa;--&#xa;+ id: String [PK, UUID]&#xa;+ name: String&#xa;+ imageUrl: String&#xa;+ description: String [Nullable]&#xa;+ category: String = 'COFFEE'&#xa;+ isActive: Boolean = true&#xa;+ createdAt: DateTime&#xa;+ updatedAt: DateTime&#xa;--" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=190;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#f0fdfa;strokeColor=#14b8a6;fontColor=#115e59;fontSize=11;align=left;spacingLeft=10;" vertex="1" parent="grp_prod">
+          <mxGeometry x="30" y="40" width="220" height="195" as="geometry" />
+        </mxCell>
+
+        <!-- Class: ProductVariant -->
+        <mxCell id="cls_variant" value="&lt;&lt;Entity&gt;&gt;&#xa;&lt;b&gt;ProductVariant (Biến thể)&lt;/b&gt;&#xa;--&#xa;+ id: String [PK, UUID]&#xa;+ productId: String [FK]&#xa;+ size: String [S, M, L]&#xa;+ price: Decimal(12,2)&#xa;+ topping: String [Nullable]&#xa;+ createdAt: DateTime&#xa;+ updatedAt: DateTime&#xa;--" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=170;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#16a34a;fontColor=#166534;fontSize=11;align=left;spacingLeft=10;" vertex="1" parent="grp_prod">
+          <mxGeometry x="280" y="40" width="160" height="175" as="geometry" />
+        </mxCell>
+
+        <!-- Class: Recipe (Association Table N-N) -->
+        <mxCell id="cls_recipe" value="&lt;&lt;Association Class / Entity&gt;&gt;&#xa;&lt;b&gt;Recipe (Công thức pha chế)&lt;/b&gt;&#xa;--&#xa;+ id: String [PK, UUID]&#xa;+ variantId: String [FK]&#xa;+ ingredientId: String [FK]&#xa;+ quantityRequired: Decimal(12,2)&#xa;--&#xa;[Unique: variantId, ingredientId]" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=160;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#fefce8;strokeColor=#ca8a04;fontColor=#854d0e;fontSize=11;align=left;spacingLeft=10;" vertex="1" parent="grp_prod">
+          <mxGeometry x="240" y="320" width="200" height="165" as="geometry" />
+        </mxCell>
+
+        <!-- Class: Ingredient -->
+        <mxCell id="cls_ingredient" value="&lt;&lt;Entity - Optimistic Locking&gt;&gt;&#xa;&lt;b&gt;Ingredient (Nguyên liệu)&lt;/b&gt;&#xa;--&#xa;+ id: String [PK, UUID]&#xa;+ name: String&#xa;+ unit: String&#xa;+ stockQuantity: Decimal(12,2)&#xa;+ version: Int = 1 [OCC Lock]&#xa;+ createdAt: DateTime&#xa;+ updatedAt: DateTime&#xa;--&#xa;+ deductStock(qty: Decimal, ver: Int)&#xa;+ refundStock(qty: Decimal)" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=210;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#fffbeb;strokeColor=#d97706;fontColor=#92400e;fontSize=11;align=left;spacingLeft=10;" vertex="1" parent="grp_prod">
+          <mxGeometry x="240" y="580" width="200" height="215" as="geometry" />
+        </mxCell>
+
+        <!-- Class: Review -->
+        <mxCell id="cls_review" value="&lt;&lt;Entity&gt;&gt;&#xa;&lt;b&gt;Review (Đánh giá sản phẩm)&lt;/b&gt;&#xa;--&#xa;+ id: String [PK, UUID]&#xa;+ customerId: String [FK]&#xa;+ productId: String [FK]&#xa;+ orderId: String [FK]&#xa;+ stars: Int [1..5]&#xa;+ content: String&#xa;+ status: ReviewStatus&#xa;+ createdAt: DateTime&#xa;--" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=190;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#f5f5f4;strokeColor=#78716c;fontColor=#292524;fontSize=11;align=left;spacingLeft=10;" vertex="1" parent="grp_prod">
+          <mxGeometry x="30" y="320" width="180" height="195" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== GROUP 4: ENUMERATIONS (DATA DICTIONARY) ==================== -->
+        <mxCell id="grp_enums" value="CÁC BỘ TỪ ĐIỂN DỮ LIỆU ĐẶC TRƯNG (ENUMERATIONS)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#94a3b8;fontColor=#334155;fontStyle=1;fontSize=12;startSize=25;" vertex="1" parent="1">
+          <mxGeometry x="40" y="630" width="600" height="330" as="geometry" />
+        </mxCell>
+
+        <!-- Enum: OrderStatus -->
+        <mxCell id="en_order_status" value="&lt;&lt;enumeration&gt;&gt;&#xa;&lt;b&gt;OrderStatus&lt;/b&gt;&#xa;--&#xa;PENDING&#xa;PAID&#xa;PREPARING&#xa;READY&#xa;COMPLETED&#xa;PAYMENT_FAILED&#xa;CANCELLED" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=160;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#fff1f2;strokeColor=#f43f5e;fontColor=#9f1239;fontSize=10;align=left;spacingLeft=10;" vertex="1" parent="grp_enums">
+          <mxGeometry x="20" y="40" width="125" height="165" as="geometry" />
+        </mxCell>
+
+        <!-- Enum: Role -->
+        <mxCell id="en_role" value="&lt;&lt;enumeration&gt;&gt;&#xa;&lt;b&gt;Role&lt;/b&gt;&#xa;--&#xa;CUSTOMER&#xa;STAFF&#xa;ADMIN" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=90;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#e0f2fe;strokeColor=#0284c7;fontColor=#0369a1;fontSize=10;align=left;spacingLeft=10;" vertex="1" parent="grp_enums">
+          <mxGeometry x="165" y="40" width="115" height="95" as="geometry" />
+        </mxCell>
+
+        <!-- Enum: PaymentStatus & Method -->
+        <mxCell id="en_pay" value="&lt;&lt;enumeration&gt;&gt;&#xa;&lt;b&gt;PaymentStatus&lt;/b&gt;&#xa;--&#xa;SUCCESS&#xa;FAILED&#xa;--&#xa;&lt;&lt;enumeration&gt;&gt;&#xa;&lt;b&gt;PaymentMethod&lt;/b&gt;&#xa;--&#xa;WALLET&#xa;CARD" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=170;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#fae8ff;strokeColor=#c026d3;fontColor=#86198f;fontSize=10;align=left;spacingLeft=10;" vertex="1" parent="grp_enums">
+          <mxGeometry x="300" y="40" width="125" height="175" as="geometry" />
+        </mxCell>
+
+        <!-- Enum: PromotionType & AccountStatus -->
+        <mxCell id="en_misc" value="&lt;&lt;enumeration&gt;&gt;&#xa;&lt;b&gt;PromotionType&lt;/b&gt;&#xa;--&#xa;PERCENT&#xa;FIXED&#xa;--&#xa;&lt;&lt;enumeration&gt;&gt;&#xa;&lt;b&gt;AccountStatus&lt;/b&gt;&#xa;--&#xa;ACTIVE&#xa;LOCKED" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=170;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#ecfdf5;strokeColor=#059669;fontColor=#065f46;fontSize=10;align=left;spacingLeft=10;" vertex="1" parent="grp_enums">
+          <mxGeometry x="445" y="40" width="135" height="175" as="geometry" />
+        </mxCell>
+
+        <!-- Legend Note -->
+        <mxCell id="legend_note" value="&lt;b&gt;GHI CHÚ QUAN HỆ UML:&lt;/b&gt;&#xa;• &lt;b&gt;1 - 0..1:&lt;/b&gt; Account ↔ Customer/Staff (1 Tài khoản có tối đa 1 hồ sơ Khách/Nhân viên)&#xa;• &lt;b&gt;1 - 0..*:&lt;/b&gt; Customer → Order; Order → Payment; Order → OrderStatusHistory&#xa;• &lt;b&gt;1 - 1..*:&lt;/b&gt; Product → ProductVariant; Order → OrderItem&#xa;• &lt;b&gt;N - N (Qua Bảng liên kết):&lt;/b&gt; Order ↔ ProductVariant (OrderItem); ProductVariant ↔ Ingredient (Recipe)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#64748b;fontColor=#1e293b;fontSize=10;align=left;spacingLeft=10;" vertex="1" parent="grp_enums">
+          <mxGeometry x="20" y="235" width="560" height="75" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== CÁC ĐƯỜNG KẾT NỐI (RELATIONSHIPS & MULTIPLICITIES) ==================== -->
+
+        <!-- 1. Account -> Customer (1 to 0..1) -->
+        <mxCell id="rel_acc_cust" value="1" style="endArrow=none;html=1;rounded=0;strokeColor=#2563eb;strokeWidth=1.5;edgeStyle=orthogonalEdgeStyle;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="cls_account" target="cls_customer">
+          <mxGeometry x="-0.8" y="-15" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_acc_cust_target" value="0..1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontStyle=1;fontColor=#1e3a8a;" vertex="1" connectable="0" parent="rel_acc_cust">
+          <mxGeometry x="0.8" y="15" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 2. Account -> Staff (1 to 0..1) -->
+        <mxCell id="rel_acc_staff" value="1" style="endArrow=none;html=1;rounded=0;strokeColor=#2563eb;strokeWidth=1.5;edgeStyle=orthogonalEdgeStyle;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="cls_account" target="cls_staff">
+          <mxGeometry x="-0.7" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_acc_staff_target" value="0..1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontStyle=1;fontColor=#1e3a8a;" vertex="1" connectable="0" parent="rel_acc_staff">
+          <mxGeometry x="0.7" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 3. Customer -> Order (1 to 0..*) -->
+        <mxCell id="rel_cust_order" value="1" style="endArrow=none;html=1;rounded=0;strokeColor=#f97316;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="cls_customer" target="cls_order">
+          <mxGeometry x="-0.85" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_cust_order_target" value="0..* (places)" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontStyle=1;fontColor=#c2410c;" vertex="1" connectable="0" parent="rel_cust_order">
+          <mxGeometry x="0.85" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 4. Staff -> Order (0..1 to 0..*) -->
+        <mxCell id="rel_staff_order" value="0..1" style="endArrow=none;html=1;rounded=0;strokeColor=#ca8a04;strokeWidth=1.5;edgeStyle=orthogonalEdgeStyle;entryX=0.25;entryY=0;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="cls_staff" target="cls_order">
+          <mxGeometry x="-0.8" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_staff_order_target" value="0..* (processes)" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontStyle=1;fontColor=#854d0e;" vertex="1" connectable="0" parent="rel_staff_order">
+          <mxGeometry x="0.8" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 5. Customer -> LoyaltyTransaction (1 to 0..*) -->
+        <mxCell id="rel_cust_loyalty" value="1" style="endArrow=none;html=1;rounded=0;strokeColor=#8b5cf6;strokeWidth=1.5;edgeStyle=orthogonalEdgeStyle;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.7;exitDx=0;exitDy=0;" edge="1" parent="1" source="cls_customer" target="cls_loyalty">
+          <mxGeometry x="-0.7" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_cust_loyalty_target" value="0..*" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontStyle=1;fontColor=#5b21b6;" vertex="1" connectable="0" parent="rel_cust_loyalty">
+          <mxGeometry x="0.7" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 6. Order -> OrderItem (Composition 1 to 1..*) -->
+        <mxCell id="rel_order_item" value="1" style="endArrow=diamondThin;endFill=1;html=1;rounded=0;strokeColor=#dc2626;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.3;exitDx=0;exitDy=0;" edge="1" parent="1" source="cls_order" target="cls_order_item">
+          <mxGeometry x="-0.7" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_order_item_target" value="1..*" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontStyle=1;fontColor=#991b1b;" vertex="1" connectable="0" parent="rel_order_item">
+          <mxGeometry x="0.7" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 7. ProductVariant -> OrderItem (1 to 0..*) -->
+        <mxCell id="rel_variant_item" value="1" style="endArrow=none;html=1;rounded=0;strokeColor=#16a34a;strokeWidth=1.5;edgeStyle=orthogonalEdgeStyle;entryX=1;entryY=0.5;entryDx=0;entryDy=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="cls_variant" target="cls_order_item">
+          <mxGeometry x="-0.7" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_variant_item_target" value="0..*" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontStyle=1;fontColor=#166534;" vertex="1" connectable="0" parent="rel_variant_item">
+          <mxGeometry x="0.7" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 8. Product -> ProductVariant (Composition 1 to 1..*) -->
+        <mxCell id="rel_prod_variant" value="1" style="endArrow=diamondThin;endFill=1;html=1;rounded=0;strokeColor=#0f766e;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="cls_product" target="cls_variant">
+          <mxGeometry x="-0.7" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_prod_variant_target" value="1..* (has)" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontStyle=1;fontColor=#0f766e;" vertex="1" connectable="0" parent="rel_prod_variant">
+          <mxGeometry x="0.7" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 9. Order -> Payment (Composition 1 to 0..*) -->
+        <mxCell id="rel_order_payment" value="1" style="endArrow=diamondThin;endFill=1;html=1;rounded=0;strokeColor=#d946ef;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="cls_order" target="cls_payment">
+          <mxGeometry x="-0.8" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_order_payment_target" value="0..* (idempotent)" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontStyle=1;fontColor=#86198f;" vertex="1" connectable="0" parent="rel_order_payment">
+          <mxGeometry x="0.8" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 10. Promotion -> Order (0..1 to 0..*) -->
+        <mxCell id="rel_promo_order" value="0..1" style="endArrow=none;html=1;rounded=0;strokeColor=#10b981;strokeWidth=1.5;edgeStyle=orthogonalEdgeStyle;entryX=0.2;entryY=1;entryDx=0;entryDy=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" edge="1" parent="1" source="cls_promotion" target="cls_order">
+          <mxGeometry x="-0.8" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_promo_order_target" value="0..* (applies)" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontStyle=1;fontColor=#047857;" vertex="1" connectable="0" parent="rel_promo_order">
+          <mxGeometry x="0.8" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 11. Order -> OrderStatusHistory (Composition 1 to 0..*) -->
+        <mxCell id="rel_order_history" value="1" style="endArrow=diamondThin;endFill=1;html=1;rounded=0;strokeColor=#64748b;strokeWidth=1.5;edgeStyle=orthogonalEdgeStyle;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.7;exitDx=0;exitDy=0;" edge="1" parent="1" source="cls_order" target="cls_history">
+          <mxGeometry x="-0.7" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_order_history_target" value="0..* (logs)" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontStyle=1;fontColor=#475569;" vertex="1" connectable="0" parent="rel_order_history">
+          <mxGeometry x="0.7" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 12. ProductVariant -> Recipe (1 to 0..*) -->
+        <mxCell id="rel_variant_recipe" value="1" style="endArrow=none;html=1;rounded=0;strokeColor=#ca8a04;strokeWidth=1.5;edgeStyle=orthogonalEdgeStyle;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="cls_variant" target="cls_recipe">
+          <mxGeometry x="-0.8" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_variant_recipe_target" value="0..*" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontStyle=1;fontColor=#854d0e;" vertex="1" connectable="0" parent="rel_variant_recipe">
+          <mxGeometry x="0.8" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 13. Ingredient -> Recipe (1 to 0..*) -->
+        <mxCell id="rel_ing_recipe" value="1" style="endArrow=none;html=1;rounded=0;strokeColor=#d97706;strokeWidth=1.5;edgeStyle=orthogonalEdgeStyle;entryX=0.5;entryY=1;entryDx=0;entryDy=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" edge="1" parent="1" source="cls_ingredient" target="cls_recipe">
+          <mxGeometry x="-0.8" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_ing_recipe_target" value="0..*" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontStyle=1;fontColor=#92400e;" vertex="1" connectable="0" parent="rel_ing_recipe">
+          <mxGeometry x="0.8" y="-12" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

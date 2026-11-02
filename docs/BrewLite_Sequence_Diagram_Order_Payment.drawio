@@ -1,0 +1,340 @@
+<mxfile host="app.diagrams.net" modified="2026-11-01T21:20:00.000Z" agent="BrewLite" version="24.7.5">
+  <diagram id="BrewLite-Sequence-Diagram" name="Sequence Diagram - Đặt Hàng &amp; Thanh Toán">
+    <mxGraphModel dx="1600" dy="2400" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="2300" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ==================== BANNER TIÊU ĐỀ ==================== -->
+        <mxCell id="title" value="SƠ ĐỒ TUẦN TỰ (SEQUENCE DIAGRAM): USE-CASE ĐẶT HÀNG &amp; THANH TOÁN IDEMPOTENT (TASK 8 &amp; 10)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0f172a;fontColor=#ffffff;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1380" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== CÁC CỘT THỜI GIAN (LIFELINES) ==================== -->
+        <!-- 1. Customer (Actor) -->
+        <mxCell id="ll_customer" value="Customer&#xa;(Khách hàng)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;size=40;fillColor=#dbeafe;strokeColor=#2563eb;fontColor=#1e3a8a;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="80" width="120" height="2100" as="geometry" />
+        </mxCell>
+
+        <!-- 2. Next.js UI (Frontend) -->
+        <mxCell id="ll_ui" value="Next.js UI&#xa;(Frontend App)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;size=40;fillColor=#eff6ff;strokeColor=#3b82f6;fontColor=#1e40af;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="280" y="80" width="130" height="2100" as="geometry" />
+        </mxCell>
+
+        <!-- 3. NestJS API (Backend Controller & Guard) -->
+        <mxCell id="ll_api" value="NestJS API&#xa;(Controller &amp; Guard)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;size=40;fillColor=#f8fafc;strokeColor=#64748b;fontColor=#334155;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="540" y="80" width="140" height="2100" as="geometry" />
+        </mxCell>
+
+        <!-- 4. Payment Service (Business Logic & Gateway) -->
+        <mxCell id="ll_service" value="Payment Service&#xa;(State &amp; MockGateway)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;size=40;fillColor=#fffbeb;strokeColor=#f59e0b;fontColor=#b45309;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="830" y="80" width="160" height="2100" as="geometry" />
+        </mxCell>
+
+        <!-- 5. Database (PostgreSQL / Prisma) -->
+        <mxCell id="ll_db" value="Database&#xa;(PostgreSQL &amp; Prisma)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;size=40;fillColor=#f0fdf4;strokeColor=#22c55e;fontColor=#15803d;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="80" width="150" height="2100" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== GIAI ĐOẠN 1: TẠO ĐƠN HÀNG (PENDING) ==================== -->
+        <mxCell id="divider_1" value="PHẦN 1: KHỞI TẠO ĐƠN HÀNG (TRẠNG THÁI PENDING)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e2e8f0;strokeColor=#94a3b8;fontColor=#1e293b;fontStyle=1;fontSize=11;align=left;spacingLeft=15;" vertex="1" parent="1">
+          <mxGeometry x="60" y="150" width="1230" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Message: Customer click Dat hang -->
+        <mxCell id="m_click_order" value="1. Chọn món, áp Voucher &amp; Bấm 'Đặt hàng'" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;strokeColor=#2563eb;" edge="1" parent="1">
+          <mxGeometry x="0.05" y="10" relative="1" as="geometry">
+            <mxPoint x="120" y="195" as="sourcePoint" />
+            <mxPoint x="345" y="195" as="targetPoint" />
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Message: Next.js call POST /orders -->
+        <mxCell id="m_post_orders" value="2. POST /api/orders&#xa;[Header: Authorization: Bearer &lt;JWT&gt;]&#xa;Body: { items, promotionCode }" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;strokeColor=#2563eb;" edge="1" parent="1">
+          <mxGeometry x="0.05" y="10" relative="1" as="geometry">
+            <mxPoint x="345" y="240" as="sourcePoint" />
+            <mxPoint x="610" y="240" as="targetPoint" />
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Self message: Check JWT -->
+        <mxCell id="m_check_jwt_1" value="3. JwtAuthGuard: Giải mã &amp;&#xa;kiểm tra tính hợp lệ của Token JWT" style="html=1;align=left;spacingLeft=5;verticalAlign=middle;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#64748b;fontColor=#334155;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="610" y="275" as="sourcePoint" />
+            <mxPoint x="610" y="315" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="660" y="275" />
+              <mxPoint x="660" y="315" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Message: Query DB for variants -->
+        <mxCell id="m_query_variants" value="4. findMany(ProductVariant), findUnique(Promotion)&#xa;Kiểm tra giá, điều kiện voucher &amp; tính tổng tiền" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;strokeColor=#475569;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="610" y="340" as="sourcePoint" />
+            <mxPoint x="1215" y="340" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Message: DB returns product info -->
+        <mxCell id="m_ret_variants" value="5. Trả về thông tin biến thể &amp; mức giảm giá" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;rounded=0;strokeColor=#475569;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1215" y="375" as="sourcePoint" />
+            <mxPoint x="610" y="375" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Message: Transaction create order PENDING -->
+        <mxCell id="m_tx_create_order" value="6. prisma.$transaction:&#xa;• tx.order.create({ status: PENDING, items: [...] })&#xa;• tx.orderStatusHistory.create({ status: PENDING, note: 'Khởi tạo...' })" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;strokeColor=#16a34a;fontColor=#15803d;fontStyle=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="610" y="425" as="sourcePoint" />
+            <mxPoint x="1215" y="425" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="m_ret_created_order" value="7. Commit Transaction &amp; Trả về bản ghi Order" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;rounded=0;strokeColor=#16a34a;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1215" y="470" as="sourcePoint" />
+            <mxPoint x="610" y="470" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="m_res_order_created" value="8. HTTP 201 Created: { success: true, data: order }" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;rounded=0;strokeColor=#2563eb;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="610" y="500" as="sourcePoint" />
+            <mxPoint x="345" y="500" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="m_show_pay_screen" value="9. Hiển thị màn hình xác nhận thanh toán (Tổng tiền sau giảm)" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;rounded=0;strokeColor=#2563eb;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="535" as="sourcePoint" />
+            <mxPoint x="120" y="535" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ==================== GIAI ĐOẠN 2: THANH TOÁN & IDEMPOTENCY ==================== -->
+        <mxCell id="divider_2" value="PHẦN 2: XÁC THỰC THANH TOÁN &amp; KIỂM TRA IDEMPOTENCY (CHỐNG CLICK ĐÚP)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#f59e0b;fontColor=#78350f;fontStyle=1;fontSize=11;align=left;spacingLeft=15;" vertex="1" parent="1">
+          <mxGeometry x="60" y="575" width="1230" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Message: Customer click pay -->
+        <mxCell id="m_click_pay" value="10. Chọn phương thức &amp; Nhấn 'Thanh toán ngay' (Hoặc lỡ tay click đúp 2 lần)" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;strokeColor=#d97706;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="120" y="625" as="sourcePoint" />
+            <mxPoint x="345" y="625" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Self message: UI generates Idempotency-Key -->
+        <mxCell id="m_gen_idemp_key" value="11. Sinh mã Idempotency-Key duy nhất&#xa;UUIDv4 (ví dụ: '550e8400-e29b-41d4...')" style="html=1;align=left;spacingLeft=5;verticalAlign=middle;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#3b82f6;fontColor=#1e40af;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="650" as="sourcePoint" />
+            <mxPoint x="345" y="690" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="395" y="650" />
+              <mxPoint x="395" y="690" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Message: POST /payments with Header -->
+        <mxCell id="m_post_pay" value="12. POST /api/payments&#xa;[Header: Authorization: Bearer &lt;JWT&gt;]&#xa;[Header: Idempotency-Key: &lt;UUIDv4&gt;]&#xa;Body: { orderId, method: 'WALLET' }" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;strokeColor=#d97706;fontStyle=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="730" as="sourcePoint" />
+            <mxPoint x="610" y="730" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Check JWT -->
+        <mxCell id="m_check_jwt_2" value="13. JwtAuthGuard: Xác thực Token JWT&#xa;&amp; giải nén user profile" style="html=1;align=left;spacingLeft=5;verticalAlign=middle;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#64748b;fontColor=#334155;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="610" y="765" as="sourcePoint" />
+            <mxPoint x="610" y="805" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="660" y="765" />
+              <mxPoint x="660" y="805" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Call PaymentService -->
+        <mxCell id="m_call_service" value="14. processPayment(dto, idempotencyKey, user)" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;strokeColor=#d97706;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="610" y="830" as="sourcePoint" />
+            <mxPoint x="910" y="830" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Query Payment by IdempotencyKey -->
+        <mxCell id="m_query_idemp" value="15. prisma.payment.findUnique({ where: { idempotencyKey } })" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;strokeColor=#d97706;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="910" y="865" as="sourcePoint" />
+            <mxPoint x="1215" y="865" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ==================== KHUNG ALT: KIỂM TRA IDEMPOTENT ==================== -->
+        <mxCell id="alt_box_idemp" value="alt: Kiểm tra Khóa chống trùng lặp (Idempotent Check)" style="shape=umlFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#d97706;fontColor=#b45309;fontStyle=1;fontSize=11;width=310;height=25;" vertex="1" parent="1">
+          <mxGeometry x="270" y="905" width="980" height="235" as="geometry" />
+        </mxCell>
+
+        <!-- Case 1: Replayed -->
+        <mxCell id="txt_case_replay" value="[Trường hợp 1: Key ĐÃ TỒN TẠI do khách bấm đúp - Idempotent Replay]" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#b45309;fontStyle=1;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="280" y="930" width="450" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="m_db_ret_existing" value="16a. Trả về Payment đã hoàn thành trước đó" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;rounded=0;strokeColor=#d97706;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1215" y="960" as="sourcePoint" />
+            <mxPoint x="910" y="960" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="m_ret_cached" value="17a. Trả kết quả cũ: { cached: true, replayed: true, payment, order }&#xa;[KHÔNG gọi trừ tiền, KHÔNG trừ kho lần 2]" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;rounded=0;strokeColor=#d97706;fontStyle=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="910" y="1000" as="sourcePoint" />
+            <mxPoint x="610" y="1000" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="m_res_replay_200" value="18a. HTTP 200 OK (Giao dịch đã xử lý trước đó)" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;rounded=0;strokeColor=#d97706;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="610" y="1035" as="sourcePoint" />
+            <mxPoint x="345" y="1035" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Divider line in Alt -->
+        <mxCell id="alt_line" value="" style="line;strokeWidth=1;dashed=1;labelPosition=top;verticalLabelPosition=bottom;align=left;verticalAlign=top;strokeColor=#d97706;" vertex="1" parent="1">
+          <mxGeometry x="270" y="1065" width="980" height="10" as="geometry" />
+        </mxCell>
+
+        <!-- Case 2: New Key -->
+        <mxCell id="txt_case_new" value="[Trường hợp 2: Key CHƯA TỒN TẠI (Thanh toán giao dịch mới)]" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontColor=#15803d;fontStyle=1;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="280" y="1075" width="400" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="m_db_ret_null" value="16b. Trả về null (Chưa có giao dịch nào với Key này)" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;rounded=0;strokeColor=#15803d;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1215" y="1110" as="sourcePoint" />
+            <mxPoint x="910" y="1110" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ==================== GIAI ĐOẠN 3: TRANSACTION VÀ OPTIMISTIC LOCKING ==================== -->
+        <mxCell id="divider_3" value="PHẦN 3: DATABASE TRANSACTION ACID (OPTIMISTIC LOCKING, TRỪ TIỀN &amp; TÍCH ĐIỂM)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#22c55e;fontColor=#14532d;fontStyle=1;fontSize=11;align=left;spacingLeft=15;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1165" width="1230" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Check State Machine -->
+        <mxCell id="m_check_sm" value="19. assertTransition(order.status, 'PAID'):&#xa;Kiểm tra máy trạng thái (PENDING/PAYMENT_FAILED -&gt; PAID)" style="html=1;align=left;spacingLeft=5;verticalAlign=middle;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#f59e0b;fontColor=#b45309;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="910" y="1205" as="sourcePoint" />
+            <mxPoint x="910" y="1245" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="960" y="1205" />
+              <mxPoint x="960" y="1245" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Begin Transaction -->
+        <mxCell id="m_begin_tx" value="20. Bắt đầu Transaction ACID: prisma.$transaction(async tx =&gt; ...)" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;strokeColor=#16a34a;fontStyle=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="910" y="1275" as="sourcePoint" />
+            <mxPoint x="1215" y="1275" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Loop Optimistic lock -->
+        <mxCell id="loop_stock" value="loop: Khấu trừ tồn kho nguyên liệu (Optimistic Locking &amp; Retry)" style="shape=umlFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#16a34a;fontColor=#15803d;fontStyle=1;fontSize=11;width=350;height=25;" vertex="1" parent="1">
+          <mxGeometry x="840" y="1315" width="410" height="150" as="geometry" />
+        </mxCell>
+
+        <mxCell id="m_find_ing" value="21a. tx.ingredient.findUnique({ where: { id } })" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;strokeColor=#16a34a;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="910" y="1355" as="sourcePoint" />
+            <mxPoint x="1215" y="1355" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="m_update_ing" value="21b. tx.ingredient.updateMany({&#xa;  where: { id, version: currVersion, stockQuantity: { gte: required } },&#xa;  data: { stockQuantity: { decrement: required }, version: { increment: 1 } }&#xa;}) [Chống bán âm khi nhiều khách mua cùng lúc]" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;strokeColor=#16a34a;fontStyle=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="910" y="1415" as="sourcePoint" />
+            <mxPoint x="1215" y="1415" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Call MockGateway -->
+        <mxCell id="m_call_mock" value="22. mockGateway.processCharge({ amount, method: 'WALLET' })" style="html=1;align=left;spacingLeft=5;verticalAlign=middle;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeColor=#f59e0b;fontColor=#b45309;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="910" y="1495" as="sourcePoint" />
+            <mxPoint x="910" y="1535" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="960" y="1495" />
+              <mxPoint x="960" y="1535" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Save Payment & Update Order -->
+        <mxCell id="m_save_pay" value="23. tx.payment.create({ idempotencyKey, status: SUCCESS, amount })&#xa;&amp; tx.order.update({ status: PAID })" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;strokeColor=#16a34a;fontStyle=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="910" y="1575" as="sourcePoint" />
+            <mxPoint x="1215" y="1575" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Loyalty Points & Audit Log -->
+        <mxCell id="m_loyalty_log" value="24. tx.customer.update({ loyaltyPoints: +earnedPoints })&#xa;&amp; tx.orderStatusHistory.create({ PENDING -&gt; PAID, note: '...' })" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;strokeColor=#16a34a;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="910" y="1635" as="sourcePoint" />
+            <mxPoint x="1215" y="1635" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Transaction commit -->
+        <mxCell id="m_commit_tx" value="25. Commit Transaction thành công" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;rounded=0;strokeColor=#16a34a;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1215" y="1685" as="sourcePoint" />
+            <mxPoint x="910" y="1685" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Return to Controller -->
+        <mxCell id="m_service_ret" value="26. Trả về: { success: true, cached: false, payment, order, earnedPoints }" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;rounded=0;strokeColor=#16a34a;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="910" y="1725" as="sourcePoint" />
+            <mxPoint x="610" y="1725" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Controller returns HTTP 201 Created -->
+        <mxCell id="m_controller_res" value="27. HTTP 201 Created: { success: true, message: 'Thanh toán thành công', data: ... }" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;rounded=0;strokeColor=#2563eb;fontStyle=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="610" y="1765" as="sourcePoint" />
+            <mxPoint x="345" y="1765" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- UI displays success & Order Code -->
+        <mxCell id="m_ui_success" value="28. Hiển thị: 'Thanh toán thành công! Mã đơn: #ORD-xxxx'&#xa;&amp; Chuyển sang màn hình theo dõi đơn thời gian thực" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;rounded=0;strokeColor=#2563eb;fontStyle=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="1810" as="sourcePoint" />
+            <mxPoint x="120" y="1810" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Note on diagram -->
+        <mxCell id="note_box" value="GHI CHÚ KỸ THUẬT (KIỂM TRA ĐỒ ÁN):&#xa;1. Check JWT: JwtAuthGuard chặn ngay lập tức nếu thiếu token hoặc token hết hạn (401 Unauthorized).&#xa;2. Chống click đúp: Khách click 2 lần liên tiếp -&gt; Cùng Idempotency-Key -&gt; Lần 2 nhận HTTP 200 Replay, không bao giờ bị trừ tiền 2 lần.&#xa;3. Chống âm kho: Transaction kết hợp Optimistic Locking qua cột 'version' đảm bảo nguyên tử (ACID)." style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;fillColor=#fef08a;strokeColor=#ca8a04;fontColor=#854d0e;fontSize=11;size=15;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1870" width="1230" height="90" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
