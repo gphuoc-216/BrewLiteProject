@@ -711,11 +711,15 @@ export default function CartPage() {
               variant={user ? "primary" : "secondary"}
               size="md"
               onClick={handleProceedToCheckout}
-              className="w-full gap-2 font-semibold text-xs py-3"
+              className={`w-full gap-2 font-semibold text-xs py-3 ${
+                user && finalTotal === 0 ? 'bg-emerald-600 hover:bg-emerald-700 text-white font-bold' : ''
+              }`}
             >
               <span>
                 {user
-                  ? `Tiến hành thanh toán (${finalTotal.toLocaleString('vi-VN')}đ)`
+                  ? finalTotal === 0
+                    ? `Hoàn tất đặt đơn ngay (0đ)`
+                    : `Tiến hành thanh toán (${finalTotal.toLocaleString('vi-VN')}đ)`
                   : `Đăng nhập để thanh toán (${finalTotal.toLocaleString('vi-VN')}đ)`}
               </span>
               <ArrowRight className="w-4 h-4" strokeWidth={1.75} />
