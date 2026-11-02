@@ -3,6 +3,10 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 export function getApiBaseUrl(): string {
   if (typeof window !== 'undefined') {
     const host = window.location.hostname;
+    // Khi truy cập qua Cloudflare Tunnel hoặc tên miền công khai -> dùng đường dẫn tương đối /api
+    if (host.includes('trycloudflare.com') || host.includes('ngrok') || host.includes('loca.lt')) {
+      return '/api';
+    }
     if (host && host !== 'localhost' && host !== '127.0.0.1') {
       const port = process.env.NEXT_PUBLIC_API_PORT || '3001';
       return `${window.location.protocol}//${host}:${port}/api`;
