@@ -11,6 +11,7 @@ coverage/
 out/
 build/
 dist/
+*.tsbuildinfo
 
 # Prisma
 backend/prisma/*.db
@@ -42,3 +43,16 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# Testing & IDE artifacts
+.playwright-mcp/
+.impeccable/
+.taste-skill/
+*.zip
+*.exe
+*.pdf
+*.py
+cloudflared*
+example_screenshot.png
+
+Usecase/
