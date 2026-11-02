@@ -66,6 +66,10 @@ export default function ProductDetailPage() {
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [eligibleOrderId, setEligibleOrderId] = useState<string | null>(null);
+  const [selectedVoucherCodes, setSelectedVoucherCodes] = useState<string[]>([]);
+  const [usePoints, setUsePoints] = useState(false);
+  const [manualVoucherCode, setManualVoucherCode] = useState('');
+  const [voucherError, setVoucherError] = useState<string | null>(null);
 
   const handleOpenReviewModal = async () => {
     if (!user) {
@@ -293,10 +297,6 @@ export default function ProductDetailPage() {
   const unitPrice = baseSizePrice + extraToppingsPrice;
   const totalPrice = unitPrice * quantity;
 
-  const [selectedVoucherCodes, setSelectedVoucherCodes] = useState<string[]>([]);
-  const [usePoints, setUsePoints] = useState(false);
-  const [manualVoucherCode, setManualVoucherCode] = useState('');
-  const [voucherError, setVoucherError] = useState<string | null>(null);
 
   const availablePoints = user?.loyaltyPoints || 0;
   const { totalDiscount: voucherDiscount } = calcDiscountForVoucherList(
