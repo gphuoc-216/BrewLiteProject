@@ -19,11 +19,15 @@ export interface AppliedPromotion {
   discountType: 'PERCENT' | 'FIXED';
   discountValue: number;
   discountAmount: number;
+  minOrder?: number;
 }
 
 interface CartState {
   items: CartItem[];
   promotion: AppliedPromotion | null;
+  promotions: AppliedPromotion[];
+  loyaltyPointsUsed: number;
+  setLoyaltyPointsUsed: (pts: number) => void;
   addItem: (item: Omit<CartItem, 'id' | 'quantity'> & { id?: string }, quantity?: number) => void;
   updateQuantity: (id: string, quantity: number) => void;
   removeItem: (id: string) => void;
@@ -31,7 +35,9 @@ interface CartState {
   loadUserCart: (accountKey?: string) => void;
   switchUserCart: (accountKey?: string) => void;
   applyPromotion: (promo: AppliedPromotion) => void;
-  removePromotion: () => void;
+  togglePromotion: (promo: AppliedPromotion) => void;
+  removePromotion: (code?: string) => void;
+  getPromoDiscount: () => number;
   getSubtotal: () => number;
   getTotalCount: () => number;
   getFinalTotal: () => number;
@@ -81,6 +87,12 @@ export const useCartStore = create<CartState>((set, get) => {
   return {
     items: initialItems,
     promotion: null,
+    promotions: [],
+    loyaltyPointsUsed: 0,
+
+    setLoyaltyPointsUsed: (pts: number) => {
+      set({ loyaltyPointsUsed: Math.max(0, pts) });
+    },
 
     addItem: (item, quantity = 1) => {
       const lineId = item.id || `${item.variantId}:${item.topping || 'default'}`;
@@ -128,27 +140,66 @@ export const useCartStore = create<CartState>((set, get) => {
         localStorage.removeItem(getStorageKey());
         localStorage.removeItem('brewlite_cart');
       }
-      set({ items: [], promotion: null });
+      set({ items: [], promotion: null, promotions: [], loyaltyPointsUsed: 0 });
     },
 
     loadUserCart: (accountKey?: string) => {
       const key = getStorageKey(accountKey);
       const items = readStorageCart(key);
-      set({ items, promotion: null });
+      set({ items, promotion: null, promotions: [], loyaltyPointsUsed: 0 });
     },
 
     switchUserCart: (accountKey?: string) => {
       const key = getStorageKey(accountKey);
       const items = readStorageCart(key);
-      set({ items, promotion: null });
+      set({ items, promotion: null, promotions: [], loyaltyPointsUsed: 0 });
     },
 
     applyPromotion: (promo) => {
-      set({ promotion: promo });
+      set((state) => {
+        const existingIdx = state.promotions.findIndex((p) => p.code.toUpperCase() === promo.code.toUpperCase());
+        let updated: AppliedPromotion[];
+        if (existingIdx > -1) {
+          updated = [...state.promotions];
+          updated[existingIdx] = promo;
+        } else {
+          updated = [...state.promotions, promo];
+        }
+        return {
+          promotions: updated,
+          promotion: updated[0] || null,
+        };
+      });
     },
 
-    removePromotion: () => {
-      set({ promotion: null });
+    togglePromotion: (promo) => {
+      set((state) => {
+        const exists = state.promotions.some((p) => p.code.toUpperCase() === promo.code.toUpperCase());
+        const updated = exists
+          ? state.promotions.filter((p) => p.code.toUpperCase() !== promo.code.toUpperCase())
+          : [...state.promotions, promo];
+        return {
+          promotions: updated,
+          promotion: updated[0] || null,
+        };
+      });
+    },
+
+    removePromotion: (code?: string) => {
+      set((state) => {
+        if (!code) {
+          return { promotions: [], promotion: null };
+        }
+        const updated = state.promotions.filter((p) => p.code.toUpperCase() !== code.toUpperCase());
+        return {
+          promotions: updated,
+          promotion: updated[0] || null,
+        };
+      });
+    },
+
+    getPromoDiscount: () => {
+      return get().promotions.reduce((sum, p) => sum + (p.discountAmount || 0), 0);
     },
 
     getSubtotal: () => {
@@ -161,8 +212,11 @@ export const useCartStore = create<CartState>((set, get) => {
 
     getFinalTotal: () => {
       const subtotal = get().getSubtotal();
-      const discount = get().promotion ? get().promotion!.discountAmount : 0;
-      return Math.max(0, subtotal - discount);
+      const promoDiscount = get().promotions.length > 0
+        ? get().promotions.reduce((sum, p) => sum + (p.discountAmount || 0), 0)
+        : (get().promotion ? get().promotion!.discountAmount : 0);
+      const pointsDiscount = (get().loyaltyPointsUsed || 0) * 100;
+      return Math.max(0, subtotal - promoDiscount - pointsDiscount);
     },
   };
 });
