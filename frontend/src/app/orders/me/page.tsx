@@ -60,6 +60,17 @@ export default function OrdersMePage() {
   useEffect(() => {
     if (!ready) return;
     loadOrders();
+
+    // Tự động làm mới dữ liệu ngầm mỗi 2.5 giây khi Barista đổi trạng thái đơn
+    const interval = setInterval(() => {
+      fetchApi<OrderRecord[]>('/orders/me')
+        .then((data) => {
+          if (data) setOrders(data);
+        })
+        .catch(() => {});
+    }, 2500);
+
+    return () => clearInterval(interval);
   }, [ready]);
 
   const filteredOrders = useMemo(() => {

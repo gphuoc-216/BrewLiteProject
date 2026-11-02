@@ -158,7 +158,10 @@ function LoginFormContent() {
 
         <div className="text-center text-xs text-ink-3 pt-2 border-t border-line">
           <span>Chưa có tài khoản? </span>
-          <Link href="/register" className="text-accent hover:underline font-medium">
+          <Link
+            href={redirectUrl && redirectUrl !== '/' ? `/register?redirect=${encodeURIComponent(redirectUrl)}` : '/register'}
+            className="text-accent hover:underline font-medium"
+          >
             Đăng ký ngay
           </Link>
         </div>

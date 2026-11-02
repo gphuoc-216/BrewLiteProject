@@ -1,15 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { fetchApi, getErrorMessage } from '../../lib/api';
 import { useAuthStore, User } from '../../store/useAuthStore';
 import { Button, Input, Card } from '../../components/ui';
 import { AlertCircle, Eye, EyeOff } from 'lucide-react';
 
-export default function RegisterPage() {
+function RegisterFormContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get('redirect') || '/';
   const { setAuth } = useAuthStore();
 
   const [username, setUsername] = useState('');
@@ -50,7 +52,7 @@ export default function RegisterPage() {
       });
 
       setAuth(res.user, res.accessToken, res.refreshToken);
-      router.push('/');
+      router.push(redirectUrl);
     } catch (err: unknown) {
       setErrorMsg(getErrorMessage(err));
     } finally {
@@ -80,7 +82,7 @@ export default function RegisterPage() {
             autoComplete="username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="minhanh26"
+            placeholder="ví dụ: minhanh26"
           />
 
           <Input
@@ -89,26 +91,26 @@ export default function RegisterPage() {
             autoComplete="name"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            placeholder="Nguyễn Minh Anh"
+            placeholder="ví dụ: Nguyễn Minh Anh"
           />
 
           <Input
-            label="Địa chỉ email"
+            label="Email"
             type="email"
             required
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="minhanh@example.com"
+            placeholder="minhanh@gmail.com"
           />
 
           <div className="space-y-1.5 text-left">
-            <label htmlFor="register-password" className="block text-xs font-medium text-ink-2">
+            <label htmlFor="reg-password" className="block text-xs font-medium text-ink-2">
               Mật khẩu (tối thiểu 6 ký tự)
             </label>
             <div className="relative">
               <input
-                id="register-password"
+                id="reg-password"
                 type={showPassword ? 'text' : 'password'}
                 required
                 autoComplete="new-password"
@@ -130,12 +132,12 @@ export default function RegisterPage() {
           </div>
 
           <div className="space-y-1.5 text-left">
-            <label htmlFor="register-confirm-password" className="block text-xs font-medium text-ink-2">
+            <label htmlFor="reg-confirm-password" className="block text-xs font-medium text-ink-2">
               Xác nhận mật khẩu
             </label>
             <div className="relative">
               <input
-                id="register-confirm-password"
+                id="reg-confirm-password"
                 type={showConfirmPassword ? 'text' : 'password'}
                 required
                 autoComplete="new-password"
@@ -171,11 +173,22 @@ export default function RegisterPage() {
 
         <div className="text-center text-xs text-ink-3 pt-1 border-t border-line">
           <span>Đã có tài khoản? </span>
-          <Link href="/login" className="text-accent hover:underline font-medium">
+          <Link
+            href={redirectUrl && redirectUrl !== '/' ? `/login?redirect=${encodeURIComponent(redirectUrl)}` : '/login'}
+            className="text-accent hover:underline font-medium"
+          >
             Đăng nhập ngay
           </Link>
         </div>
       </Card>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div className="max-w-[400px] mx-auto py-12 text-center text-xs text-ink-3">Đang tải...</div>}>
+      <RegisterFormContent />
+    </Suspense>
   );
 }

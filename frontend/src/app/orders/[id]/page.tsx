@@ -61,7 +61,7 @@ export default function OrderConfirmationPage() {
     if (!ready || !params.id) return;
 
     fetchOrder();
-    intervalRef.current = setInterval(fetchOrder, 4000);
+    intervalRef.current = setInterval(fetchOrder, 2000);
 
     const handleVisibilityChange = () => {
       if (

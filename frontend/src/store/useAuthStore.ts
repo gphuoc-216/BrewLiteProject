@@ -10,6 +10,7 @@ export interface User {
   profileId?: string;
   fullName?: string;
   email?: string;
+  phone?: string;
   loyaltyPoints?: number;
 }
 
