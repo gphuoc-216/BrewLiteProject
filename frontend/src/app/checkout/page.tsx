@@ -39,9 +39,20 @@ function CheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const retryOrderId = searchParams.get('orderId');
+  const isBuyNow = searchParams.get('buyNow') === '1';
   const { ready, user } = useRequireRole(['CUSTOMER', 'STAFF', 'ADMIN']);
   const { items, promotion, promotions, loyaltyPointsUsed, getSubtotal, getFinalTotal, clearCart } = useCartStore();
   const { fetchProfile, updateLoyaltyPoints } = useAuthStore();
+
+  const [buyNowItems, setBuyNowItems] = useState<any[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = sessionStorage.getItem('brewlite_buy_now_item');
+        if (raw) return JSON.parse(raw);
+      } catch {}
+    }
+    return [];
+  });
 
   useEffect(() => {
     if (ready) {
@@ -182,7 +193,10 @@ function CheckoutContent() {
   const isPollingRef = useRef<boolean>(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const cartSubtotal = getSubtotal();
+  const activeItems = isBuyNow && buyNowItems.length > 0 ? buyNowItems : items;
+  const cartSubtotal = isBuyNow && buyNowItems.length > 0
+    ? buyNowItems.reduce((acc, it) => acc + Number(it.price || 0) * Number(it.quantity || 1), 0)
+    : getSubtotal();
   const retryDiscount = Number(retryOrder?.discountAmount || 0);
   const subtotal = retryOrder
     ? Number(retryOrder.totalAfterDiscount || 0) + retryDiscount
@@ -190,13 +204,15 @@ function CheckoutContent() {
 
   const voucherDiscount = retryOrder
     ? retryDiscount
-    : (promotions && promotions.length > 0
-        ? promotions.reduce((sum, p) => sum + (p.discountAmount || 0), 0)
-        : (promotion ? promotion.discountAmount : 0));
-  const pointsDiscount = (loyaltyPointsUsed || 0) * 100;
+    : (isBuyNow
+        ? 0
+        : (promotions && promotions.length > 0
+            ? promotions.reduce((sum, p) => sum + (p.discountAmount || 0), 0)
+            : (promotion ? promotion.discountAmount : 0)));
+  const pointsDiscount = isBuyNow ? 0 : (loyaltyPointsUsed || 0) * 100;
   const discountAmount = voucherDiscount + pointsDiscount;
   const finalTotal = Math.max(0, subtotal - discountAmount);
-  const hasPayableOrder = items.length > 0 || !!retryOrder;
+  const hasPayableOrder = activeItems.length > 0 || !!retryOrder;
   const [orderCodeDisplay, setOrderCodeDisplay] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       const saved =
@@ -287,7 +303,7 @@ function CheckoutContent() {
 
   // Sinh mã QR thanh toán chuẩn ngân hàng VietQR EMVCo (chứa chính xác số tiền, STK, người thụ hưởng, nội dung)
   useEffect(() => {
-    if (finalTotal <= 0) return;
+    if (!ready || finalTotal <= 0) return;
 
     let isCancelled = false;
     const emvPayload = generateVietQrEmvString({
@@ -328,7 +344,7 @@ function CheckoutContent() {
     return () => {
       isCancelled = true;
     };
-  }, [orderCodeDisplay, finalTotal]);
+  }, [ready, orderCodeDisplay, finalTotal]);
 
   useEffect(() => {
     if (!ready || !retryOrderId) return;
@@ -442,15 +458,17 @@ function CheckoutContent() {
         // 1. Tạo đơn hàng mới nếu chưa có orderId
         if (!orderId) {
           const orderPayload = {
-            items: items.map((i) => ({
+            items: activeItems.map((i) => ({
               variantId: i.variantId,
               quantity: i.quantity,
-              toppings: i.topping && i.topping !== 'Tiêu chuẩn' ? i.topping.split(',').map((t) => t.trim()) : undefined,
+              toppings: i.topping && i.topping !== 'Tiêu chuẩn' ? i.topping.split(',').map((t: string) => t.trim()) : undefined,
             })),
-            promotionCode: (promotions && promotions.length > 0)
+            promotionCode: isBuyNow
+              ? undefined
+              : (promotions && promotions.length > 0)
               ? promotions.map((p) => p.code).join(',')
               : (promotion ? promotion.code : undefined),
-            loyaltyPointsToUse: loyaltyPointsUsed > 0 ? loyaltyPointsUsed : undefined,
+            loyaltyPointsToUse: (!isBuyNow && loyaltyPointsUsed > 0) ? loyaltyPointsUsed : undefined,
           };
 
           const orderRes = await fetchApi<any>('/orders', {
@@ -530,7 +548,9 @@ function CheckoutContent() {
           // Bỏ qua lỗi kết nối
         }
 
-        if (!retryOrder) {
+        if (isBuyNow) {
+          sessionStorage.removeItem('brewlite_buy_now_item');
+        } else if (!retryOrder) {
           clearCart();
         }
 
@@ -556,10 +576,13 @@ function CheckoutContent() {
     },
     [
       user,
-      items,
+      activeItems,
+      isBuyNow,
       hasPayableOrder,
       isQrExpired,
       promotion,
+      promotions,
+      loyaltyPointsUsed,
       paymentMethod,
       playTingTing,
       orderCodeDisplay,
@@ -582,10 +605,10 @@ function CheckoutContent() {
 
     // Khi đã thanh toán thành công, không điều hướng về trang chủ mà để chuyển sang trang chi tiết đơn
     if (paymentStatus === 'SUCCESS') return;
-    if ((items.length === 0 && !retryOrderId) || isAlreadyCompleted) {
+    if ((activeItems.length === 0 && !retryOrderId) || isAlreadyCompleted) {
       router.replace('/');
     }
-  }, [ready, items.length, retryOrderId, orderCodeDisplay, router]);
+  }, [ready, activeItems.length, retryOrderId, orderCodeDisplay, router, paymentStatus]);
 
   // Chỉ chặn Back sau khi thanh toán thành công để tránh quay lại mã QR đã hoàn tất.
   useEffect(() => {
@@ -739,7 +762,7 @@ function CheckoutContent() {
         </div>
         <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center">
           <Link
-            href="/login?redirect=/checkout"
+            href={isBuyNow ? "/login?redirect=/checkout?buyNow=1" : "/login?redirect=/checkout"}
             className="px-5 py-2.5 bg-accent hover:bg-accent-hover text-on-accent text-xs font-semibold rounded-lg shadow-sm transition-colors text-center"
           >
             Đăng Nhập Ngay
@@ -785,16 +808,16 @@ function CheckoutContent() {
 
   const selectedItemsText = retryOrder
     ? `${retryOrder.items?.length || 0} món (${retryOrder.items?.map((i) => `${i.quantity}x ${i.variant?.product?.name || 'Món'}`).join(', ') || 'Đơn cũ'})`
-    : `${items.length} món (${items.map((i) => `${i.productName} (${i.size})`).join(', ')})`;
+    : `${activeItems.length} món (${activeItems.map((i) => `${i.productName} (${i.size})`).join(', ')})`;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <Link
-        href="/cart"
+        href={isBuyNow ? "/" : "/cart"}
         className="inline-flex items-center gap-1.5 text-xs text-ink-2 hover:text-ink font-medium transition-colors"
       >
         <ArrowLeft className="w-3.5 h-3.5" strokeWidth={1.75} />
-        <span>Quay lại giỏ hàng</span>
+        <span>{isBuyNow ? "Quay lại thực đơn" : "Quay lại giỏ hàng"}</span>
       </Link>
 
       <PageHeader
@@ -950,7 +973,17 @@ function CheckoutContent() {
             <div className="relative inline-block mx-auto">
               <div className="bg-white p-3.5 rounded-2xl border-2 border-blue-600 shadow-md inline-block">
                 <div className="flex items-center justify-center min-w-[210px] min-h-[210px] bg-white rounded overflow-hidden">
-                  <canvas ref={canvasRef} width={210} height={210} className="block mx-auto rounded" />
+                  <img
+                    src={
+                      qrDataUrl ||
+                      `https://img.vietqr.io/image/970436-99998888-compact.png?amount=${finalTotal}&addInfo=BREWLITE%20${orderCodeDisplay}&accountName=BREWLITE%20COFFEE`
+                    }
+                    alt="Mã QR Thanh Toán BrewLite"
+                    width={210}
+                    height={210}
+                    className="block mx-auto rounded"
+                  />
+                  <canvas ref={canvasRef} width={210} height={210} className="hidden" />
                 </div>
                 <div className="mt-2.5 text-[11px] text-slate-800 font-bold leading-relaxed border-t border-slate-100 pt-2 text-left space-y-0.5">
                   <div className="flex justify-between"><span>Đơn vị nhận:</span> <b>BrewLite Coffee</b></div>

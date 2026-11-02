@@ -280,34 +280,36 @@ export default function ProductDetailPage() {
   const handleAddToCart = (isBuyNow = false) => {
     if (!selectedVariant) return;
 
-    addItem(
-      {
-        id: `${selectedVariant.id}:${toppingLabel}`,
-        variantId: selectedVariant.id,
-        productId: product.id,
-        productName: product.name,
-        imageUrl: product.imageUrl,
-        size: selectedVariant.size,
-        price: unitPrice,
-        topping: toppingLabel,
-      },
-      quantity
-    );
+    const lineItem = {
+      id: `${selectedVariant.id}:${toppingLabel}`,
+      variantId: selectedVariant.id,
+      productId: product.id,
+      productName: product.name,
+      imageUrl: product.imageUrl,
+      size: selectedVariant.size,
+      price: unitPrice,
+      topping: toppingLabel,
+      quantity,
+    };
 
     if (isBuyNow) {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('brewlite_buy_now_item', JSON.stringify([lineItem]));
+      }
       if (!user) {
         setToast({
           message: 'Bạn cần đăng nhập tài khoản để mua ngay và thanh toán đơn hàng.',
           type: 'info',
           action: {
             label: 'Đăng nhập',
-            href: '/login?redirect=/checkout',
+            href: '/login?redirect=/checkout?buyNow=1',
           },
         });
         return;
       }
-      router.push('/cart');
+      router.push('/checkout?buyNow=1');
     } else {
+      addItem(lineItem, quantity);
       setToast({
         message: `Đã thêm ${quantity} ly ${product.name} (Size ${selectedVariant.size} · Topping: ${toppingLabel}) vào giỏ hàng.`,
         type: 'success',

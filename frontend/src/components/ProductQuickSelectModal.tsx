@@ -165,12 +165,19 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
         onClose();
         return;
       }
-      addItem(cartPayload, quantity);
+      const buyNowItem = {
+        ...cartPayload,
+        quantity,
+      };
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('brewlite_buy_now_item', JSON.stringify([buyNowItem]));
+      }
       onClose();
       if (!user) {
+        router.push('/login?redirect=/checkout?buyNow=1');
         return;
       }
-      router.push('/cart');
+      router.push('/checkout?buyNow=1');
     } else {
       if (onAddToCart) {
         onAddToCart(cartPayload, quantity);
