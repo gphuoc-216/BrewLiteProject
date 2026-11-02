@@ -256,7 +256,7 @@ class FallbackStore {
       ],
       statusHistories: [
         { id: 'h21', fromStatus: OrderStatus.PENDING, toStatus: OrderStatus.PENDING, note: 'Khởi tạo đơn hàng', createdAt: new Date(Date.now() - 1800000) },
-        { id: 'h22', fromStatus: OrderStatus.PENDING, toStatus: OrderStatus.PAID, note: 'Thanh toán quét mã VietQR MBBank thành công', createdAt: new Date(Date.now() - 1700000) },
+        { id: 'h22', fromStatus: OrderStatus.PENDING, toStatus: OrderStatus.PAID, note: 'Thanh toán quét mã QR chuyển khoản thành công', createdAt: new Date(Date.now() - 1700000) },
         { id: 'h23', fromStatus: OrderStatus.PAID, toStatus: OrderStatus.PREPARING, note: 'Barista đã nhận đơn và bắt đầu pha chế', createdAt: new Date(Date.now() - 1200000) },
       ],
       customer: {
@@ -350,14 +350,23 @@ class FallbackStore {
     return null;
   }
 
-  createOrder(customerId: string, itemsData: { variantId: string; quantity: number }[], discountAmount = 0, promotionId: string | null = null): MockOrder {
+  createOrder(customerId: string, itemsData: { variantId: string; quantity: number; toppings?: string[] }[], discountAmount = 0, promotionId: string | null = null): MockOrder {
     const orderId = `ord-${Date.now()}`;
     let subtotal = 0;
     const orderItems: MockOrderItem[] = [];
 
     for (const item of itemsData) {
       const variant = this.findVariantById(item.variantId);
-      const unitPrice = variant ? variant.price : 35000;
+      const extraToppings = (item.toppings || []).reduce((sum, name) => {
+        if (name.includes('Trân châu')) return sum + 6000;
+        if (name.includes('Khúc bạch')) return sum + 9000;
+        if (name.includes('Kem Cheese')) return sum + 10000;
+        if (name.includes('kem trà sữa')) return sum + 10000;
+        if (name.includes('đào')) return sum + 8000;
+        if (name.includes('Nha đam')) return sum + 7000;
+        return sum + 8000;
+      }, 0);
+      const unitPrice = (variant ? variant.price : 35000) + extraToppings;
       const lineTotal = unitPrice * item.quantity;
       subtotal += lineTotal;
       orderItems.push({

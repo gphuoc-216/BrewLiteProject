@@ -14,7 +14,8 @@ export async function GET(
 
   // 1. Thử hỏi NestJS Backend trước
   const backendEndpoints = [
-    `http://brewlite_backend:3001/api/payments/mbbank-check/${encodeURIComponent(code)}`,
+    `http://backend:3001/api/payments/mbbank-check/',
+    http://brewlite_backend:3001/api/payments/mbbank-check/${encodeURIComponent(code)}`,
     `http://127.0.0.1:3001/api/payments/mbbank-check/${encodeURIComponent(code)}`,
     `http://localhost:3001/api/payments/mbbank-check/${encodeURIComponent(code)}`,
   ];

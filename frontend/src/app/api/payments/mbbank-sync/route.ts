@@ -47,6 +47,7 @@ export async function POST(request: Request) {
 
     // Forward đồng thời sang NestJS backend (hỗ trợ cả môi trường docker và máy local)
     const backendEndpoints = [
+      'http://backend:3001/api/payments/mbbank-sync',
       'http://brewlite_backend:3001/api/payments/mbbank-sync',
       'http://127.0.0.1:3001/api/payments/mbbank-sync',
       'http://localhost:3001/api/payments/mbbank-sync',
