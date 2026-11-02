@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <radialGradient id="bobaGrad" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#4A3728"/>
+      <stop offset="40%" stop-color="#24140E"/>
+      <stop offset="100%" stop-color="#110A06"/>
+    </radialGradient>
+    <radialGradient id="syrupBg" cx="50%" cy="60%" r="50%">
+      <stop offset="0%" stop-color="#7B3F00"/>
+      <stop offset="60%" stop-color="#4A2306"/>
+      <stop offset="100%" stop-color="#2B1202"/>
+    </radialGradient>
+  </defs>
+  <!-- Bát hoặc đáy ly chứa siro đường đen -->
+  <circle cx="50" cy="50" r="46" fill="#FBF7F0" stroke="#E2CCA6" stroke-width="2"/>
+  <circle cx="50" cy="50" r="40" fill="url(#syrupBg)"/>
+  
+  <!-- Các hạt trân châu bóng bẩy xếp tầng -->
+  <!-- Lớp dưới -->
+  <circle cx="34" cy="42" r="11" fill="url(#bobaGrad)"/>
+  <circle cx="66" cy="42" r="11" fill="url(#bobaGrad)"/>
+  <circle cx="50" cy="34" r="11" fill="url(#bobaGrad)"/>
+  
+  <!-- Lớp giữa -->
+  <circle cx="30" cy="60" r="11.5" fill="url(#bobaGrad)"/>
+  <circle cx="70" cy="60" r="11.5" fill="url(#bobaGrad)"/>
+  <circle cx="50" cy="56" r="12" fill="url(#bobaGrad)"/>
+  <circle cx="40" cy="70" r="11" fill="url(#bobaGrad)"/>
+  <circle cx="60" cy="70" r="11" fill="url(#bobaGrad)"/>
+
+  <!-- Điểm sáng bóng loáng (High-gloss reflections) -->
+  <ellipse cx="32" cy="38" rx="3.5" ry="2" fill="#FFFFFF" opacity="0.6" transform="rotate(-30 32 38)"/>
+  <ellipse cx="48" cy="30" rx="3.5" ry="2" fill="#FFFFFF" opacity="0.6" transform="rotate(-30 48 30)"/>
+  <ellipse cx="64" cy="38" rx="3.5" ry="2" fill="#FFFFFF" opacity="0.6" transform="rotate(-30 64 38)"/>
+  <ellipse cx="47" cy="51" rx="4" ry="2.5" fill="#FFFFFF" opacity="0.7" transform="rotate(-30 47 51)"/>
+  <ellipse cx="27" cy="56" rx="3.5" ry="2" fill="#FFFFFF" opacity="0.6" transform="rotate(-30 27 56)"/>
+  <ellipse cx="67" cy="56" rx="3.5" ry="2" fill="#FFFFFF" opacity="0.6" transform="rotate(-30 67 56)"/>
+  <ellipse cx="38" cy="66" rx="3" ry="1.8" fill="#FFFFFF" opacity="0.5" transform="rotate(-30 38 66)"/>
+  <ellipse cx="58" cy="66" rx="3" ry="1.8" fill="#FFFFFF" opacity="0.5" transform="rotate(-30 58 66)"/>
+  
+  <!-- Vệt siro đường đen óng ả chảy -->
+  <path d="M 45 22 Q 50 32 48 42 Q 52 38 56 22 Z" fill="#D48B38" opacity="0.7"/>
+</svg>
+
