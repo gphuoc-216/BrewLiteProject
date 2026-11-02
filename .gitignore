@@ -48,5 +48,6 @@ Thumbs.db
 .playwright-mcp/
 *.zip
 *.exe
+*.pdf
 cloudflared*
 example_screenshot.png
