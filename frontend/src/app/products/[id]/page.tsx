@@ -27,6 +27,7 @@ interface ProductDetail {
   avgRating?: number;
   rating?: number;
   reviewCount?: number;
+  isOutOfStock?: boolean;
   variants: ProductVariant[];
   reviews?: Array<{
     id: string;
@@ -185,8 +186,8 @@ export default function ProductDetailPage() {
         const data = await fetchApi<ProductDetail>(`/products/${params.id}`);
         setProduct(data);
         if (data.variants && data.variants.length > 0) {
-          const firstVariant = data.variants[0];
-          setSelectedSize(firstVariant.size);
+          const availableVariant = data.variants.find((v) => !v.isOutOfStock) || data.variants[0];
+          setSelectedSize(availableVariant.size);
         }
       } catch {
         const found = MOCK_PRODUCTS.find((p) => p.id === params.id) || MOCK_PRODUCTS[0];
@@ -212,7 +213,8 @@ export default function ProductDetailPage() {
           };
           setProduct(fallbackData);
           if (fallbackData.variants.length > 0) {
-            setSelectedSize(fallbackData.variants[0].size);
+            const availableVariant = fallbackData.variants.find((v) => !v.isOutOfStock) || fallbackData.variants[0];
+            setSelectedSize(availableVariant.size);
           }
         }
       } finally {
@@ -284,6 +286,8 @@ export default function ProductDetailPage() {
     if (single) selectedVariant = single;
   }
 
+  const isSelectedVariantOutOfStock = Boolean(selectedVariant?.isOutOfStock) || Boolean(product?.isOutOfStock);
+
   // Phân phối Topping chính xác theo từng món thực tế (Trà đào/vải -> thạch đào/nha đam; Trà sữa -> trân châu/khúc bạch; Cà phê -> espresso/cheese)
   const toppingsForCategory = getToppingsForProduct(product);
 
@@ -341,7 +345,7 @@ export default function ProductDetailPage() {
   const toppingLabel = optionsList.length > 0 ? optionsList.join(' · ') : 'Tiêu chuẩn';
 
   const handleAddToCart = (isBuyNow = false) => {
-    if (!selectedVariant) return;
+    if (!selectedVariant || isSelectedVariantOutOfStock) return;
 
     const lineItem = {
       id: `${selectedVariant.id}:${toppingLabel}`,
@@ -422,9 +426,14 @@ export default function ProductDetailPage() {
               alt={product.name}
               fill
               sizes="(max-width: 768px) 100vw, 50vw"
-              className="object-cover"
+              className={`object-cover ${product.isOutOfStock ? 'opacity-70 grayscale-[25%]' : ''}`}
               priority
             />
+            {product.isOutOfStock && (
+              <span className="absolute top-3 left-3 px-2.5 py-1 text-xs font-bold tracking-wider uppercase rounded bg-rose-600 text-white shadow-md flex items-center gap-1.5 backdrop-blur-sm">
+                <span>⛔</span> Tạm hết hàng
+              </span>
+            )}
           </div>
         </div>
 
@@ -466,24 +475,35 @@ export default function ProductDetailPage() {
             <span className="text-xs font-semibold text-ink block">Kích cỡ ly</span>
             <div className="grid grid-cols-3 gap-2">
               {availableSizes.map((size) => {
-                const sampleVariant = product.variants.find((v) => v.size === size);
                 const isSelected = currentSize === size;
+                const sizeVariant = product.variants.find((v) => v.size === size);
+                const isOutOfStock = Boolean(sizeVariant?.isOutOfStock);
                 return (
                   <button
                     key={size}
                     type="button"
+                    disabled={isOutOfStock}
                     onClick={() => {
                       setSelectedSize(size);
                     }}
                     className={`py-2 px-3 text-center border rounded transition-colors text-xs font-medium ${
-                      isSelected
+                      isOutOfStock
+                        ? 'border-line/40 bg-surface-2 opacity-45 cursor-not-allowed'
+                        : isSelected
                         ? 'border-ink bg-ink text-white font-semibold'
                         : 'border-line bg-surface text-ink hover:bg-surface-2'
                     }`}
                   >
-                    <span className="block font-display text-sm">Size {size}</span>
+                    <div className="flex items-center justify-center gap-1">
+                      <span className="block font-display text-sm">Size {size}</span>
+                      {isOutOfStock && (
+                        <span className="text-[10px] font-bold text-rose-600 bg-rose-100 dark:bg-rose-950/60 px-1 rounded">
+                          Hết
+                        </span>
+                      )}
+                    </div>
                     <span className="block text-[11px] opacity-80 tabular-nums">
-                      {sampleVariant ? Number(sampleVariant.price).toLocaleString('vi-VN') : 0}đ
+                      {sizeVariant ? Number(sizeVariant.price).toLocaleString('vi-VN') : 0}đ
                     </span>
                   </button>
                 );
@@ -787,25 +807,41 @@ export default function ProductDetailPage() {
             </div>
 
 
+            {isSelectedVariantOutOfStock && (
+              <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2.5">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
+                <div>
+                  <span className="font-semibold block">Tạm hết nguyên liệu pha chế</span>
+                  <span>Món đồ uống này (hoặc kích cỡ đang chọn) hiện đã tạm hết nguyên liệu tại quán. Quý khách vui lòng chọn kích cỡ khác hoặc quay lại sau nhé!</span>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <Button
                 variant="secondary"
                 size="lg"
+                disabled={isSelectedVariantOutOfStock}
                 onClick={() => handleAddToCart(false)}
-                className="w-full text-sm font-semibold flex items-center justify-center gap-2 border-ink/30 hover:border-ink"
+                className={`w-full text-sm font-semibold flex items-center justify-center gap-2 ${
+                  isSelectedVariantOutOfStock ? 'opacity-50 cursor-not-allowed border-line' : 'border-ink/30 hover:border-ink'
+                }`}
               >
                 <ShoppingBag className="w-4 h-4" />
-                <span>Thêm vào giỏ</span>
+                <span>{isSelectedVariantOutOfStock ? 'Tạm hết hàng' : 'Thêm vào giỏ'}</span>
               </Button>
 
               <Button
                 variant="primary"
                 size="lg"
+                disabled={isSelectedVariantOutOfStock}
                 onClick={() => handleAddToCart(true)}
-                className="w-full text-sm font-semibold flex items-center justify-center gap-2 shadow-sm bg-accent hover:bg-accent-hover text-on-accent"
+                className={`w-full text-sm font-semibold flex items-center justify-center gap-2 ${
+                  isSelectedVariantOutOfStock ? 'opacity-50 cursor-not-allowed bg-slate-300 dark:bg-slate-700 text-slate-500' : 'shadow-sm bg-accent hover:bg-accent-hover text-on-accent'
+                }`}
               >
                 <Zap className="w-4 h-4 fill-current" />
-                <span>Mua ngay</span>
+                <span>{isSelectedVariantOutOfStock ? 'Tạm hết hàng' : 'Mua ngay'}</span>
               </Button>
             </div>
           </div>

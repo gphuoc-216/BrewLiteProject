@@ -91,8 +91,8 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
     if (product) {
       setImgSrc(product.imageUrl || FALLBACK_IMAGE);
       if (product.variants && product.variants.length > 0) {
-        const firstVar = product.variants[0];
-        setSelectedSize(firstVar.size as 'S' | 'M' | 'L');
+        const availableVar = product.variants.find((v) => !v.isOutOfStock) || product.variants[0];
+        setSelectedSize(availableVar.size as 'S' | 'M' | 'L');
       }
       setSelectedToppings([]);
       setSugarLevel('100% Đường');
@@ -135,6 +135,8 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
     );
     if (single) selectedVariant = single;
   }
+
+  const isSelectedVariantOutOfStock = Boolean(selectedVariant?.isOutOfStock) || Boolean(product?.isOutOfStock);
 
   // Phân phối Topping chính xác theo từng món thực tế (Trà đào/vải -> thạch đào/nha đam; Trà sữa -> trân châu/khúc bạch; Cà phê -> espresso/cheese)
   const toppingsForCategory = getToppingsForProduct(product);
@@ -195,7 +197,7 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
   const toppingLabel = optionsList.length > 0 ? optionsList.join(' · ') : 'Tiêu chuẩn';
 
   const handleConfirm = (isBuyNow = false) => {
-    if (!selectedVariant) return;
+    if (!selectedVariant || isSelectedVariantOutOfStock) return;
 
     const cartPayload = {
       id: `${selectedVariant.id}:${toppingLabel}`,
@@ -265,6 +267,11 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
                 <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-ink/10 text-ink">
                   {product.category}
                 </span>
+                {product.isOutOfStock && (
+                  <span className="text-[10px] font-bold text-white bg-rose-600 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                    ⛔ Tạm hết hàng
+                  </span>
+                )}
                 {(product.reviewCount && product.reviewCount > 0) ? (
                   <span className="flex items-center gap-0.5 text-xs text-ink-2 font-medium">
                     <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
@@ -312,16 +319,18 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
               const isSelected = currentSize === size;
               const sizeVariant = variants.find((v) => v.size === size);
               const priceForSize = sizeVariant ? Number(sizeVariant.price) : null;
+              const isVariantOutOfStock = Boolean(sizeVariant?.isOutOfStock);
+              const disabled = !hasSize || isVariantOutOfStock;
 
               return (
                 <button
                   key={size}
                   type="button"
-                  disabled={!hasSize}
+                  disabled={disabled}
                   onClick={() => setSelectedSize(size)}
                   className={`p-2 rounded border text-left transition-all ${
-                    !hasSize
-                      ? 'border-line/40 bg-surface-2 opacity-40 cursor-not-allowed'
+                    disabled
+                      ? 'border-line/40 bg-surface-2 opacity-45 cursor-not-allowed'
                       : isSelected
                       ? 'border-ink bg-surface-2 text-ink shadow-sm ring-1 ring-ink'
                       : 'border-line bg-surface hover:border-line-strong text-ink-2'
@@ -329,7 +338,13 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-xs">Size {size}</span>
-                    {isSelected && <Check className="w-3 h-3 text-ink" strokeWidth={2.5} />}
+                    {isVariantOutOfStock ? (
+                      <span className="text-[10px] font-bold text-rose-600 bg-rose-100 dark:bg-rose-950/60 px-1 rounded">
+                        Hết
+                      </span>
+                    ) : isSelected ? (
+                      <Check className="w-3 h-3 text-ink" strokeWidth={2.5} />
+                    ) : null}
                   </div>
                   {priceForSize !== null && (
                     <span className="text-[11px] text-ink-3 block mt-0.5">
@@ -600,29 +615,47 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
 
         {/* Actions: Thêm vào giỏ & Mua ngay */}
         <div className="pt-2 space-y-2">
-          <div className="grid grid-cols-2 gap-2.5">
-            <Button
-              type="button"
-              variant="secondary"
-              size="md"
-              onClick={() => handleConfirm(false)}
-              className="flex items-center justify-center gap-1.5 py-2.5 px-2 font-semibold text-xs border-ink/30 hover:border-ink"
-            >
-              <ShoppingBag className="w-4 h-4 shrink-0" />
-              <span>Thêm vào giỏ</span>
-            </Button>
+          {isSelectedVariantOutOfStock ? (
+            <div className="space-y-2">
+              <div className="p-2.5 rounded bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
+                <span>Món này (hoặc kích cỡ đang chọn) tạm hết nguyên liệu pha chế tại quầy.</span>
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                disabled
+                className="w-full opacity-50 cursor-not-allowed font-semibold text-xs py-2.5"
+              >
+                Tạm hết nguyên liệu pha chế
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2.5">
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                onClick={() => handleConfirm(false)}
+                className="flex items-center justify-center gap-1.5 py-2.5 px-2 font-semibold text-xs border-ink/30 hover:border-ink"
+              >
+                <ShoppingBag className="w-4 h-4 shrink-0" />
+                <span>Thêm vào giỏ</span>
+              </Button>
 
-            <Button
-              type="button"
-              variant="primary"
-              size="md"
-              onClick={() => handleConfirm(true)}
-              className="flex items-center justify-center gap-1.5 py-2.5 px-2 font-semibold text-xs shadow-sm bg-accent hover:bg-accent-hover text-on-accent"
-            >
-              <Zap className="w-4 h-4 shrink-0 fill-current" />
-              <span>Mua ngay</span>
-            </Button>
-          </div>
+              <Button
+                type="button"
+                variant="primary"
+                size="md"
+                onClick={() => handleConfirm(true)}
+                className="flex items-center justify-center gap-1.5 py-2.5 px-2 font-semibold text-xs shadow-sm bg-accent hover:bg-accent-hover text-on-accent"
+              >
+                <Zap className="w-4 h-4 shrink-0 fill-current" />
+                <span>Mua ngay</span>
+              </Button>
+            </div>
+          )}
 
           <div className="flex items-center justify-between px-1 pt-1 text-[11px] text-ink-3">
             <div>

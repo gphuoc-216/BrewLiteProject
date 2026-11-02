@@ -24,6 +24,7 @@ export interface ProductVariant {
   size: 'S' | 'M' | 'L' | string;
   price: number;
   topping?: string;
+  isOutOfStock?: boolean;
 }
 
 export interface ProductItem {
@@ -35,6 +36,7 @@ export interface ProductItem {
   minPrice: number;
   rating?: number;
   reviewCount?: number;
+  isOutOfStock?: boolean;
   variants: ProductVariant[];
   reviews?: Array<{
     id: string;
