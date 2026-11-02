@@ -9,11 +9,14 @@
     "dev:frontend": "npm --prefix frontend run dev",
     "build:backend": "npm --prefix backend run build",
     "build:frontend": "npm --prefix frontend run build",
+    "test": "npm --prefix backend test --",
     "test:backend": "npm --prefix backend test",
     "test:e2e": "npm --prefix backend run test:e2e",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
-    "docker:build": "docker compose up --build"
+    "docker:build": "docker compose up --build",
+    "tunnel": "node scripts/tunnel.js",
+    "phone": "node scripts/tunnel.js"
   },
   "keywords": [
     "coffee",
@@ -24,5 +27,8 @@
     "docker"
   ],
   "author": "BrewLite Team",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "qrcode-terminal": "^0.12.0"
+  }
 }

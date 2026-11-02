@@ -7,6 +7,18 @@ import { OrderStatus } from '@prisma/client';
 export class StaffService {
   constructor(private prisma: PrismaService) {}
 
+  private async resolveStaffId(actorId?: string): Promise<string | null> {
+    if (!this.prisma.isConnected) return null;
+    if (actorId) {
+      const staff = await this.prisma.staff.findUnique({ where: { id: actorId } });
+      if (staff) return staff.id;
+      const staffByAcc = await this.prisma.staff.findFirst({ where: { accountId: actorId } });
+      if (staffByAcc) return staffByAcc.id;
+    }
+    const firstStaff = await this.prisma.staff.findFirst();
+    return firstStaff ? firstStaff.id : null;
+  }
+
   async getOrdersForBarista(status?: OrderStatus) {
     const where: any = {};
     if (status) {
@@ -63,11 +75,12 @@ export class StaffService {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      const validStaffId = await this.resolveStaffId(staffId);
       const updated = await tx.order.update({
         where: { id: orderId },
         data: {
           status: OrderStatus.PREPARING,
-          staffId,
+          ...(validStaffId ? { staffId: validStaffId } : {}),
         },
       });
 

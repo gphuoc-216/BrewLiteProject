@@ -21,6 +21,24 @@ export class AdminController {
     return this.adminService.getAccounts();
   }
 
+  @Post('customers')
+  @ApiOperation({ summary: 'Tạo tài khoản khách hàng mới' })
+  createCustomer(@Body() dto: any) {
+    return this.adminService.createCustomer(dto);
+  }
+
+  @Patch('accounts/:id')
+  @ApiOperation({ summary: 'Cập nhật thông tin tài khoản (Họ tên, email, mật khẩu...)' })
+  updateAccount(@Param('id') id: string, @Body() dto: any) {
+    return this.adminService.updateAccount(id, dto);
+  }
+
+  @Delete('accounts/:id')
+  @ApiOperation({ summary: 'Xóa tài khoản người dùng' })
+  deleteAccount(@Param('id') id: string) {
+    return this.adminService.deleteAccount(id);
+  }
+
   @Patch('accounts/:id/lock')
   @ApiOperation({ summary: 'Khóa tài khoản người dùng' })
   lockAccount(@Param('id') id: string) {
@@ -92,6 +110,12 @@ export class AdminController {
   @ApiOperation({ summary: 'Xóa biến thể size' })
   deleteVariant(@Param('id') id: string) {
     return this.adminService.deleteVariant(id);
+  }
+
+  @Get('recipes')
+  @ApiOperation({ summary: 'Xem danh sách công thức pha chế' })
+  getRecipes() {
+    return this.adminService.getRecipes();
   }
 
   @Post('recipes')
@@ -183,6 +207,12 @@ export class AdminController {
   @Post('import-receipts')
   @ApiOperation({ summary: 'Lập phiếu nhập kho & tự động cộng dồn tồn kho' })
   createImportReceipt(@Body() dto: any) {
+    return this.adminService.createImportReceipt(dto);
+  }
+
+  @Post('inventory/import')
+  @ApiOperation({ summary: 'Lập phiếu nhập kho (Alias route)' })
+  importInventory(@Body() dto: any) {
     return this.adminService.createImportReceipt(dto);
   }
 
