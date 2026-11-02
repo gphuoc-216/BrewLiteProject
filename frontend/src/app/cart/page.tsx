@@ -234,6 +234,25 @@ export default function CartPage() {
       return;
     }
 
+    // Kiểm tra nếu đơn hàng đã được giảm tối đa 0đ
+    const currentDiscount = promotions.reduce((sum, p) => sum + (p.discountAmount || 0), 0);
+    if (subtotal - currentDiscount <= 0) {
+      setCouponError('Đơn hàng đã được giảm tối đa (0đ), không thể chọn thêm voucher khác.');
+      return;
+    }
+
+    // Nếu voucher không phải stackable (tức là ORDER_DISCOUNT như BANMOI, BREW10, GIAM20K, GIAM30K...)
+    // thì chỉ được chọn 1 mã: tự động gỡ các mã ORDER_DISCOUNT khác đã chọn
+    const isStackable = v.code.toUpperCase() === 'FREESHIP' || v.code.toUpperCase() === 'HAPPYHOUR';
+    if (!isStackable) {
+      promotions.forEach((p) => {
+        const isOtherStackable = p.code.toUpperCase() === 'FREESHIP' || p.code.toUpperCase() === 'HAPPYHOUR';
+        if (!isOtherStackable) {
+          removePromotion(p.code);
+        }
+      });
+    }
+
     let calcDiscount = 0;
     if (v.discountType === 'PERCENT') {
       calcDiscount = Math.round((subtotal * v.discountValue) / 100);
@@ -243,7 +262,11 @@ export default function CartPage() {
     } else {
       calcDiscount = v.discountValue;
     }
-    calcDiscount = Math.min(calcDiscount, subtotal);
+    const stackableSum = promotions
+      .filter((p) => p.code.toUpperCase() === 'FREESHIP' || p.code.toUpperCase() === 'HAPPYHOUR')
+      .reduce((sum, p) => sum + (p.discountAmount || 0), 0);
+    const remainingBefore = Math.max(0, subtotal - (isStackable ? currentDiscount : stackableSum));
+    calcDiscount = Math.min(calcDiscount, remainingBefore);
 
     togglePromotion({
       id: v.id,
