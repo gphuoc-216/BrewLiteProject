@@ -15,13 +15,12 @@ import {
   calcDiscountForVoucherList,
   toggleSmartVoucherSelection,
 } from '@/lib/vouchers';
-
-const FALLBACK_IMAGE =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='500' viewBox='0 0 400 500'%3E%3Crect width='400' height='500' fill='%23F4EBE1'/%3E%3Cpath d='M150 210h100v70c0 25-20 45-45 45h-10c-25 0-45-20-45-45v-70z' fill='%234A3728'/%3E%3Cpath d='M250 225h16c8 0 14 6 14 14s-6 14-14 14h-16v-28z' fill='none' stroke='%234A3728' stroke-width='6'/%3E%3Cellipse cx='200' cy='350' rx='70' ry='12' fill='%23D9C7B6'/%3E%3Ctext x='200' y='390' font-family='sans-serif' font-size='15' font-weight='600' text-anchor='middle' fill='%237D5A44'%3EBrewLite Roastery%3C/text%3E%3C/svg%3E";
-
 import { ALL_TOPPINGS, getToppingsForProduct, ToppingOption } from '@/lib/toppings';
 export { ALL_TOPPINGS };
 export type { ToppingOption };
+
+const FALLBACK_IMAGE =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='500' viewBox='0 0 400 500'%3E%3Crect width='400' height='500' fill='%23F4EBE1'/%3E%3Cpath d='M150 210h100v70c0 25-20 45-45 45h-10c-25 0-45-20-45-45v-70z' fill='%234A3728'/%3E%3Cpath d='M250 225h16c8 0 14 6 14 14s-6 14-14 14h-16v-28z' fill='none' stroke='%234A3728' stroke-width='6'/%3E%3Cellipse cx='200' cy='350' rx='70' ry='12' fill='%23D9C7B6'/%3E%3Ctext x='200' y='390' font-family='sans-serif' font-size='15' font-weight='600' text-anchor='middle' fill='%237D5A44'%3EBrewLite Roastery%3C/text%3E%3C/svg%3E";
 
 const SUGAR_LEVELS = ['100% Đường', '70% Đường', '50% Đường', '0% Không đường'];
 const ICE_LEVELS = ['100% Đá', '50% Ít đá', '0% Không đá / Nóng'];
@@ -79,6 +78,8 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
   const [manualVoucherCode, setManualVoucherCode] = useState('');
   const [voucherError, setVoucherError] = useState<string | null>(null);
 
+  const [isVouchersOpen, setIsVouchersOpen] = useState(false);
+
   const toggleTopping = (toppingName: string) => {
     setSelectedToppings((prev) =>
       prev.includes(toppingName)
@@ -102,6 +103,7 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
       setUsePoints(false);
       setManualVoucherCode('');
       setVoucherError(null);
+      setIsVouchersOpen(false);
     }
   }, [product]);
 
@@ -138,7 +140,7 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
 
   const isSelectedVariantOutOfStock = Boolean(selectedVariant?.isOutOfStock) || Boolean(product?.isOutOfStock);
 
-  // Phân phối Topping chính xác theo từng món thực tế (Trà đào/vải -> thạch đào/nha đam; Trà sữa -> trân châu/khúc bạch; Cà phê -> espresso/cheese)
+  // Phân phối Topping chính xác theo từng món thực tế
   const toppingsForCategory = getToppingsForProduct(product);
 
   // Giá gốc theo size đã chọn
@@ -150,7 +152,7 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
     return sum + (opt ? opt.price : 0);
   }, 0);
 
-  // Đơn giá 1 ly = Giá size gốc + tiền các topping (TĂNG GIẢM NGAY LẬP TỨC khi tick chọn)
+  // Đơn giá 1 ly = Giá size gốc + tiền các topping
   const unitPrice = baseSizePrice + extraToppingsPrice;
   const totalPrice = unitPrice * (quantity || 1);
 
@@ -165,6 +167,7 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
   const pointsUsed = usePoints ? maxPointsCanUse : 0;
   const pointsDiscount = pointsUsed * 100;
   const finalPrice = Math.max(0, totalPrice - voucherDiscount - pointsDiscount);
+  const totalSavings = totalPrice - finalPrice;
 
   const handleToggleVoucher = (v: QuickVoucher) => {
     setVoucherError(null);
@@ -239,18 +242,111 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
     }
   };
 
+  // Sticky footer with quantity stepper, live price with savings breakdown, and action buttons
+  const modalFooter = (
+    <div className="space-y-3">
+      {/* Stepper + Dynamic Price Summary */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-ink-2">Số lượng:</span>
+          <QuantityStepper
+            value={quantity}
+            onChange={(q) => setQuantity(q)}
+            min={1}
+            max={20}
+          />
+        </div>
+
+        <div className="text-right">
+          <div className="text-[11px] text-ink-3">Tạm tính:</div>
+          <div className="flex items-baseline justify-end gap-2">
+            {totalSavings > 0 && (
+              <span className="text-xs line-through text-ink-3 tabular-nums">
+                {Number(totalPrice).toLocaleString('vi-VN')}đ
+              </span>
+            )}
+            <span className="font-display text-lg font-bold text-ink tabular-nums">
+              {Number(finalPrice).toLocaleString('vi-VN')}đ
+            </span>
+          </div>
+          {totalSavings > 0 && (
+            <span className="inline-block text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+              Tiết kiệm {Number(totalSavings).toLocaleString('vi-VN')}đ
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Action Buttons: Thêm vào giỏ & Mua ngay (hoặc Báo hết hàng nếu out of stock) */}
+      {isSelectedVariantOutOfStock ? (
+        <div className="space-y-2">
+          <div className="p-2.5 rounded bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
+            <span>Món này (hoặc kích cỡ đang chọn) tạm hết nguyên liệu pha chế tại quầy.</span>
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            size="md"
+            disabled
+            className="w-full opacity-50 cursor-not-allowed font-semibold text-xs py-2.5"
+          >
+            Tạm hết nguyên liệu pha chế
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2.5">
+          <Button
+            type="button"
+            variant="secondary"
+            size="md"
+            onClick={() => handleConfirm(false)}
+            className="flex items-center justify-center gap-1.5 py-2.5 px-3 font-semibold text-xs border-line-strong hover:border-ink bg-surface text-ink transition-all active:scale-[0.99]"
+          >
+            <ShoppingBag className="w-4 h-4 shrink-0 text-ink-2" />
+            <span>Thêm vào giỏ</span>
+          </Button>
+
+          <Button
+            type="button"
+            variant="primary"
+            size="md"
+            onClick={() => handleConfirm(true)}
+            className="flex items-center justify-center gap-1.5 py-2.5 px-3 font-semibold text-xs shadow-sm bg-accent hover:bg-accent-hover text-on-accent transition-all active:scale-[0.99]"
+          >
+            <Zap className="w-4 h-4 shrink-0" />
+            <span>Mua ngay</span>
+          </Button>
+        </div>
+      )}
+
+      {/* Micro-notice for applied discounts */}
+      {(voucherDiscount > 0 || pointsDiscount > 0) && (
+        <div className="flex items-center justify-between text-[10.5px] text-ink-3 px-0.5 pt-0.5 border-t border-line/60">
+          <span>
+            {voucherDiscount > 0 && `Voucher -${voucherDiscount.toLocaleString('vi-VN')}đ`}
+            {voucherDiscount > 0 && pointsDiscount > 0 && ' · '}
+            {pointsDiscount > 0 && `Điểm -${pointsDiscount.toLocaleString('vi-VN')}đ`}
+          </span>
+          <span className="text-emerald-600 dark:text-emerald-400 font-medium">Đã áp dụng ưu đãi</span>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title={product.name}
-      description={product.description || 'Tùy chọn kích cỡ & số lượng'}
-      maxWidth="md"
+      description={product.description || 'Tùy chọn kích cỡ, đá, đường & topping'}
+      maxWidth="lg"
+      footer={modalFooter}
     >
-      <div className="space-y-4 pt-1">
-        {/* Drink Thumbnail Bar */}
-        <div className="flex items-center gap-3 p-2.5 bg-surface-2 rounded border border-line">
-          <div className="relative w-14 h-14 rounded overflow-hidden shrink-0 bg-surface border border-line">
+      <div className="space-y-4">
+        {/* Drink Thumbnail & Quick Summary Bar */}
+        <div className="flex items-center gap-3 p-3 bg-surface-2 rounded-xl border border-line">
+          <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 bg-surface border border-line shadow-xs">
             <Image
               src={imgSrc}
               alt={product.name}
@@ -264,7 +360,7 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-1.5 flex-wrap">
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-ink/10 text-ink">
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-ink/10 text-ink">
                   {product.category}
                 </span>
                 {product.isOutOfStock && (
@@ -272,9 +368,9 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
                     ⛔ Tạm hết hàng
                   </span>
                 )}
-                {(product.reviewCount && product.reviewCount > 0) ? (
-                  <span className="flex items-center gap-0.5 text-xs text-ink-2 font-medium">
-                    <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                {product.reviewCount && product.reviewCount > 0 ? (
+                  <span className="flex items-center gap-1 text-xs text-ink-2 font-medium">
+                    <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
                     <span>{product.rating}</span>
                     <span className="text-ink-3">({product.reviewCount})</span>
                   </span>
@@ -287,19 +383,19 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
               <Link
                 href={`/products/${product.id}`}
                 onClick={onClose}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent hover:underline bg-accent/10 px-2 py-0.5 rounded border border-accent/20 transition-all shrink-0"
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent hover:underline bg-accent/10 px-2 py-0.5 rounded-md border border-accent/20 transition-all shrink-0"
               >
-                <span>Xem chi tiết & đánh giá</span>
+                <span>Chi tiết món</span>
                 <ArrowRight className="w-3 h-3" />
               </Link>
             </div>
-            <p className="text-xs font-semibold text-accent mt-1 flex items-center gap-1.5 flex-wrap">
+            <p className="text-xs text-ink-2 mt-1.5 flex items-center gap-1.5 flex-wrap">
               <span>Đơn giá:</span>
-              <span className="font-bold text-sm tabular-nums text-accent">
+              <span className="font-semibold text-sm tabular-nums text-ink">
                 {Number(unitPrice || 0).toLocaleString('vi-VN')}đ
               </span>
               {extraToppingsPrice > 0 && (
-                <span className="text-[10px] text-accent/80 font-normal">
+                <span className="text-[10.5px] text-ink-3 font-normal">
                   (Gốc {Number(baseSizePrice).toLocaleString('vi-VN')}đ + {Number(extraToppingsPrice).toLocaleString('vi-VN')}đ topping)
                 </span>
               )}
@@ -309,9 +405,9 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
 
         {/* Size Selection */}
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-ink flex items-center justify-between">
+          <label className="text-xs font-semibold text-ink flex items-center justify-between">
             <span>Kích cỡ (Size)</span>
-            <span className="text-[11px] text-ink-3">Chọn 1</span>
+            <span className="text-[11px] text-ink-3 font-normal">Bắt buộc chọn 1</span>
           </label>
           <div className="grid grid-cols-3 gap-2">
             {(['S', 'M', 'L'] as const).map((size) => {
@@ -328,11 +424,11 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
                   type="button"
                   disabled={disabled}
                   onClick={() => setSelectedSize(size)}
-                  className={`p-2 rounded border text-left transition-all ${
+                  className={`p-2.5 rounded-lg border text-left transition-all ${
                     disabled
-                      ? 'border-line/40 bg-surface-2 opacity-45 cursor-not-allowed'
+                      ? 'border-line/40 bg-surface-2 opacity-40 cursor-not-allowed'
                       : isSelected
-                      ? 'border-ink bg-surface-2 text-ink shadow-sm ring-1 ring-ink'
+                      ? 'border-ink bg-surface-2 text-ink shadow-xs ring-2 ring-ink'
                       : 'border-line bg-surface hover:border-line-strong text-ink-2'
                   }`}
                 >
@@ -343,11 +439,11 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
                         Hết
                       </span>
                     ) : isSelected ? (
-                      <Check className="w-3 h-3 text-ink" strokeWidth={2.5} />
+                      <Check className="w-3.5 h-3.5 text-ink" strokeWidth={2.5} />
                     ) : null}
                   </div>
                   {priceForSize !== null && (
-                    <span className="text-[11px] text-ink-3 block mt-0.5">
+                    <span className="text-[11px] text-ink-3 block mt-0.5 tabular-nums">
                       {Number(priceForSize || 0).toLocaleString('vi-VN')}đ
                     </span>
                   )}
@@ -357,9 +453,9 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
           </div>
         </div>
 
-        {/* Mức đường & Mức đá (Chuẩn đặt đồ uống Highlands / Phê La / ShopeeFood) */}
+        {/* Customization: Độ ngọt & Lượng đá */}
         <div className="space-y-3 pt-2 border-t border-line">
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs font-semibold text-ink">
               <span>Độ ngọt (Mức đường)</span>
               <span className="text-[11px] font-normal text-ink-3">{sugarLevel}</span>
@@ -370,9 +466,9 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
                   key={lvl}
                   type="button"
                   onClick={() => setSugarLevel(lvl)}
-                  className={`py-1.5 px-1 text-[11px] rounded border text-center transition-all ${
+                  className={`py-2 px-1 text-[11px] rounded-md border text-center transition-all ${
                     sugarLevel === lvl
-                      ? 'border-accent bg-accent text-white font-semibold shadow-xs'
+                      ? 'border-ink bg-ink text-white font-medium shadow-xs'
                       : 'border-line bg-surface text-ink-2 hover:bg-surface-2'
                   }`}
                 >
@@ -382,7 +478,7 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
             </div>
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs font-semibold text-ink">
               <span>Lượng đá</span>
               <span className="text-[11px] font-normal text-ink-3">{iceLevel}</span>
@@ -393,9 +489,9 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
                   key={lvl}
                   type="button"
                   onClick={() => setIceLevel(lvl)}
-                  className={`py-1.5 px-1 text-[11px] rounded border text-center transition-all ${
+                  className={`py-2 px-1 text-[11px] rounded-md border text-center transition-all ${
                     iceLevel === lvl
-                      ? 'border-accent bg-accent text-white font-semibold shadow-xs'
+                      ? 'border-ink bg-ink text-white font-medium shadow-xs'
                       : 'border-line bg-surface text-ink-2 hover:bg-surface-2'
                   }`}
                 >
@@ -406,40 +502,40 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
           </div>
         </div>
 
-        {/* Topping Selection (Chuẩn mô típ ShopeeFood / GrabFood: Checkbox chọn nhiều, CÓ ẢNH MINH HỌA) */}
-        <div className="space-y-1.5 pt-2 border-t border-line">
+        {/* Topping Selection (Natural scrolling - no nested scroll container) */}
+        <div className="space-y-2 pt-2 border-t border-line">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-ink">Topping đi kèm (chọn nhiều)</span>
-            <span className="text-[11px] text-accent font-medium">
+            <span className="text-xs font-semibold text-ink">Topping đi kèm</span>
+            <span className="text-[11px] text-ink-3 font-medium">
               {selectedToppings.length > 0
                 ? `Đã chọn ${selectedToppings.length} topping (+${extraToppingsPrice.toLocaleString('vi-VN')}đ)`
-                : 'Tùy chọn thêm'}
+                : 'Tùy chọn nhiều'}
             </span>
           </div>
 
-          <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+          <div className="space-y-1.5">
             {toppingsForCategory.map((top) => {
               const isChecked = selectedToppings.includes(top.name);
               return (
                 <div
                   key={top.id}
                   onClick={() => toggleTopping(top.name)}
-                  className={`p-2 rounded border text-left text-xs transition-all flex items-center justify-between cursor-pointer select-none ${
+                  className={`p-2.5 rounded-lg border text-left text-xs transition-all flex items-center justify-between cursor-pointer select-none ${
                     isChecked
-                      ? 'border-accent bg-accent/5 text-ink font-medium ring-1 ring-accent'
+                      ? 'border-line-strong bg-surface-2 text-ink font-medium ring-1 ring-line-strong'
                       : 'border-line bg-surface hover:bg-surface-2 text-ink-2'
                   }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <span
-                      className={`w-4 h-4 rounded-sm border-2 flex items-center justify-center shrink-0 transition-all ${
-                        isChecked ? 'border-accent bg-accent text-white shadow-xs' : 'border-ink/40 bg-surface'
+                      className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all ${
+                        isChecked ? 'border-ink bg-ink text-white shadow-xs' : 'border-ink/40 bg-surface'
                       }`}
                     >
                       {isChecked && <Check className="w-3 h-3 text-white" strokeWidth={3.5} />}
                     </span>
 
-                    {/* Hình ảnh minh họa Topping */}
+                    {/* Topping Thumbnail */}
                     <div className="relative w-10 h-10 rounded-md overflow-hidden shrink-0 border border-line bg-surface-2">
                       <Image
                         src={top.imageUrl}
@@ -451,17 +547,12 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
                     </div>
 
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-ink">{top.name}</span>
-                        <span className="text-[10px] font-bold text-accent bg-accent/10 px-1.5 py-0.5 rounded border border-accent/20">
-                          +{top.price.toLocaleString('vi-VN')}đ
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-ink-3 truncate mt-0.5">{top.desc}</div>
+                      <span className="font-medium text-ink block">{top.name}</span>
+                      <div className="text-[10.5px] text-ink-3 truncate mt-0.5">{top.desc}</div>
                     </div>
                   </div>
 
-                  <span className="text-accent font-semibold text-xs tabular-nums shrink-0 ml-2">
+                  <span className="text-ink font-semibold text-xs tabular-nums shrink-0 ml-2">
                     +{top.price.toLocaleString('vi-VN')}đ
                   </span>
                 </div>
@@ -470,85 +561,112 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
           </div>
         </div>
 
-        {/* Mã Giảm Giá / Voucher */}
-        <div className="space-y-2 pt-2 border-t border-line text-xs">
-          <div className="flex items-center justify-between">
-            <span className="font-semibold text-ink flex items-center gap-1.5">
-              <Ticket className="w-3.5 h-3.5 text-accent" />
+        {/* Collapsible Voucher / Discount Code Section */}
+        <div className="rounded-xl border border-line bg-surface overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setIsVouchersOpen(!isVouchersOpen)}
+            className="w-full p-3 flex items-center justify-between text-left text-xs font-semibold text-ink hover:bg-surface-2 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Ticket className="w-4 h-4 text-accent" />
               <span>Mã giảm giá / Voucher</span>
-            </span>
-            {selectedVoucherCodes.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setSelectedVoucherCodes([])}
-                className="text-[11px] text-danger hover:underline"
-              >
-                Gỡ voucher ({selectedVoucherCodes.length})
-              </button>
-            )}
-          </div>
+              {selectedVoucherCodes.length > 0 && (
+                <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                  {selectedVoucherCodes.length} đã áp dụng
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 text-ink-3">
+              {voucherDiscount > 0 && (
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold text-[11px]">
+                  -{voucherDiscount.toLocaleString('vi-VN')}đ
+                </span>
+              )}
+              <span className="text-[11px] font-normal underline text-accent">
+                {isVouchersOpen ? 'Thu gọn' : 'Chọn mã'}
+              </span>
+            </div>
+          </button>
 
-          <form onSubmit={handleApplyManualVoucher} className="flex gap-2">
-            <input
-              type="text"
-              value={manualVoucherCode}
-              onChange={(e) => setManualVoucherCode(e.target.value)}
-              placeholder="Nhập mã (VD: BREW10)"
-              className="flex-1 h-8 px-2.5 text-xs bg-bg border border-line rounded text-ink uppercase placeholder:normal-case placeholder:text-ink-3 focus:border-accent focus:outline-none"
-            />
-            <Button variant="secondary" size="sm" type="submit">
-              Áp dụng
-            </Button>
-          </form>
+          {isVouchersOpen && (
+            <div className="p-3 pt-1 border-t border-line space-y-2.5 bg-surface-2/40 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-ink-3">Nhập mã ưu đãi hoặc chọn từ danh sách:</span>
+                {selectedVoucherCodes.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedVoucherCodes([])}
+                    className="text-[11px] text-danger hover:underline font-medium"
+                  >
+                    Gỡ tất cả voucher
+                  </button>
+                )}
+              </div>
 
-          {voucherError && (
-            <div className="p-2 bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 rounded text-[11px] text-danger flex items-start gap-1.5">
-              <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-              <span>{voucherError}</span>
+              <form onSubmit={handleApplyManualVoucher} className="flex gap-2">
+                <input
+                  type="text"
+                  value={manualVoucherCode}
+                  onChange={(e) => setManualVoucherCode(e.target.value)}
+                  placeholder="Nhập mã (VD: BREW10)"
+                  className="flex-1 h-8 px-2.5 text-xs bg-surface border border-line rounded-md text-ink uppercase placeholder:normal-case placeholder:text-ink-3 focus:border-accent focus:outline-none"
+                />
+                <Button variant="secondary" size="sm" type="submit">
+                  Áp dụng
+                </Button>
+              </form>
+
+              {voucherError && (
+                <div className="p-2 bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 rounded-md text-[11px] text-danger flex items-start gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>{voucherError}</span>
+                </div>
+              )}
+
+              {/* Quick-Select Voucher Chips */}
+              <div className="flex flex-wrap gap-1.5 pt-0.5">
+                {SHOP_VOUCHERS.map((v) => {
+                  const isSelected = selectedVoucherCodes.includes(v.code);
+                  const isEligible = totalPrice >= v.minOrder;
+                  const isMaxDiscount = totalPrice - voucherDiscount <= 0 && !isSelected;
+                  const disabled = !isEligible || isMaxDiscount;
+
+                  return (
+                    <button
+                      key={v.code}
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => handleToggleVoucher(v)}
+                      className={`px-2.5 py-1.5 rounded-md text-[11px] font-medium border transition-all flex items-center gap-1.5 ${
+                        isSelected
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs font-semibold'
+                          : isEligible && !isMaxDiscount
+                          ? 'bg-surface hover:bg-surface-2 text-ink border-line hover:border-accent'
+                          : 'bg-surface-2/40 text-ink-3 border-line/50 opacity-50 cursor-not-allowed'
+                      }`}
+                      title={v.description}
+                    >
+                      <span>{v.code} ({v.label})</span>
+                      {isSelected && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
-
-          {/* Quick-Select Voucher Chips */}
-          <div className="flex flex-wrap gap-1.5 pt-0.5">
-            {SHOP_VOUCHERS.map((v) => {
-              const isSelected = selectedVoucherCodes.includes(v.code);
-              const isEligible = totalPrice >= v.minOrder;
-              const isMaxDiscount = totalPrice - voucherDiscount <= 0 && !isSelected;
-              const disabled = !isEligible || isMaxDiscount;
-
-              return (
-                <button
-                  key={v.code}
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => handleToggleVoucher(v)}
-                  className={`px-2 py-1 rounded text-[11px] font-medium border transition-all flex items-center gap-1 ${
-                    isSelected
-                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs font-semibold'
-                      : isEligible && !isMaxDiscount
-                      ? 'bg-surface hover:bg-surface-2 text-ink border-line hover:border-accent'
-                      : 'bg-surface-2/40 text-ink-3 border-line/50 opacity-50 cursor-not-allowed'
-                  }`}
-                  title={v.description}
-                >
-                  <span>{v.code} ({v.label})</span>
-                  {isSelected && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-                </button>
-              );
-            })}
-          </div>
         </div>
 
         {/* Khung Điểm Thưởng Tích Lũy Thành Viên (1 điểm = 100đ) */}
-        <div className="p-2.5 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/60 rounded-xl space-y-1.5 text-xs">
+        <div className="p-3 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/60 rounded-xl space-y-2 text-xs">
           <div className="flex items-center justify-between font-semibold text-ink">
-            <span className="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-400">
-              <Sparkles className="w-3.5 h-3.5" />
+            <span className="flex items-center gap-1.5 text-xs text-amber-900 dark:text-amber-400 font-medium">
+              <span className="font-serif text-accent">✦</span>
               <span>Điểm Thưởng Tích Lũy</span>
             </span>
             {user ? (
               <span className="text-[11px] text-ink-3">
-                Khả dụng: <b className="text-amber-600 dark:text-amber-400 font-mono">{availablePoints} điểm</b> ({Number(availablePoints * 100).toLocaleString('vi-VN')}đ)
+                Khả dụng: <b className="text-amber-700 dark:text-amber-400 font-mono">{availablePoints} điểm</b> ({Number(availablePoints * 100).toLocaleString('vi-VN')}đ)
               </span>
             ) : (
               <span className="text-[10.5px] text-ink-3">1 điểm = 100đ</span>
@@ -557,7 +675,7 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
 
           {user ? (
             maxPointsCanUse > 0 ? (
-              <label className={`flex items-start gap-2 p-2 rounded-lg border transition-all cursor-pointer ${
+              <label className={`flex items-start gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer ${
                 usePoints
                   ? 'bg-amber-100/60 dark:bg-amber-900/30 border-amber-400 dark:border-amber-600'
                   : 'bg-surface border-line hover:border-amber-300'
@@ -570,27 +688,27 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
                 />
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-ink text-xs flex items-center justify-between">
-                    <span>Dùng {maxPointsCanUse} điểm tích lũy để giảm giá</span>
-                    <span className="text-amber-700 dark:text-amber-300 font-bold font-mono">
+                    <span>Dùng {maxPointsCanUse} điểm tích lũy</span>
+                    <span className="text-amber-800 dark:text-amber-300 font-bold font-mono">
                       -{Number(maxPointsCanUse * 100).toLocaleString('vi-VN')} đ
                     </span>
                   </div>
-                  <p className="text-[10px] text-ink-3 mt-0.5">
+                  <p className="text-[10.5px] text-ink-3 mt-0.5">
                     {usePoints
                       ? `Đã áp dụng giảm ${Number(pointsDiscount).toLocaleString('vi-VN')}đ (1 điểm = 100đ)`
-                      : `Tick chọn để giảm ${Number(maxPointsCanUse * 100).toLocaleString('vi-VN')}đ bằng ${maxPointsCanUse} điểm thưởng`}
+                      : `Tick chọn để giảm ${Number(maxPointsCanUse * 100).toLocaleString('vi-VN')}đ cho đơn hàng này`}
                   </p>
                 </div>
               </label>
             ) : (
-              <div className="text-[11px] text-ink-3 p-1.5 bg-surface/60 rounded border border-line/60">
+              <div className="text-[11px] text-ink-3 p-2 bg-surface/60 rounded-md border border-line/60">
                 {availablePoints === 0
                   ? 'Bạn chưa có điểm tích lũy. Tích lũy 5% giá trị mỗi đơn khi thanh toán thành công!'
                   : 'Đơn hàng đã được giảm tối đa hoặc không cần dùng thêm điểm thưởng.'}
               </div>
             )
           ) : (
-            <div className="flex items-center justify-between text-[11px] text-ink-2 p-1.5 bg-surface/60 rounded border border-line/60">
+            <div className="flex items-center justify-between text-[11px] text-ink-2 p-2 bg-surface/60 rounded-md border border-line/60">
               <span>Đăng nhập để dùng điểm thưởng tích lũy (1 điểm = 100đ).</span>
               <Link
                 href="/login?redirect=/checkout"
@@ -600,96 +718,6 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
               </Link>
             </div>
           )}
-        </div>
-
-        {/* Quantity Stepper */}
-        <div className="flex items-center justify-between pt-2 border-t border-line">
-          <span className="text-xs font-medium text-ink">Số lượng ly</span>
-          <QuantityStepper
-            value={quantity}
-            onChange={(q) => setQuantity(q)}
-            min={1}
-            max={20}
-          />
-        </div>
-
-        {/* Actions: Thêm vào giỏ & Mua ngay */}
-        <div className="pt-2 space-y-2">
-          {isSelectedVariantOutOfStock ? (
-            <div className="space-y-2">
-              <div className="p-2.5 rounded bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
-                <span>Món này (hoặc kích cỡ đang chọn) tạm hết nguyên liệu pha chế tại quầy.</span>
-              </div>
-              <Button
-                type="button"
-                variant="secondary"
-                size="md"
-                disabled
-                className="w-full opacity-50 cursor-not-allowed font-semibold text-xs py-2.5"
-              >
-                Tạm hết nguyên liệu pha chế
-              </Button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-2.5">
-              <Button
-                type="button"
-                variant="secondary"
-                size="md"
-                onClick={() => handleConfirm(false)}
-                className="flex items-center justify-center gap-1.5 py-2.5 px-2 font-semibold text-xs border-ink/30 hover:border-ink"
-              >
-                <ShoppingBag className="w-4 h-4 shrink-0" />
-                <span>Thêm vào giỏ</span>
-              </Button>
-
-              <Button
-                type="button"
-                variant="primary"
-                size="md"
-                onClick={() => handleConfirm(true)}
-                className="flex items-center justify-center gap-1.5 py-2.5 px-2 font-semibold text-xs shadow-sm bg-accent hover:bg-accent-hover text-on-accent"
-              >
-                <Zap className="w-4 h-4 shrink-0 fill-current" />
-                <span>Mua ngay</span>
-              </Button>
-            </div>
-          )}
-
-          <div className="flex items-center justify-between px-1 pt-1 text-[11px] text-ink-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <span>Tạm tính: </span>
-                <span className={voucherDiscount > 0 || pointsDiscount > 0 ? "line-through text-ink-3 text-xs" : "text-accent font-bold text-sm"}>
-                  {Number(totalPrice || 0).toLocaleString('vi-VN')}đ
-                </span>
-                {(voucherDiscount > 0 || pointsDiscount > 0) && (
-                  <strong className="text-accent font-bold text-sm tabular-nums">
-                    Tổng: {Number(finalPrice).toLocaleString('vi-VN')}đ
-                  </strong>
-                )}
-              </div>
-              {voucherDiscount > 0 && (
-                <div className="text-[10.5px] text-emerald-600 dark:text-emerald-400 font-medium">
-                  Voucher giảm: -{Number(voucherDiscount).toLocaleString('vi-VN')}đ
-                </div>
-              )}
-              {pointsDiscount > 0 && (
-                <div className="text-[10.5px] text-amber-600 dark:text-amber-400 font-medium">
-                  Điểm tích lũy: -{Number(pointsDiscount).toLocaleString('vi-VN')}đ ({pointsUsed} điểm)
-                </div>
-              )}
-            </div>
-            <Link
-              href={`/products/${product.id}`}
-              onClick={onClose}
-              className="inline-flex items-center gap-1 text-[11px] font-medium text-accent hover:underline shrink-0 ml-2"
-            >
-              <span>Xem chi tiết & đánh giá</span>
-              <ArrowRight className="w-3 h-3" />
-            </Link>
-          </div>
         </div>
       </div>
     </Modal>

@@ -17,6 +17,7 @@ import {
   calcDiscountForVoucherList,
   toggleSmartVoucherSelection,
 } from '@/lib/vouchers';
+import { ALL_TOPPINGS, getToppingsForProduct } from '@/lib/toppings';
 
 interface ProductDetail {
   id: string;
@@ -37,8 +38,6 @@ interface ProductDetail {
     customer: { fullName: string };
   }>;
 }
-
-import { ALL_TOPPINGS, getToppingsForProduct } from '@/lib/toppings';
 
 const SUGAR_LEVELS = ['100% Đường', '70% Đường', '50% Đường', '0% Không đường'];
 const ICE_LEVELS = ['100% Đá', '50% Ít đá', '0% Không đá / Nóng'];
@@ -184,6 +183,9 @@ export default function ProductDetailPage() {
       try {
         setLoading(true);
         const data = await fetchApi<ProductDetail>(`/products/${params.id}`);
+        if (!data || !data.id) {
+          throw new Error('Product not found');
+        }
         setProduct(data);
         if (data.variants && data.variants.length > 0) {
           const availableVariant = data.variants.find((v) => !v.isOutOfStock) || data.variants[0];
@@ -300,7 +302,6 @@ export default function ProductDetailPage() {
   // Đơn giá 1 ly = Giá size gốc + tiền các topping (TĂNG GIẢM NGAY LẬP TỨC khi tick chọn)
   const unitPrice = baseSizePrice + extraToppingsPrice;
   const totalPrice = unitPrice * quantity;
-
 
   const availablePoints = user?.loyaltyPoints || 0;
   const { totalDiscount: voucherDiscount } = calcDiscountForVoucherList(
@@ -526,7 +527,7 @@ export default function ProductDetailPage() {
                     onClick={() => setSugarLevel(lvl)}
                     className={`py-1.5 px-1 text-[11px] rounded border text-center transition-all ${
                       sugarLevel === lvl
-                        ? 'border-accent bg-accent text-white font-semibold shadow-xs'
+                        ? 'border-ink bg-ink text-white font-medium shadow-xs'
                         : 'border-line bg-surface text-ink-2 hover:bg-surface-2'
                     }`}
                   >
@@ -549,7 +550,7 @@ export default function ProductDetailPage() {
                     onClick={() => setIceLevel(lvl)}
                     className={`py-1.5 px-1 text-[11px] rounded border text-center transition-all ${
                       iceLevel === lvl
-                        ? 'border-accent bg-accent text-white font-semibold shadow-xs'
+                        ? 'border-ink bg-ink text-white font-medium shadow-xs'
                         : 'border-line bg-surface text-ink-2 hover:bg-surface-2'
                     }`}
                   >
@@ -564,7 +565,7 @@ export default function ProductDetailPage() {
           <div className="space-y-2 pt-2 border-t border-line">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-ink block">Topping đi kèm (chọn nhiều)</span>
-              <span className="text-[11px] text-accent font-medium">
+              <span className="text-[11px] text-ink-3 font-medium">
                 {selectedToppings.length > 0
                   ? `Đã chọn ${selectedToppings.length} topping (+${extraToppingsPrice.toLocaleString('vi-VN')}đ)`
                   : 'Tùy chọn'}
@@ -579,14 +580,14 @@ export default function ProductDetailPage() {
                     onClick={() => toggleTopping(top.name)}
                     className={`flex items-center justify-between p-2.5 border rounded cursor-pointer transition-all text-xs select-none ${
                       isChecked
-                        ? 'border-accent bg-accent/5 text-ink font-medium ring-1 ring-accent'
+                        ? 'border-line-strong bg-surface-2 text-ink font-medium ring-1 ring-line-strong'
                         : 'border-line bg-surface hover:bg-surface-2 text-ink-2'
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <span
                         className={`w-4 h-4 rounded-sm border-2 flex items-center justify-center shrink-0 transition-all ${
-                          isChecked ? 'border-accent bg-accent text-white shadow-xs' : 'border-ink/40 bg-surface'
+                          isChecked ? 'border-ink bg-ink text-white shadow-xs' : 'border-ink/40 bg-surface'
                         }`}
                       >
                         {isChecked && (
@@ -595,7 +596,7 @@ export default function ProductDetailPage() {
                       </span>
 
                       {/* Hình ảnh minh họa Topping */}
-                      <div className="relative w-10 h-10 rounded-md overflow-hidden shrink-0 border border-line bg-surface-2">
+                      <div className="relative w-10 h-10 rounded-sm overflow-hidden shrink-0 border border-line bg-surface-2">
                         <Image
                           src={top.imageUrl}
                           alt={top.name}
@@ -606,16 +607,11 @@ export default function ProductDetailPage() {
                       </div>
 
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-ink">{top.name}</span>
-                          <span className="text-[11px] font-semibold text-accent bg-accent/10 px-1.5 py-0.5 rounded border border-accent/20">
-                            +{top.price.toLocaleString('vi-VN')}đ
-                          </span>
-                        </div>
+                        <span className="font-medium text-ink block">{top.name}</span>
                         <div className="text-[10px] text-ink-3 mt-0.5">{top.desc}</div>
                       </div>
                     </div>
-                    <span className="text-accent font-semibold tabular-nums shrink-0 ml-2">
+                    <span className="text-ink font-semibold tabular-nums shrink-0 ml-2">
                       +{top.price.toLocaleString('vi-VN')}đ
                     </span>
                   </div>
@@ -694,15 +690,15 @@ export default function ProductDetailPage() {
           </div>
 
           {/* Khung Điểm Thưởng Tích Lũy Thành Viên (1 điểm = 100đ) */}
-          <div className="p-2.5 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/60 rounded-xl space-y-1.5 text-xs">
+          <div className="p-2.5 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/60 rounded space-y-1.5 text-xs">
             <div className="flex items-center justify-between font-semibold text-ink">
-              <span className="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-400">
-                <Sparkles className="w-3.5 h-3.5" />
+              <span className="flex items-center gap-1.5 text-xs text-amber-800 dark:text-amber-400">
+                <span className="font-serif text-accent">✦</span>
                 <span>Điểm Thưởng Tích Lũy</span>
               </span>
               {user ? (
                 <span className="text-[11px] text-ink-3">
-                  Khả dụng: <b className="text-amber-600 dark:text-amber-400 font-mono">{availablePoints} điểm</b> ({Number(availablePoints * 100).toLocaleString('vi-VN')}đ)
+                  Khả dụng: <b className="text-amber-700 dark:text-amber-400 font-mono">{availablePoints} điểm</b> ({Number(availablePoints * 100).toLocaleString('vi-VN')}đ)
                 </span>
               ) : (
                 <span className="text-[10.5px] text-ink-3">1 điểm = 100đ</span>
@@ -711,7 +707,7 @@ export default function ProductDetailPage() {
 
             {user ? (
               maxPointsCanUse > 0 ? (
-                <label className={`flex items-start gap-2 p-2 rounded-lg border transition-all cursor-pointer ${
+                <label className={`flex items-start gap-2 p-2 rounded border transition-all cursor-pointer ${
                   usePoints
                     ? 'bg-amber-100/60 dark:bg-amber-900/30 border-amber-400 dark:border-amber-600'
                     : 'bg-surface border-line hover:border-amber-300'
@@ -725,7 +721,7 @@ export default function ProductDetailPage() {
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold text-ink text-xs flex items-center justify-between">
                       <span>Dùng {maxPointsCanUse} điểm tích lũy để giảm giá</span>
-                      <span className="text-amber-700 dark:text-amber-300 font-bold font-mono">
+                      <span className="text-amber-800 dark:text-amber-300 font-bold font-mono">
                         -{Number(maxPointsCanUse * 100).toLocaleString('vi-VN')} đ
                       </span>
                     </div>
@@ -774,7 +770,7 @@ export default function ProductDetailPage() {
                 <div>
                   <span className="text-xs text-ink-2 block">Tạm tính:</span>
                   {extraToppingsPrice > 0 && (
-                    <span className="text-[10px] text-accent font-medium">
+                    <span className="text-[10px] text-ink-3 font-normal">
                       (Gốc {Number(baseSizePrice).toLocaleString('vi-VN')}đ + {Number(extraToppingsPrice).toLocaleString('vi-VN')}đ topping)
                     </span>
                   )}
@@ -785,14 +781,14 @@ export default function ProductDetailPage() {
               </div>
 
               {voucherDiscount > 0 && (
-                <div className="flex items-center justify-between text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                <div className="flex items-center justify-between text-xs text-emerald-700 dark:text-emerald-400 font-medium">
                   <span>Voucher giảm giá:</span>
                   <span className="font-semibold tabular-nums">-{Number(voucherDiscount).toLocaleString('vi-VN')}đ</span>
                 </div>
               )}
 
               {pointsDiscount > 0 && (
-                <div className="flex items-center justify-between text-xs text-amber-600 dark:text-amber-400 font-medium">
+                <div className="flex items-center justify-between text-xs text-amber-700 dark:text-amber-400 font-medium">
                   <span>Điểm tích lũy ({pointsUsed} điểm):</span>
                   <span className="font-semibold tabular-nums">-{Number(pointsDiscount).toLocaleString('vi-VN')}đ</span>
                 </div>
@@ -800,12 +796,11 @@ export default function ProductDetailPage() {
 
               <div className="flex items-center justify-between pt-1 border-t border-line/60">
                 <span className="text-xs font-bold text-ink">Tổng thanh toán:</span>
-                <span className="font-display text-2xl font-bold text-accent tabular-nums">
+                <span className="font-display text-2xl font-semibold text-ink tabular-nums">
                   {Number(finalPrice).toLocaleString('vi-VN')}đ
                 </span>
               </div>
             </div>
-
 
             {isSelectedVariantOutOfStock && (
               <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2.5">
@@ -824,7 +819,9 @@ export default function ProductDetailPage() {
                 disabled={isSelectedVariantOutOfStock}
                 onClick={() => handleAddToCart(false)}
                 className={`w-full text-sm font-semibold flex items-center justify-center gap-2 ${
-                  isSelectedVariantOutOfStock ? 'opacity-50 cursor-not-allowed border-line' : 'border-ink/30 hover:border-ink'
+                  isSelectedVariantOutOfStock
+                    ? 'opacity-50 cursor-not-allowed border-line'
+                    : 'border-line-strong hover:border-ink bg-surface text-ink'
                 }`}
               >
                 <ShoppingBag className="w-4 h-4" />
@@ -837,10 +834,11 @@ export default function ProductDetailPage() {
                 disabled={isSelectedVariantOutOfStock}
                 onClick={() => handleAddToCart(true)}
                 className={`w-full text-sm font-semibold flex items-center justify-center gap-2 ${
-                  isSelectedVariantOutOfStock ? 'opacity-50 cursor-not-allowed bg-slate-300 dark:bg-slate-700 text-slate-500' : 'shadow-sm bg-accent hover:bg-accent-hover text-on-accent'
+                  isSelectedVariantOutOfStock
+                    ? 'opacity-50 cursor-not-allowed bg-slate-300 dark:bg-slate-700 text-slate-500'
+                    : 'shadow-sm bg-accent hover:bg-accent-hover text-on-accent'
                 }`}
               >
-                <Zap className="w-4 h-4 fill-current" />
                 <span>{isSelectedVariantOutOfStock ? 'Tạm hết hàng' : 'Mua ngay'}</span>
               </Button>
             </div>
@@ -848,7 +846,7 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
-            {/* Customer Reviews Section */}
+      {/* Customer Reviews Section */}
       <div id="reviews-section" className="border-t border-line pt-8 space-y-5">
         <div className="flex items-center justify-between">
           <div>
@@ -864,9 +862,9 @@ export default function ProductDetailPage() {
           <button
             type="button"
             onClick={handleOpenReviewModal}
-            className="px-3.5 py-2 bg-accent hover:bg-accent-hover text-on-accent text-xs font-semibold rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
+            className="px-3.5 py-1.5 border border-line-strong/60 bg-surface text-ink hover:bg-surface-2 text-xs font-medium rounded shadow-xs transition-colors flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
-            <Star className="w-3.5 h-3.5 fill-current" />
+            <Star className="w-3.5 h-3.5 text-amber-600 fill-amber-500" />
             <span>Viết đánh giá món này</span>
           </button>
         </div>
