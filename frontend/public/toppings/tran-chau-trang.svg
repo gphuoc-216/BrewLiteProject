@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <radialGradient id="pearlSyrup" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="60%" stop-color="#E0F7FA"/>
+      <stop offset="100%" stop-color="#B2EBF2"/>
+    </radialGradient>
+    <radialGradient id="pearl3Q" cx="35%" cy="30%" r="65%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="45%" stop-color="#E0F2F1"/>
+      <stop offset="85%" stop-color="#80CBC4"/>
+      <stop offset="100%" stop-color="#4DB6AC"/>
+    </radialGradient>
+    <filter id="pearlGlow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="1" dy="2" stdDeviation="1.5" flood-color="#00695C" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  <!-- Bát sứ trắng kem viền trang nhã -->
+  <circle cx="50" cy="50" r="46" fill="#FBF7F0" stroke="#E2CCA6" stroke-width="2"/>
+  <circle cx="50" cy="50" r="40" fill="url(#pearlSyrup)"/>
+
+  <!-- Hạt ngọc trai trắng 3Q giòn sần sật trong vắt -->
+  <g filter="url(#pearlGlow)">
+    <circle cx="34" cy="42" r="11" fill="url(#pearl3Q)" opacity="0.95"/>
+    <circle cx="66" cy="42" r="11" fill="url(#pearl3Q)" opacity="0.95"/>
+    <circle cx="50" cy="34" r="11.5" fill="url(#pearl3Q)" opacity="0.95"/>
+    
+    <circle cx="30" cy="60" r="12" fill="url(#pearl3Q)" opacity="0.95"/>
+    <circle cx="70" cy="60" r="12" fill="url(#pearl3Q)" opacity="0.95"/>
+    <circle cx="50" cy="56" r="12.5" fill="url(#pearl3Q)" opacity="0.98"/>
+    <circle cx="39" cy="71" r="11" fill="url(#pearl3Q)" opacity="0.95"/>
+    <circle cx="61" cy="71" r="11" fill="url(#pearl3Q)" opacity="0.95"/>
+  </g>
+
+  <!-- Đốm sáng thủy tinh lấp lánh (Crystal shine) -->
+  <ellipse cx="31" cy="38" rx="3.5" ry="2" fill="#FFFFFF" opacity="0.9" transform="rotate(-30 31 38)"/>
+  <ellipse cx="47" cy="30" rx="3.5" ry="2" fill="#FFFFFF" opacity="0.9" transform="rotate(-30 47 30)"/>
+  <ellipse cx="63" cy="38" rx="3.5" ry="2" fill="#FFFFFF" opacity="0.9" transform="rotate(-30 63 38)"/>
+  <ellipse cx="46" cy="51" rx="4.5" ry="2.5" fill="#FFFFFF" opacity="0.95" transform="rotate(-30 46 51)"/>
+  <ellipse cx="26" cy="55" rx="4" ry="2" fill="#FFFFFF" opacity="0.9" transform="rotate(-30 26 55)"/>
+  <ellipse cx="66" cy="55" rx="4" ry="2" fill="#FFFFFF" opacity="0.9" transform="rotate(-30 66 55)"/>
+  <ellipse cx="36" cy="67" rx="3" ry="1.8" fill="#FFFFFF" opacity="0.85" transform="rotate(-30 36 67)"/>
+  <ellipse cx="58" cy="67" rx="3" ry="1.8" fill="#FFFFFF" opacity="0.85" transform="rotate(-30 58 67)"/>
+</svg>
+
