@@ -5,6 +5,7 @@ import { PromotionsService } from '../promotions/promotions.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { assertTransition } from './order-state-machine';
 import { OrderStatus } from '@prisma/client';
+import { calculateToppingsExtraPrice } from '../products/constants/toppings.constant';
 
 /**
  * =========================================================================================
@@ -40,11 +41,48 @@ export class OrdersService {
    *    - Tạo bản ghi Order ở trạng thái ban đầu là PENDING kèm các dòng chi tiết OrderItem.
    *    - Ghi bản ghi Audit Log đầu tiên vào OrderStatusHistory.
    */
+  private async resolveCustomerId(customerId: string): Promise<string> {
+    if (!this.prisma.isConnected) return customerId;
+    try {
+      const cust = await this.prisma.customer.findUnique({ where: { id: customerId } });
+      if (cust) return cust.id;
+
+      const acc = await this.prisma.account.findFirst({
+        where: {
+          OR: [
+            { id: customerId },
+            { admin: { id: customerId } },
+            { staff: { id: customerId } },
+          ],
+        },
+        include: { customer: true, admin: true, staff: true },
+      });
+
+      if (acc) {
+        if (acc.customer) return acc.customer.id;
+        const newCust = await this.prisma.customer.create({
+          data: {
+            accountId: acc.id,
+            fullName: acc.admin?.fullName || acc.staff?.fullName || acc.username,
+            email: acc.admin?.email || acc.staff?.email || `${acc.username}@brewlite.vn`,
+            loyaltyPoints: 0,
+          },
+        });
+        return newCust.id;
+      }
+    } catch {
+      // ignore
+    }
+    return customerId;
+  }
+
   async createOrder(customerId: string, dto: CreateOrderDto) {
     // Bước 0: Thẩm định giỏ hàng không được rỗng
     if (!dto.items || dto.items.length === 0) {
       throw new BadRequestException('Giỏ hàng không có sản phẩm nào để đặt');
     }
+
+    const effectiveCustomerId = await this.resolveCustomerId(customerId);
 
     // 1. Thử ghi nhận qua Database trước
     try {
@@ -67,7 +105,8 @@ export class OrdersService {
       // Chuẩn bị dữ liệu chi tiết đơn hàng (OrderItem) và tính tổng tiền chưa giảm (subtotal)
       const orderItemsData = dto.items.map((item) => {
         const variant = variantMap.get(item.variantId)!;
-        const unitPrice = Number(variant.price);
+        const extraToppingsPrice = calculateToppingsExtraPrice(item.toppings);
+        const unitPrice = Number(variant.price) + extraToppingsPrice;
         const lineTotal = unitPrice * item.quantity;
         subtotal += lineTotal;
         return {
@@ -82,9 +121,31 @@ export class OrdersService {
       let discountAmount = 0;
 
       if (dto.promotionCode) {
-        const promoResult = await this.promotionsService.validatePromotion(dto.promotionCode, subtotal);
-        promotionId = promoResult.promotionId;
-        discountAmount = promoResult.discountAmount;
+        const codes = dto.promotionCode.split(",").map((c) => c.trim()).filter(Boolean);
+        for (const c of codes) {
+          try {
+            const promoResult = await this.promotionsService.validatePromotion(c, subtotal);
+            if (!promotionId) promotionId = promoResult.promotionId;
+            discountAmount += promoResult.discountAmount;
+          } catch {}
+        }
+        discountAmount = Math.min(discountAmount, subtotal);
+      }
+
+      // 2.2 Áp dụng điểm thưởng Loyalty (1 điểm = 100 VNĐ, 10 điểm = 1.000 VNĐ)
+      let actualPointsUsed = 0;
+      let pointsDiscount = 0;
+      if (dto.loyaltyPointsToUse && dto.loyaltyPointsToUse > 0) {
+        const customer = await this.prisma.customer.findUnique({ where: { id: effectiveCustomerId } });
+        const availablePoints = customer?.loyaltyPoints || 0;
+        const remainingSubtotal = Math.max(0, subtotal - discountAmount);
+        actualPointsUsed = Math.min(
+          Math.floor(dto.loyaltyPointsToUse),
+          availablePoints,
+          Math.floor(remainingSubtotal / 100)
+        );
+        pointsDiscount = actualPointsUsed * 100;
+        discountAmount += pointsDiscount;
       }
 
       // Tiền sau giảm giá tuyệt đối không được âm
@@ -92,10 +153,17 @@ export class OrdersService {
 
       // Bước 3: Khởi tạo đơn hàng ở trạng thái PENDING trong 1 Transaction đảm bảo tính nguyên tố
       const order = await this.prisma.$transaction(async (tx) => {
+        if (actualPointsUsed > 0) {
+          await tx.customer.update({
+            where: { id: effectiveCustomerId },
+            data: { loyaltyPoints: { decrement: actualPointsUsed } },
+          });
+        }
+
         // 3.1 Tạo bản ghi Order cùng các OrderItem
         const newOrder = await tx.order.create({
           data: {
-            customerId,
+            customerId: effectiveCustomerId,
             promotionId,
             status: OrderStatus.PENDING,
             discountAmount,
@@ -138,7 +206,8 @@ export class OrdersService {
     let subtotal = 0;
     for (const item of dto.items) {
       const v = fallbackStore.findVariantById(item.variantId);
-      const price = v ? v.price : 35000;
+      const extraToppings = calculateToppingsExtraPrice(item.toppings);
+      const price = (v ? v.price : 35000) + extraToppings;
       subtotal += price * item.quantity;
     }
 
@@ -146,9 +215,24 @@ export class OrdersService {
     let discountAmount = 0;
 
     if (dto.promotionCode) {
-      const promoResult = await this.promotionsService.validatePromotion(dto.promotionCode, subtotal);
-      promotionId = promoResult.promotionId;
-      discountAmount = promoResult.discountAmount;
+      const codes = dto.promotionCode.split(",").map((c) => c.trim()).filter(Boolean);
+      for (const c of codes) {
+        try {
+          const promoResult = await this.promotionsService.validatePromotion(c, subtotal);
+          if (!promotionId) promotionId = promoResult.promotionId;
+          discountAmount += promoResult.discountAmount;
+        } catch {}
+      }
+      discountAmount = Math.min(discountAmount, subtotal);
+    }
+
+    if (dto.loyaltyPointsToUse && dto.loyaltyPointsToUse > 0) {
+      const remainingSubtotal = Math.max(0, subtotal - discountAmount);
+      const pointsDiscount = Math.min(
+        Math.floor(dto.loyaltyPointsToUse) * 100,
+        remainingSubtotal
+      );
+      discountAmount += pointsDiscount;
     }
 
     return fallbackStore.createOrder(customerId, dto.items, discountAmount, promotionId);
@@ -163,9 +247,10 @@ export class OrdersService {
    * nạp kèm danh sách món, giao dịch thanh toán và thông tin khuyến mãi.
    */
   async getMyOrders(customerId: string) {
+    const effectiveCustomerId = await this.resolveCustomerId(customerId);
     try {
       const orders = await this.prisma.order.findMany({
-        where: { customerId },
+        where: { customerId: effectiveCustomerId },
         include: {
           items: {
             include: {
@@ -187,7 +272,7 @@ export class OrdersService {
       // Database offline -> fallback
     }
 
-    return fallbackStore.getMyOrders(customerId);
+    return fallbackStore.getMyOrders(effectiveCustomerId);
   }
 
   /**

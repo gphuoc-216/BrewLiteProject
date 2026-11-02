@@ -10,6 +10,15 @@ const nextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: '/products',
+        destination: '/',
+        permanent: true,
+      },
+    ];
+  },
   async rewrites() {
     return [
       {
@@ -19,6 +28,10 @@ const nextConfig = {
       {
         source: '/mbbank/admin',
         destination: '/mbbank/admin.html',
+      },
+      {
+        source: '/api/:path*',
+        destination: process.env.INTERNAL_BACKEND_URL || 'http://backend:3001/api/:path*',
       },
     ];
   },

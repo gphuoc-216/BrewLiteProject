@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import Link from 'next/link';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 export interface ToastProps {
@@ -8,13 +9,19 @@ export interface ToastProps {
   type?: 'success' | 'danger' | 'info';
   onClose: () => void;
   duration?: number;
+  action?: {
+    label: string;
+    href?: string;
+    onClick?: () => void;
+  };
 }
 
 export const Toast: React.FC<ToastProps> = ({
   message,
   type = 'success',
   onClose,
-  duration = 3000,
+  duration = 3500,
+  action,
 }) => {
   useEffect(() => {
     const timer = setTimeout(onClose, duration);
@@ -49,10 +56,32 @@ export const Toast: React.FC<ToastProps> = ({
     <div
       role="status"
       aria-live="polite"
-      className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 bg-surface border ${current.border} rounded shadow-float transition-all duration-150 max-w-sm`}
+      className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 bg-surface border ${current.border} rounded shadow-float transition-all duration-150 max-w-md`}
     >
       <Icon className={`w-4 h-4 shrink-0 ${current.text}`} strokeWidth={1.75} />
       <span className="text-sm font-medium text-ink flex-1">{message}</span>
+      {action && (
+        action.href ? (
+          <Link
+            href={action.href}
+            onClick={onClose}
+            className="text-xs font-semibold text-accent hover:underline bg-accent/10 px-2.5 py-1 rounded border border-accent/20 shrink-0 transition-all hover:bg-accent/20"
+          >
+            {action.label}
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              action.onClick?.();
+              onClose();
+            }}
+            className="text-xs font-semibold text-accent hover:underline bg-accent/10 px-2.5 py-1 rounded border border-accent/20 shrink-0 transition-all hover:bg-accent/20"
+          >
+            {action.label}
+          </button>
+        )
+      )}
       <button
         onClick={onClose}
         className="text-ink-3 hover:text-ink transition-colors p-1"

@@ -8,8 +8,8 @@ import { fetchApi } from '@/lib/api';
 import { MOCK_PRODUCTS } from '@/lib/mockProducts';
 import { useCartStore } from '@/store/useCartStore';
 import { useAuthStore } from '@/store/useAuthStore';
-import { Button, QuantityStepper, Toast, Skeleton, EmptyState } from '@/components/ui';
-import { ArrowLeft, Star, Check, Lock, ShoppingBag, Zap } from 'lucide-react';
+import { Button, QuantityStepper, Toast, Skeleton, EmptyState, Modal } from '@/components/ui';
+import { ArrowLeft, Star, Check, Lock, ShoppingBag, Zap, Ticket, AlertCircle, Sparkles } from 'lucide-react';
 import { ProductVariant } from '@/types';
 
 interface ProductDetail {
@@ -30,6 +30,11 @@ interface ProductDetail {
   }>;
 }
 
+import { ALL_TOPPINGS, getToppingsForProduct } from '@/lib/toppings';
+
+const SUGAR_LEVELS = ['100% Đường', '70% Đường', '50% Đường', '0% Không đường'];
+const ICE_LEVELS = ['100% Đá', '50% Ít đá', '0% Không đá / Nóng'];
+
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -39,9 +44,112 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedSize, setSelectedSize] = useState<string>('M');
-  const [selectedToppingName, setSelectedToppingName] = useState<string>('Tiêu chuẩn');
+  const [selectedToppings, setSelectedToppings] = useState<string[]>([]);
+  const [sugarLevel, setSugarLevel] = useState('100% Đường');
+  const [iceLevel, setIceLevel] = useState('100% Đá');
   const [quantity, setQuantity] = useState(1);
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    type?: 'success' | 'danger' | 'info';
+    action?: { label: string; href?: string; onClick?: () => void };
+  } | null>(null);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewStars, setReviewStars] = useState(5);
+  const [reviewContent, setReviewContent] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [eligibleOrderId, setEligibleOrderId] = useState<string | null>(null);
+
+  const handleOpenReviewModal = async () => {
+    if (!user) {
+      if (typeof window !== 'undefined') {
+        router.push('/login?redirect=' + encodeURIComponent(window.location.pathname));
+      }
+      return;
+    }
+    try {
+      setReviewError(null);
+      const myOrders = await fetchApi<any[]>('/orders/me');
+      const matchingOrder = Array.isArray(myOrders)
+        ? myOrders.find((o) =>
+            ['PAID', 'PREPARING', 'READY', 'COMPLETED'].includes(o.status) &&
+            o.items?.some((item: any) => item.variant?.productId === product?.id || item.variant?.product?.id === product?.id)
+          )
+        : null;
+
+      if (!matchingOrder) {
+        setToast({
+          message: 'Bạn chỉ có thể đánh giá sau khi đã đặt mua và hoàn tất thanh toán món này.',
+          type: 'info',
+        });
+        return;
+      }
+      setEligibleOrderId(matchingOrder.id);
+      setReviewModalOpen(true);
+    } catch {
+      setToast({
+        message: 'Không thể xác thực lịch sử mua hàng. Vui lòng thử lại sau.',
+        type: 'danger',
+      });
+    }
+  };
+
+  const handleSubmitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!product || !eligibleOrderId || !reviewContent.trim()) {
+      setReviewError('Vui lòng nhập nội dung đánh giá của bạn.');
+      return;
+    }
+    try {
+      setReviewSubmitting(true);
+      setReviewError(null);
+      await fetchApi('/reviews', {
+        method: 'POST',
+        body: JSON.stringify({
+          productId: product.id,
+          orderId: eligibleOrderId,
+          stars: reviewStars,
+          content: reviewContent.trim(),
+        }),
+      });
+
+      const newRev = {
+        id: 'rev-' + Date.now(),
+        stars: reviewStars,
+        content: reviewContent.trim(),
+        createdAt: new Date().toISOString(),
+        customer: { fullName: user?.fullName || user?.username || 'Khách hàng' },
+      };
+
+      setProduct((prev) => {
+        if (!prev) return null;
+        const updatedReviews = [newRev, ...(prev.reviews || [])];
+        const totalStars = updatedReviews.reduce((sum, r) => sum + r.stars, 0);
+        return {
+          ...prev,
+          reviews: updatedReviews,
+          reviewCount: updatedReviews.length,
+          avgRating: Number((totalStars / updatedReviews.length).toFixed(1)),
+        };
+      });
+
+      setReviewModalOpen(false);
+      setReviewContent('');
+      setToast({ message: 'Cảm ơn bạn đã gửi đánh giá món uống!', type: 'success' });
+    } catch (err: unknown) {
+      setReviewError(err instanceof Error ? err.message : 'Không thể gửi đánh giá.');
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
+
+  const toggleTopping = (toppingName: string) => {
+    setSelectedToppings((prev) =>
+      prev.includes(toppingName)
+        ? prev.filter((t) => t !== toppingName)
+        : [...prev, toppingName]
+    );
+  };
 
   useEffect(() => {
     async function loadProduct() {
@@ -52,7 +160,6 @@ export default function ProductDetailPage() {
         if (data.variants && data.variants.length > 0) {
           const firstVariant = data.variants[0];
           setSelectedSize(firstVariant.size);
-          setSelectedToppingName(firstVariant.topping || 'Tiêu chuẩn');
         }
       } catch {
         const found = MOCK_PRODUCTS.find((p) => p.id === params.id) || MOCK_PRODUCTS[0];
@@ -79,7 +186,6 @@ export default function ProductDetailPage() {
           setProduct(fallbackData);
           if (fallbackData.variants.length > 0) {
             setSelectedSize(fallbackData.variants[0].size);
-            setSelectedToppingName(fallbackData.variants[0].topping || 'Tiêu chuẩn');
           }
         }
       } finally {
@@ -126,62 +232,101 @@ export default function ProductDetailPage() {
 
   // Các biến thể theo size đã chọn
   const variantsForSize = product.variants.filter((v) => v.size === currentSize);
+  const baseVariant =
+    variantsForSize.find((v) => v.topping === 'Tiêu chuẩn') || variantsForSize[0];
 
-  // Danh sách topping thực tế cho size này từ API (mỗi tổ hợp size + topping là một variantId)
-  const availableToppings = variantsForSize.map((v) => ({
-    variantId: v.id,
-    name: v.topping || 'Tiêu chuẩn',
-    price: Number(v.price),
-  }));
+  // Tìm variant khớp với các checkbox topping đã tick
+  let selectedVariant = baseVariant;
+  const hasBoba = selectedToppings.includes('Trân châu đường đen');
+  const hasCheese = selectedToppings.includes('Kem Cheese Macchiato');
 
-  // Biến thể đã chọn tương ứng với size và topping thực tế
-  const selectedVariant =
-    variantsForSize.find((v) => (v.topping || 'Tiêu chuẩn') === selectedToppingName) ||
-    variantsForSize[0];
+  if (hasBoba && hasCheese) {
+    const combo = variantsForSize.find(
+      (v) => v.topping?.includes('Trân châu') && v.topping?.includes('Kem Cheese')
+    );
+    if (combo) selectedVariant = combo;
+  } else if (hasBoba) {
+    const single = variantsForSize.find(
+      (v) => v.topping?.includes('Trân châu') && !v.topping?.includes('Kem Cheese')
+    );
+    if (single) selectedVariant = single;
+  } else if (hasCheese) {
+    const single = variantsForSize.find(
+      (v) => v.topping?.includes('Kem Cheese') && !v.topping?.includes('Trân châu')
+    );
+    if (single) selectedVariant = single;
+  }
 
-  const unitPrice = selectedVariant ? Number(selectedVariant.price) : 0;
+  // Phân phối Topping chính xác theo từng món thực tế (Trà đào/vải -> thạch đào/nha đam; Trà sữa -> trân châu/khúc bạch; Cà phê -> espresso/cheese)
+  const toppingsForCategory = getToppingsForProduct(product);
+
+  // Tính giá theo mô típ Grab/Shopee: Giá Size gốc + tổng tiền các topping tick chọn
+  const baseSizePrice = Number(baseVariant?.price || 0);
+  const extraToppingsPrice = selectedToppings.reduce((sum, name) => {
+    const opt = ALL_TOPPINGS.find((o) => o.name === name);
+    return sum + (opt ? opt.price : 0);
+  }, 0);
+  // Đơn giá 1 ly = Giá size gốc + tiền các topping (TĂNG GIẢM NGAY LẬP TỨC khi tick chọn)
+  const unitPrice = baseSizePrice + extraToppingsPrice;
   const totalPrice = unitPrice * quantity;
 
-  const handleAddToCart = (isBuyNow = false) => {
-    if (!user) {
-      setToastMsg('⚠️ Bạn cần đăng nhập tài khoản trước khi tiếp tục!');
-      setTimeout(() => {
-        const redirectTarget = isBuyNow ? '/checkout' : `/products/${product.id}`;
-        router.push(`/login?redirect=${encodeURIComponent(redirectTarget)}`);
-      }, 400);
-      return;
-    }
+  const optionsList = [
+    ...selectedToppings,
+    sugarLevel !== '100% Đường' ? sugarLevel : null,
+    iceLevel !== '100% Đá' ? iceLevel : null,
+  ].filter(Boolean);
+  const toppingLabel = optionsList.length > 0 ? optionsList.join(' · ') : 'Tiêu chuẩn';
 
+  const handleAddToCart = (isBuyNow = false) => {
     if (!selectedVariant) return;
 
-    addItem(
-      {
-        id: `${selectedVariant.id}:${selectedVariant.topping || 'default'}`,
-        variantId: selectedVariant.id,
-        productId: product.id,
-        productName: product.name,
-        imageUrl: product.imageUrl,
-        size: selectedVariant.size,
-        price: unitPrice,
-        topping: selectedVariant.topping || 'Tiêu chuẩn',
-      },
-      quantity
-    );
+    const lineItem = {
+      id: `${selectedVariant.id}:${toppingLabel}`,
+      variantId: selectedVariant.id,
+      productId: product.id,
+      productName: product.name,
+      imageUrl: product.imageUrl,
+      size: selectedVariant.size,
+      price: unitPrice,
+      topping: toppingLabel,
+      quantity,
+    };
 
     if (isBuyNow) {
-      router.push('/checkout');
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('brewlite_buy_now_item', JSON.stringify([lineItem]));
+      }
+      if (!user) {
+        setToast({
+          message: 'Bạn cần đăng nhập tài khoản để mua ngay và thanh toán đơn hàng.',
+          type: 'info',
+          action: {
+            label: 'Đăng nhập',
+            href: '/login?redirect=/checkout?buyNow=1',
+          },
+        });
+        return;
+      }
+      router.push('/checkout?buyNow=1');
     } else {
-      setToastMsg(
-        `Đã thêm ${quantity} ly ${product.name} (Size ${selectedVariant.size} - ${selectedVariant.topping || 'Tiêu chuẩn'}) vào giỏ hàng.`
-      );
+      addItem(lineItem, quantity);
+      setToast({
+        message: `Đã thêm ${quantity} ly ${product.name} (Size ${selectedVariant.size} · Topping: ${toppingLabel}) vào giỏ hàng.`,
+        type: 'success',
+      });
     }
   };
 
   return (
     <div className="max-w-4xl mx-auto space-y-10 pb-20 md:pb-0">
       {/* Toast Notification */}
-      {toastMsg && (
-        <Toast message={toastMsg} type="success" onClose={() => setToastMsg(null)} />
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          action={toast.action}
+          onClose={() => setToast(null)}
+        />
       )}
 
       {/* Back Link */}
@@ -214,13 +359,21 @@ export default function ProductDetailPage() {
         {/* Right: Options & Pricing */}
         <div className="space-y-6">
           <div className="space-y-2 border-b border-line pb-4">
-            {product.avgRating && (
-              <div className="flex items-center gap-1 text-xs text-ink-2">
-                <Star className="w-3 h-3 text-ink fill-ink" strokeWidth={1.5} />
-                <span className="font-semibold text-ink tabular-nums">{product.avgRating}</span>
-                <span className="text-ink-3">({product.reviewCount || 0} lượt đánh giá)</span>
-              </div>
-            )}
+            <div className="flex items-center gap-1.5 text-xs text-ink-2">
+              <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" strokeWidth={1.5} />
+              <span className="font-semibold text-ink tabular-nums">{product.avgRating || 5.0}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  document.getElementById('reviews-section')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="text-ink-3 hover:text-accent hover:underline transition-colors flex items-center gap-1 cursor-pointer"
+                title="Bấm để cuộn xuống xem các đánh giá"
+              >
+                <span>({product.reviewCount || product.reviews?.length || 0} lượt đánh giá)</span>
+                <span className="text-[10px] text-accent font-medium">↓ Xem đánh giá</span>
+              </button>
+            </div>
             <h1 className="font-display text-2xl sm:text-3xl font-semibold tracking-tight text-ink">
               {product.name}
             </h1>
@@ -242,8 +395,6 @@ export default function ProductDetailPage() {
                     type="button"
                     onClick={() => {
                       setSelectedSize(size);
-                      const firstForSize = product.variants.find((v) => v.size === size);
-                      if (firstForSize) setSelectedToppingName(firstForSize.topping || 'Tiêu chuẩn');
                     }}
                     className={`py-2 px-3 text-center border rounded transition-colors text-xs font-medium ${
                       isSelected
@@ -261,38 +412,114 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
-          {/* Topping / Biến thể thực tế theo ChiTietSanPham */}
-          <div className="space-y-2">
-            <span className="text-xs font-semibold text-ink block">Topping & Biến thể món</span>
-            <div className="space-y-1.5">
-              {availableToppings.map((top) => {
-                const isSelected = (selectedVariant?.topping || 'Tiêu chuẩn') === top.name;
-                return (
-                  <label
-                    key={top.variantId}
-                    onClick={() => setSelectedToppingName(top.name)}
-                    className={`flex items-center justify-between p-2.5 border rounded cursor-pointer transition-colors text-xs ${
-                      isSelected
-                        ? 'border-line-strong bg-surface-2 text-ink font-medium'
+          {/* Mức đường & Mức đá (Chuẩn Highlands / Phê La / ShopeeFood) */}
+          <div className="space-y-3 pt-2 border-t border-line">
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs font-semibold text-ink">
+                <span>Độ ngọt (Mức đường)</span>
+                <span className="text-[11px] font-normal text-ink-3">{sugarLevel}</span>
+              </div>
+              <div className="grid grid-cols-4 gap-1.5">
+                {SUGAR_LEVELS.map((lvl) => (
+                  <button
+                    key={lvl}
+                    type="button"
+                    onClick={() => setSugarLevel(lvl)}
+                    className={`py-1.5 px-1 text-[11px] rounded border text-center transition-all ${
+                      sugarLevel === lvl
+                        ? 'border-accent bg-accent text-white font-semibold shadow-xs'
                         : 'border-line bg-surface text-ink-2 hover:bg-surface-2'
                     }`}
                   >
-                    <span className="flex items-center gap-2">
+                    {lvl.replace(' Đường', '')}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs font-semibold text-ink">
+                <span>Lượng đá</span>
+                <span className="text-[11px] font-normal text-ink-3">{iceLevel}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {ICE_LEVELS.map((lvl) => (
+                  <button
+                    key={lvl}
+                    type="button"
+                    onClick={() => setIceLevel(lvl)}
+                    className={`py-1.5 px-1 text-[11px] rounded border text-center transition-all ${
+                      iceLevel === lvl
+                        ? 'border-accent bg-accent text-white font-semibold shadow-xs'
+                        : 'border-line bg-surface text-ink-2 hover:bg-surface-2'
+                    }`}
+                  >
+                    {lvl}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Topping đi kèm (Mô típ GrabFood & ShopeeFood: Chọn nhiều checkbox, CÓ ẢNH MINH HỌA) */}
+          <div className="space-y-2 pt-2 border-t border-line">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-ink block">Topping đi kèm (chọn nhiều)</span>
+              <span className="text-[11px] text-accent font-medium">
+                {selectedToppings.length > 0
+                  ? `Đã chọn ${selectedToppings.length} topping (+${extraToppingsPrice.toLocaleString('vi-VN')}đ)`
+                  : 'Tùy chọn'}
+              </span>
+            </div>
+            <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+              {toppingsForCategory.map((top) => {
+                const isChecked = selectedToppings.includes(top.name);
+                return (
+                  <div
+                    key={top.id}
+                    onClick={() => toggleTopping(top.name)}
+                    className={`flex items-center justify-between p-2.5 border rounded cursor-pointer transition-all text-xs select-none ${
+                      isChecked
+                        ? 'border-accent bg-accent/5 text-ink font-medium ring-1 ring-accent'
+                        : 'border-line bg-surface hover:bg-surface-2 text-ink-2'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
                       <span
-                        className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
-                          isSelected ? 'border-accent bg-accent' : 'border-line-strong'
+                        className={`w-4 h-4 rounded-sm border-2 flex items-center justify-center shrink-0 transition-all ${
+                          isChecked ? 'border-accent bg-accent text-white shadow-xs' : 'border-ink/40 bg-surface'
                         }`}
                       >
-                        {isSelected && (
-                          <Check className="w-2.5 h-2.5 text-on-accent" strokeWidth={2.5} />
+                        {isChecked && (
+                          <Check className="w-3 h-3 text-white" strokeWidth={3.5} />
                         )}
                       </span>
-                      <span>{top.name}</span>
+
+                      {/* Hình ảnh minh họa Topping */}
+                      <div className="relative w-10 h-10 rounded-md overflow-hidden shrink-0 border border-line bg-surface-2">
+                        <Image
+                          src={top.imageUrl}
+                          alt={top.name}
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-ink">{top.name}</span>
+                          <span className="text-[11px] font-semibold text-accent bg-accent/10 px-1.5 py-0.5 rounded border border-accent/20">
+                            +{top.price.toLocaleString('vi-VN')}đ
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-ink-3 mt-0.5">{top.desc}</div>
+                      </div>
+                    </div>
+                    <span className="text-accent font-semibold tabular-nums shrink-0 ml-2">
+                      +{top.price.toLocaleString('vi-VN')}đ
                     </span>
-                    <span className="text-ink font-semibold tabular-nums">
-                      {Number(top.price || 0).toLocaleString('vi-VN')}đ
-                    </span>
-                  </label>
+                  </div>
                 );
               })}
             </div>
@@ -310,19 +537,30 @@ export default function ProductDetailPage() {
               />
             </div>
 
-            <div className="flex items-center justify-between pt-2">
-              <span className="text-xs text-ink-2">Tạm tính:</span>
-              <span className="font-display text-xl font-semibold text-ink tabular-nums">
-                {Number(totalPrice || 0).toLocaleString('vi-VN')}đ
-              </span>
+            {/* Tạm tính & Giá */}
+            <div className="space-y-1.5 pt-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs text-ink-2 block">Tạm tính:</span>
+                  {extraToppingsPrice > 0 && (
+                    <span className="text-[10px] text-accent font-medium">
+                      (Gốc {Number(baseSizePrice).toLocaleString('vi-VN')}đ + {Number(extraToppingsPrice).toLocaleString('vi-VN')}đ topping)
+                    </span>
+                  )}
+                </div>
+                <span className="font-semibold text-sm text-ink tabular-nums">
+                  {Number(totalPrice || 0).toLocaleString('vi-VN')}đ
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between pt-1 border-t border-line/60">
+                <span className="text-xs font-bold text-ink">Tổng thanh toán:</span>
+                <span className="font-display text-2xl font-bold text-accent tabular-nums">
+                  {Number(totalPrice || 0).toLocaleString('vi-VN')}đ
+                </span>
+              </div>
             </div>
 
-            {!user && (
-              <div className="p-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-lg text-xs text-amber-900 dark:text-amber-200 flex items-center gap-2">
-                <Lock className="w-4 h-4 text-amber-600 shrink-0" />
-                <span>Bạn cần <b>đăng nhập</b> để thêm món hoặc mua ngay.</span>
-              </div>
-            )}
 
             <div className="grid grid-cols-2 gap-3">
               <Button
@@ -349,34 +587,134 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
-      {/* Customer Reviews Section */}
-      {product.reviews && product.reviews.length > 0 && (
-        <div className="border-t border-line pt-8 space-y-4">
-          <h2 className="font-display text-lg font-semibold text-ink">
-            Đánh giá từ khách hàng ({product.reviews.length})
-          </h2>
+            {/* Customer Reviews Section */}
+      <div id="reviews-section" className="border-t border-line pt-8 space-y-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-display text-lg font-semibold text-ink flex items-center gap-2">
+              <span>Đánh giá từ khách hàng</span>
+              <span className="text-xs font-normal text-ink-3 bg-surface-2 px-2 py-0.5 rounded-full">
+                {product.reviews?.length || product.reviewCount || 0}
+              </span>
+            </h2>
+            <p className="text-xs text-ink-3 mt-0.5">Nhận xét thực tế từ khách hàng đã thưởng thức món này.</p>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleOpenReviewModal}
+            className="px-3.5 py-2 bg-accent hover:bg-accent-hover text-on-accent text-xs font-semibold rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
+          >
+            <Star className="w-3.5 h-3.5 fill-current" />
+            <span>Viết đánh giá món này</span>
+          </button>
+        </div>
+
+        {product.reviews && product.reviews.length > 0 ? (
           <div className="divide-y divide-line border-y border-line text-xs">
             {product.reviews.map((rev) => (
-              <div key={rev.id} className="py-3.5 space-y-1.5">
+              <div key={rev.id} className="py-4 space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-ink">{rev.customer?.fullName || 'Khách hàng'}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-ink">{rev.customer?.fullName || 'Khách hàng'}</span>
+                    <span className="text-[10px] bg-emerald-500/10 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                      ✓ Đã mua hàng
+                    </span>
+                  </div>
                   <div className="flex items-center gap-0.5">
                     {[1, 2, 3, 4, 5].map((s) => (
                       <Star
                         key={s}
-                        className={`w-3 h-3 ${s <= rev.stars ? 'text-ink fill-ink' : 'text-line'}`}
+                        className={s <= rev.stars ? "w-3.5 h-3.5 text-amber-500 fill-amber-500" : "w-3.5 h-3.5 text-line"}
                         strokeWidth={1.5}
                       />
                     ))}
                   </div>
                 </div>
-                <p className="text-ink-2 leading-relaxed">{rev.content}</p>
-                <span className="text-[11px] text-ink-3 block">{rev.createdAt}</span>
+                <p className="text-ink-2 leading-relaxed text-xs">{rev.content}</p>
+                <span className="text-[11px] text-ink-3 block">
+                  {new Date(rev.createdAt).toLocaleDateString('vi-VN')}
+                </span>
               </div>
             ))}
           </div>
-        </div>
-      )}
-    </div>
+        ) : (
+          <div className="p-8 text-center bg-surface-2/40 border border-dashed border-line rounded-2xl space-y-3 text-xs">
+            <div className="w-10 h-10 mx-auto rounded-full bg-accent/10 flex items-center justify-center text-accent">
+              <Star className="w-5 h-5" />
+            </div>
+            <div className="space-y-1">
+              <p className="font-semibold text-ink">Chưa có đánh giá nào cho món đồ uống này</p>
+              <p className="text-ink-3 text-[11px]">
+                Hãy đặt mua và thưởng thức để trở thành người đầu tiên chia sẻ cảm nhận nhé!
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleOpenReviewModal}
+              className="text-xs text-accent font-semibold hover:underline"
+            >
+              Gửi đánh giá đầu tiên →
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Modal Viết Đánh Giá Sản Phẩm */}
+      <Modal
+        isOpen={reviewModalOpen}
+        onClose={() => setReviewModalOpen(false)}
+        title={"Đánh giá món " + product.name}
+        description="Chia sẻ trải nghiệm của bạn về hương vị, độ ngọt, độ béo để người khác cùng tham khảo."
+      >
+        <form onSubmit={handleSubmitReview} className="space-y-4 text-xs text-left">
+          <div className="space-y-1.5 text-center p-3 bg-surface-2/40 rounded-xl border border-line">
+            <span className="font-semibold text-ink block">Mức độ hài lòng của bạn</span>
+            <div className="flex items-center justify-center gap-2 pt-1">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <button
+                  type="button"
+                  key={s}
+                  onClick={() => setReviewStars(s)}
+                  className="p-1 hover:scale-125 transition-transform"
+                >
+                  <Star
+                    className={s <= reviewStars ? "w-6 h-6 text-amber-500 fill-amber-500" : "w-6 h-6 text-ink-3"}
+                    strokeWidth={1.5}
+                  />
+                </button>
+              ))}
+            </div>
+            <span className="text-[11px] text-accent font-medium block">
+              {reviewStars === 5 ? 'Tuyệt vời (5/5)' : reviewStars === 4 ? 'Ngon, vừa miệng (4/5)' : reviewStars === 3 ? 'Bình thường (3/5)' : 'Chưa hài lòng'}
+            </span>
+          </div>
+
+          <div className="space-y-1">
+            <label className="font-semibold text-ink block">Nhận xét chi tiết</label>
+            <textarea
+              required
+              rows={3}
+              value={reviewContent}
+              onChange={(e) => setReviewContent(e.target.value)}
+              placeholder="VD: Vị thanh mát, lớp bọt tuyết mịn, thơm hương bạc hà rất sảng khoái..."
+              className="w-full p-2.5 bg-bg border border-line rounded-lg text-ink focus:border-accent focus:outline-none text-xs leading-relaxed"
+            />
+          </div>
+
+          {reviewError && (
+            <p className="text-danger text-[11px] font-medium leading-tight">{reviewError}</p>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-line">
+            <Button variant="secondary" size="sm" type="button" onClick={() => setReviewModalOpen(false)}>
+              Hủy
+            </Button>
+            <Button variant="primary" size="sm" type="submit" loading={reviewSubmitting}>
+              Gửi đánh giá
+            </Button>
+          </div>
+        </form>
+      </Modal></div>
   );
 }

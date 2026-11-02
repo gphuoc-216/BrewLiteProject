@@ -49,7 +49,7 @@ export const Modal: React.FC<ModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-ink/40 transition-opacity"
@@ -64,9 +64,9 @@ export const Modal: React.FC<ModalProps> = ({
         aria-modal="true"
         aria-labelledby="modal-title"
         aria-describedby={description ? 'modal-description' : undefined}
-        className={`relative w-full ${widthStyles[maxWidth]} bg-surface border border-line rounded shadow-float p-6 z-10 transition-all`}
+        className={`relative w-full ${widthStyles[maxWidth]} max-h-[92vh] flex flex-col bg-surface border border-line rounded-2xl shadow-float p-5 sm:p-6 z-10 transition-all`}
       >
-        <div className="flex items-start justify-between gap-4 mb-4">
+        <div className="flex items-start justify-between gap-4 mb-3 shrink-0">
           <div>
             <h3 id="modal-title" className="font-display text-lg font-semibold text-ink">
               {title}
@@ -79,14 +79,14 @@ export const Modal: React.FC<ModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="text-ink-3 hover:text-ink transition-colors p-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="text-ink-3 hover:text-ink transition-colors p-1.5 rounded-lg hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             aria-label="Đóng hộp thoại"
           >
             <X className="w-4 h-4" strokeWidth={1.75} />
           </button>
         </div>
 
-        <div>{children}</div>
+        <div className="overflow-y-auto pr-1 flex-1 space-y-4">{children}</div>
       </div>
     </div>
   );

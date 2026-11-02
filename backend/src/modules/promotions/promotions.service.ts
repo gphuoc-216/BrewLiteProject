@@ -10,35 +10,53 @@ export interface PromotionRule {
 }
 
 export const VOUCHER_RULES: Record<string, PromotionRule> = {
+  BANMOI: {
+    minOrderValue: 35000,
+    maxDiscount: 15000,
+    badge: "Bạn Mới 15K",
+    description: "Ưu đãi chào bạn mới tại quán BrewLite",
+  },
   BREW10: {
+    minOrderValue: 30000,
+    maxDiscount: 15000,
+    badge: "Giảm 10%",
+    description: "Giảm 10% (tối đa 15.000đ) cho đơn từ 30.000đ",
+  },
+  HAPPYHOUR: {
     minOrderValue: 40000,
     maxDiscount: 15000,
-    badge: 'Giảm 10%',
-    description: 'Giảm 10% (tối đa 15K) cho đơn từ 40K',
+    badge: "Giờ Vàng 15K",
+    description: "Ưu đãi khung giờ vàng tại quán (14h - 17h)",
+  },
+  FREESHIP: {
+    minOrderValue: 45000,
+    maxDiscount: 15000,
+    badge: "Phục Vụ 15K",
+    description: "Miễn phí phục vụ tận bàn và giao nhanh",
   },
   GIAM20K: {
     minOrderValue: 60000,
     maxDiscount: 20000,
-    badge: 'Giảm 20K',
-    description: 'Giảm 20.000đ cho đơn từ 60K',
+    badge: "Khách Quen 20K",
+    description: "Giảm ngay 20.000đ cho đơn từ 60.000đ",
   },
-  GIAM50K: {
+  GIAM30K: {
+    minOrderValue: 80000,
+    maxDiscount: 30000,
+    badge: "Combo 30K",
+    description: "Giảm 30.000đ cho combo nạp năng lượng từ 80.000đ",
+  },
+  COFFEEVIP: {
+    minOrderValue: 100000,
+    maxDiscount: 30000,
+    badge: "Tiệc Nhóm 30K",
+    description: "Giảm 30.000đ cho đơn từ 100.000đ (Tiệc nhóm bạn)",
+  },
+  BREWVIP: {
     minOrderValue: 120000,
     maxDiscount: 50000,
-    badge: 'Giảm 50K',
-    description: 'Giảm 50.000đ cho đơn từ 120K (Tiệc nhóm)',
-  },
-  FREESHIP: {
-    minOrderValue: 50000,
-    maxDiscount: 15000,
-    badge: 'Freeship Extra',
-    description: 'Miễn phí vận chuyển / dịch vụ 15K cho đơn từ 50K',
-  },
-  TIKTOK30: {
-    minOrderValue: 80000,
-    maxDiscount: 25000,
-    badge: 'TikTok Live',
-    description: 'Giảm 30% (tối đa 25K) cho đơn từ 80K',
+    badge: "BrewVIP 50K",
+    description: "Giảm 50.000đ cho đơn từ 120.000đ (Hội nhóm cà phê)",
   },
 };
 
@@ -58,6 +76,9 @@ export class PromotionsService {
         },
         orderBy: { createdAt: 'desc' },
       });
+      promos = promos.filter(
+        (p) => p.usedCount < p.quantity && p.code !== 'SOLDOUT' && p.code !== 'EXPIRED50'
+      );
     } catch {
       // Fallback empty list if DB error
       promos = [];
@@ -74,8 +95,8 @@ export class PromotionsService {
           id: `seed-${code}`,
           code,
           name: rule.description,
-          discountType: code === 'BREW10' || code === 'TIKTOK30' ? PromotionType.PERCENT : PromotionType.FIXED,
-          discountValue: (code === 'BREW10' ? 10 : code === 'TIKTOK30' ? 30 : code === 'GIAM20K' ? 20000 : code === 'GIAM50K' ? 50000 : 15000) as any,
+          discountType: code === 'BREW10' ? PromotionType.PERCENT : PromotionType.FIXED,
+          discountValue: (code === 'BREW10' ? 10 : code === 'GIAM20K' ? 20000 : 30000) as any,
           quantity: 999,
           usedCount: 0,
           startDate: new Date('2026-01-01'),
@@ -140,8 +161,8 @@ export class PromotionsService {
         id: `virtual-${codeUpper}`,
         code: codeUpper,
         name: rule.description,
-        discountType: codeUpper === 'BREW10' || codeUpper === 'TIKTOK30' ? PromotionType.PERCENT : PromotionType.FIXED,
-        discountValue: (codeUpper === 'BREW10' ? 10 : codeUpper === 'TIKTOK30' ? 30 : codeUpper === 'GIAM20K' ? 20000 : codeUpper === 'GIAM50K' ? 50000 : 15000) as any,
+        discountType: codeUpper === 'BREW10' ? PromotionType.PERCENT : PromotionType.FIXED,
+        discountValue: (codeUpper === 'BREW10' ? 10 : (rule.maxDiscount || 20000)) as any,
         quantity: 9999,
         usedCount: 0,
         startDate: new Date('2026-01-01'),
@@ -175,7 +196,7 @@ export class PromotionsService {
       throw new BadRequestException(`Mã khuyến mãi "${code}" đã hết lượt sử dụng`);
     }
 
-    // Kiểm tra quy tắc giá trị đơn hàng tối thiểu (Shopee / TikTok Shop minOrderValue)
+    // Kiểm tra quy tắc giá trị đơn hàng tối thiểu
     const rule = VOUCHER_RULES[codeUpper];
     const minOrderValue =
       (promo as any).minOrderValue !== undefined
@@ -221,4 +242,3 @@ export class PromotionsService {
     };
   }
 }
-

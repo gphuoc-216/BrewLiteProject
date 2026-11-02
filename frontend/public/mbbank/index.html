@@ -1649,7 +1649,7 @@
                     <span class="round-action-label">Số thẻ</span>
                 </div>
 
-                <div class="round-action-item" onclick="quickTransferTo('0589822346', 'BREWLITE COFFEE', 'MBBank (MB)', 'MB', 'Ngân hàng TMCP Quân đội')">
+                <div class="round-action-item" onclick="showToast('Chưa có mẫu chuyển tiền đã lưu')">
                     <div class="round-action-icon">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -1704,15 +1704,8 @@
             <!-- Danh bạ người nhận gần đây -->
             <div class="recent-contacts-box">
                 <div class="recent-section-header">Người nhận gần đây</div>
-
-                <!-- Contact duy nhất: BREWLITE COFFEE -->
-                <div class="contact-item-card" onclick="quickTransferTo('0589822346', 'BREWLITE COFFEE', 'MBBank (MB)', 'MB', 'Ngân hàng TMCP Quân đội')">
-                    <div class="contact-avatar-pill" style="background:#fef3c7; color:#b45309;">☕</div>
-                    <div class="contact-info-col">
-                        <div class="contact-name-title">BREWLITE COFFEE</div>
-                        <div class="contact-account-sub">0589822346 • MBBank (MB)</div>
-                    </div>
-                    <span style="font-size: 18px; color:#94a3b8;">›</span>
+                <div style="padding: 16px; text-align: center; color: #94a3b8; font-size: 12px; background: #ffffff; border-radius: 14px; border: 1px dashed #e2e8f0;">
+                    Chưa có giao dịch gần đây. Quét mã QR để chuyển tiền.
                 </div>
             </div>
         </div>
@@ -3193,7 +3186,7 @@
             }
 
             // 3. Fallback nhận diện nếu chứa chữ BREWLITE hoặc số tài khoản 99998888
-            if (!isRecognized && (raw.toUpperCase().includes("BREWLITE") || raw.includes("99998888"))) {
+            if (!isRecognized && (raw.toUpperCase().includes("BREWLITE") || raw.includes("99998888") || raw.includes("0589822346"))) {
                 isRecognized = true;
                 account = "99998888";
                 bankCode = "VCB";
@@ -3202,8 +3195,9 @@
                 name = "BREWLITE COFFEE";
                 const matchBL = raw.match(/BL\d+/i) || raw.match(/ORD-[A-Z0-9]+/i);
                 if (matchBL) msg = `BREWLITE ${matchBL[0]}`;
-                const matchAmt = raw.match(/\b\d{4,7}\b/);
-                if (matchAmt) amount = matchAmt[0];
+                let cleanForAmt = raw.replace(/BL\d+/gi, '').replace(/ORD-[A-Z0-9]+/gi, '');
+                const matchAmt = cleanForAmt.match(/(\d{4,9})\s*(?:VND|đ|d)?/i) || cleanForAmt.match(/\b(\d{4,9})\b/);
+                if (matchAmt && matchAmt[1]) amount = matchAmt[1];
             }
 
             if (!isRecognized) {

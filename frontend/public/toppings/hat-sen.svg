@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <radialGradient id="lotusSyrup" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFFDE7"/>
+      <stop offset="60%" stop-color="#FFF9C4"/>
+      <stop offset="100%" stop-color="#FFE082"/>
+    </radialGradient>
+    <radialGradient id="lotusSeed" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="50%" stop-color="#FFF9C4"/>
+      <stop offset="85%" stop-color="#FFE082"/>
+      <stop offset="100%" stop-color="#FFCA28"/>
+    </radialGradient>
+    <filter id="lotusShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="1" dy="2" stdDeviation="1.5" flood-color="#F57F17" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <!-- Bát sứ trắng kem -->
+  <circle cx="50" cy="50" r="46" fill="#FBF7F0" stroke="#E2CCA6" stroke-width="2"/>
+  <circle cx="50" cy="50" r="40" fill="url(#lotusSyrup)"/>
+
+  <!-- Từng hạt sen bùi béo ninh mềm nở căng -->
+  <g filter="url(#lotusShadow)">
+    <circle cx="36" cy="40" r="11" fill="url(#lotusSeed)"/>
+    <circle cx="64" cy="40" r="11.5" fill="url(#lotusSeed)"/>
+    <circle cx="50" cy="56" r="12.5" fill="url(#lotusSeed)"/>
+    <circle cx="33" cy="67" r="10.5" fill="url(#lotusSeed)"/>
+    <circle cx="67" cy="67" r="11" fill="url(#lotusSeed)"/>
+  </g>
+
+  <!-- Lỗ tâm sen tự nhiên ở giữa từng hạt -->
+  <circle cx="36" cy="40" r="1.8" fill="#BCAAA4"/>
+  <circle cx="64" cy="40" r="1.8" fill="#BCAAA4"/>
+  <circle cx="50" cy="56" r="2" fill="#BCAAA4"/>
+  <circle cx="33" cy="67" r="1.6" fill="#BCAAA4"/>
+  <circle cx="67" cy="67" r="1.7" fill="#BCAAA4"/>
+
+  <!-- Điểm sáng bóng mọng nước đường phèn -->
+  <ellipse cx="33" cy="36" rx="4" ry="2" fill="#FFFFFF" opacity="0.8" transform="rotate(-30 33 36)"/>
+  <ellipse cx="61" cy="36" rx="4" ry="2" fill="#FFFFFF" opacity="0.8" transform="rotate(-30 61 36)"/>
+  <ellipse cx="46" cy="51" rx="4.5" ry="2.2" fill="#FFFFFF" opacity="0.85" transform="rotate(-30 46 51)"/>
+  <ellipse cx="30" cy="64" rx="3.5" ry="1.8" fill="#FFFFFF" opacity="0.75" transform="rotate(-30 30 64)"/>
+  <ellipse cx="64" cy="63" rx="3.5" ry="1.8" fill="#FFFFFF" opacity="0.75" transform="rotate(-30 64 63)"/>
+</svg>
+

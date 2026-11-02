@@ -1,6 +1,6 @@
 import { Controller, Post, Patch, Delete, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { ReviewsService, CreateReviewDto } from './reviews.service';
+import { ReviewsService, CreateReviewDto, UpdateReviewDto } from './reviews.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
@@ -14,7 +14,8 @@ export class ReviewsController {
   @Post()
   @ApiOperation({ summary: 'Gửi đánh giá món đã mua (Kiểm tra KiemTraDaMua)' })
   createReview(@CurrentUser() user: any, @Body() dto: CreateReviewDto) {
-    return this.reviewsService.createReview(user.profileId, dto);
+    const actorId = user.customerId || user.profileId || user.accountId || user.id || user.sub || '';
+    return this.reviewsService.createReview(actorId, dto);
   }
 
   @Patch(':id')
@@ -22,15 +23,16 @@ export class ReviewsController {
   updateReview(
     @Param('id') id: string,
     @CurrentUser() user: any,
-    @Body('stars') stars?: number,
-    @Body('content') content?: string,
+    @Body() dto: UpdateReviewDto,
   ) {
-    return this.reviewsService.updateReview(id, user.profileId, stars, content);
+    const actorId = user.customerId || user.profileId || user.accountId || user.id || user.sub || '';
+    return this.reviewsService.updateReview(id, actorId, dto.stars, dto.content);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Xóa đánh giá của chính mình' })
   deleteReview(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.reviewsService.deleteReview(id, user.profileId, user.role);
+    const actorId = user.customerId || user.profileId || user.accountId || user.id || user.sub || '';
+    return this.reviewsService.deleteReview(id, actorId, user.role);
   }
 }

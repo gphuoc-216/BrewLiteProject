@@ -36,7 +36,7 @@ export default function StaffKanbanPage() {
     if (!ready) return;
 
     loadOrders();
-    const interval = setInterval(loadOrders, 10000);
+    const interval = setInterval(loadOrders, 2000);
     return () => clearInterval(interval);
   }, [ready]);
 
@@ -104,7 +104,7 @@ export default function StaffKanbanPage() {
 
       <PageHeader
         title="Quầy pha chế"
-        description="Bảng Kanban theo dõi và thực hiện đơn hàng theo thời gian thực (FIFO)."
+        description="Bảng điều phối pha chế và hoàn thành đơn hàng theo thứ tự đặt món (đơn đặt trước làm trước)."
         action={
           <div className="flex items-center gap-3">
             {lastUpdated && (

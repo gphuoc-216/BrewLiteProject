@@ -32,7 +32,7 @@ export default function PaymentRulesModal({
           <div className="flex items-center gap-2.5">
             <ShieldAlert className="w-5 h-5 text-accent" />
             <h3 className="font-display text-base font-semibold text-ink">
-              Quy Chế Thanh Toán Qua VietQR & MBBank
+              Quy Chế Thanh Toán Không Dùng Tiền Mặt
             </h3>
           </div>
           <button
@@ -62,7 +62,7 @@ export default function PaymentRulesModal({
               <CheckCircle2 className="w-4 h-4 text-success shrink-0 mt-0.5" />
               <div>
                 <strong className="text-ink block">1. Nhập chính xác nội dung chuyển khoản</strong>
-                Nội dung chuyển khoản bắt buộc phải chứa đúng mã: <span className="font-mono font-bold text-accent">BREWLITE {orderCode}</span>. Hệ thống Napas 247 sẽ đọc mã này và tự động phát âm thanh Ting Ting xác nhận chỉ sau 1–2 giây.
+                Nội dung chuyển khoản bắt buộc phải chứa đúng mã: <span className="font-mono font-bold text-accent">BREWLITE {orderCode}</span>. Hệ thống sẽ đọc mã này và tự động xác nhận đơn hàng chỉ sau 1–2 giây.
               </div>
             </div>
 
@@ -70,7 +70,7 @@ export default function PaymentRulesModal({
               <Clock className="w-4 h-4 text-warning shrink-0 mt-0.5" />
               <div>
                 <strong className="text-ink block">2. Hiệu lực mã QR 05 phút</strong>
-                Mã VietQR có hiệu lực trong vòng 300 giây (05:00) nhằm đảm bảo tỷ giá và số lượng nguyên liệu trong kho không bị trùng lắp. Nếu quá hạn, vui lòng bấm nút “Làm mới mã QR”.
+                Mã QR thanh toán có hiệu lực trong vòng 5 phút (300 giây) nhằm đảm bảo tỷ giá và số lượng nguyên liệu trong kho không bị trùng lắp. Nếu quá hạn, vui lòng bấm nút “Làm mới mã QR”.
               </div>
             </div>
 
@@ -86,7 +86,7 @@ export default function PaymentRulesModal({
               <ShieldAlert className="w-4 h-4 text-accent shrink-0 mt-0.5" />
               <div>
                 <strong className="text-ink block">4. Chính sách hoàn tiền 90%</strong>
-                Các khoản tiền chuyển sai nội dung sẽ được Kế toán hoàn lại <strong>90% giá trị</strong> vào số tài khoản nguồn của quý khách trong vòng 24h làm việc (khấu trừ 10% chi phí kiểm tra ngân hàng Napas).
+                Các khoản tiền chuyển sai nội dung sẽ được Kế toán hoàn lại <strong>90% giá trị</strong> vào số tài khoản nguồn của quý khách trong vòng 24h làm việc (khấu trừ 10% phí xử lý giao dịch).
               </div>
             </div>
           </div>
