@@ -287,6 +287,8 @@ function CheckoutContent() {
 
   // Sinh mã QR thanh toán chuẩn ngân hàng VietQR EMVCo (chứa chính xác số tiền, STK, người thụ hưởng, nội dung)
   useEffect(() => {
+    if (finalTotal <= 0) return;
+
     let isCancelled = false;
     const emvPayload = generateVietQrEmvString({
       bankBin: '970436', // VCB
@@ -800,37 +802,118 @@ function CheckoutContent() {
         description="Chọn Ví điện tử hoặc Thẻ ngân hàng, sau đó xác nhận trả để hoàn tất đơn hàng."
       />
 
-      {/* Tabs Chuyển Phương Thức Thanh Toán */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-ink">Không dùng tiền mặt</p>
-        <div className="flex border-b border-line gap-2">
-          <button
-            type="button"
-            onClick={() => setPaymentMethod('CARD')}
-            className={`pb-3 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-all ${
-              paymentMethod === 'CARD'
-                ? 'border-accent text-accent'
-                : 'border-transparent text-ink-3 hover:text-ink'
-            }`}
-          >
-            <CreditCard className="w-4 h-4" />
-            <span>Thẻ ngân hàng</span>
-          </button>
+      {/* KHI ĐƠN HÀNG CÓ TỔNG TIỀN BẰNG 0Đ (THANH TOÁN 100% BẰNG VOUCHER / ĐIỂM THƯỞNG) */}
+      {finalTotal === 0 ? (
+        <div className="bg-surface border-2 border-emerald-500 rounded-2xl p-6 sm:p-8 shadow-sm text-center space-y-5 animate-fade-in max-w-2xl mx-auto">
+          <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto text-3xl shadow-sm">
+            🎁
+          </div>
 
-          <button
-            type="button"
-            onClick={() => setPaymentMethod('WALLET')}
-            className={`pb-3 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-all ${
-              paymentMethod === 'WALLET'
-                ? 'border-accent text-accent'
-                : 'border-transparent text-ink-3 hover:text-ink'
-            }`}
-          >
-            <Wallet className="w-4 h-4" />
-            <span>Ví điện tử</span>
-          </button>
+          <div className="space-y-1.5 max-w-lg mx-auto">
+            <h3 className="font-display font-bold text-lg sm:text-xl text-ink">
+              Đơn hàng được thanh toán 100% (0 đ)
+            </h3>
+            <p className="text-xs sm:text-sm text-ink-2 leading-relaxed">
+              Tổng giá trị đơn hàng <span className="line-through">{subtotal.toLocaleString('vi-VN')} đ</span> đã được khấu trừ hoàn toàn bằng {loyaltyPointsUsed > 0 ? `Điểm tích lũy (${loyaltyPointsUsed} điểm)` : 'Mã ưu đãi'}.
+              <br />
+              <strong className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                Không cần quét mã QR hay chuyển khoản ngân hàng. Bấm xác nhận để quán bắt đầu pha chế ngay!
+              </strong>
+            </p>
+          </div>
+
+          {/* Chi tiết khấu trừ hóa đơn 0đ */}
+          <div className="max-w-md mx-auto p-4 bg-surface-2 rounded-xl border border-line text-xs space-y-2 text-left">
+            <div className="flex justify-between text-ink-2">
+              <span>Món đã chọn:</span>
+              <span className="font-medium text-ink truncate max-w-[200px]">{selectedItemsText}</span>
+            </div>
+            <div className="flex justify-between text-ink-2">
+              <span>Tạm tính gốc:</span>
+              <span className="font-mono">{subtotal.toLocaleString('vi-VN')} đ</span>
+            </div>
+            {voucherDiscount > 0 && (
+              <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                <span>Voucher giảm giá:</span>
+                <span className="font-mono">-{voucherDiscount.toLocaleString('vi-VN')} đ</span>
+              </div>
+            )}
+            {pointsDiscount > 0 && (
+              <div className="flex justify-between text-amber-600 dark:text-amber-400 font-medium">
+                <span>Điểm tích lũy đã dùng ({loyaltyPointsUsed} điểm):</span>
+                <span className="font-mono">-{pointsDiscount.toLocaleString('vi-VN')} đ</span>
+              </div>
+            )}
+            <div className="flex justify-between font-bold text-ink text-sm pt-2 border-t border-line">
+              <span>Tổng tiền cần thanh toán:</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-mono text-base font-extrabold">0 đ</span>
+            </div>
+          </div>
+
+          {errorMsg && (
+            <div className="max-w-md mx-auto p-3 bg-danger-soft border border-danger/30 rounded-lg text-xs text-danger flex items-center gap-2 text-left">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {/* Nút Xác Nhận Đặt Đơn Ngay 0đ */}
+          <div className="pt-2">
+            <Button
+              type="button"
+              variant="primary"
+              size="lg"
+              disabled={loading}
+              onClick={() => handlePay()}
+              className="w-full max-w-sm mx-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 text-sm shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all"
+            >
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <CheckCircle2 className="w-5 h-5" />
+                  <span>Xác Nhận Đặt Đơn Ngay (0 đ)</span>
+                </>
+              )}
+            </Button>
+            <p className="text-[11px] text-ink-3 mt-2">
+              Bấm xác nhận để hệ thống ghi nhận đơn và gửi xuống quầy pha chế ngay lập tức!
+            </p>
+          </div>
         </div>
-      </div>
+      ) : (
+        <>
+          {/* Tabs Chuyển Phương Thức Thanh Toán */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-ink">Không dùng tiền mặt</p>
+            <div className="flex border-b border-line gap-2">
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('CARD')}
+                className={`pb-3 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-all ${
+                  paymentMethod === 'CARD'
+                    ? 'border-accent text-accent'
+                    : 'border-transparent text-ink-3 hover:text-ink'
+                }`}
+              >
+                <CreditCard className="w-4 h-4" />
+                <span>Thẻ ngân hàng</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('WALLET')}
+                className={`pb-3 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-all ${
+                  paymentMethod === 'WALLET'
+                    ? 'border-accent text-accent'
+                    : 'border-transparent text-ink-3 hover:text-ink'
+                }`}
+              >
+                <Wallet className="w-4 h-4" />
+                <span>Ví điện tử</span>
+              </button>
+            </div>
+          </div>
 
       {paymentMethod === 'CARD' ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -867,22 +950,7 @@ function CheckoutContent() {
             <div className="relative inline-block mx-auto">
               <div className="bg-white p-3.5 rounded-2xl border-2 border-blue-600 shadow-md inline-block">
                 <div className="flex items-center justify-center min-w-[210px] min-h-[210px] bg-white rounded overflow-hidden">
-                  {qrDataUrl ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={qrDataUrl}
-                      alt="Mã QR Thanh Toán BrewLite"
-                      width={210}
-                      height={210}
-                      className="block mx-auto rounded"
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center w-[210px] h-[210px] text-xs text-slate-400 gap-2">
-                      <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                      <span>Đang tạo mã QR thanh toán...</span>
-                    </div>
-                  )}
-                  <canvas ref={canvasRef} width={210} height={210} className="hidden" />
+                  <canvas ref={canvasRef} width={210} height={210} className="block mx-auto rounded" />
                 </div>
                 <div className="mt-2.5 text-[11px] text-slate-800 font-bold leading-relaxed border-t border-slate-100 pt-2 text-left space-y-0.5">
                   <div className="flex justify-between"><span>Đơn vị nhận:</span> <b>BrewLite Coffee</b></div>
@@ -1377,6 +1445,8 @@ function CheckoutContent() {
           
         </div>
       )}
+    </>
+  )}
 
       {/* MODAL MÔ PHỎNG LIÊN KẾT VÍ ĐIỆN TỬ */}
       {linkingProvider && (
