@@ -109,12 +109,24 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(3);
+  const [totalItems, setTotalItems] = useState(24);
+  const [toast, setToast] = useState<{
+    message: string;
+    type?: 'success' | 'danger' | 'info';
+    action?: { label: string; href?: string; onClick?: () => void };
+  } | null>(null);
   const [modalProduct, setModalProduct] = useState<ProductItem | null>(null);
 
-  const { addItem } = useCartStore();
+  const { addItem, clearCart } = useCartStore();
   const { user } = useAuthStore();
   const router = useRouter();
+
+  // Reset về trang 1 khi đổi danh mục hoặc tìm kiếm
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, selectedCategory]);
 
   useEffect(() => {
     async function loadProducts() {
@@ -123,10 +135,16 @@ export default function HomePage() {
         const params = new URLSearchParams();
         if (search) params.append('search', search);
         if (selectedCategory !== 'ALL') params.append('category', selectedCategory);
+        params.append('page', String(currentPage));
+        params.append('limit', '8');
 
-        const data = await fetchApi<{ items?: ProductItem[] }>(`/products?${params.toString()}`);
+        const data = await fetchApi<{ items?: ProductItem[]; meta?: { page: number; totalPages: number; totalItems: number } }>(`/products?${params.toString()}`);
         if (data && data.items) {
           setProducts(data.items);
+          if (data.meta) {
+            setTotalPages(data.meta.totalPages || 1);
+            setTotalItems(data.meta.totalItems || data.items.length);
+          }
         }
       } catch (err) {
         let fallback = [...MOCK_PRODUCTS] as unknown as ProductItem[];
@@ -139,7 +157,10 @@ export default function HomePage() {
             (p) => p.name.toLowerCase().includes(q) || (p.description && p.description.toLowerCase().includes(q))
           );
         }
-        setProducts(fallback);
+        const startIndex = (currentPage - 1) * 8;
+        setTotalPages(Math.ceil(fallback.length / 8) || 1);
+        setTotalItems(fallback.length);
+        setProducts(fallback.slice(startIndex, startIndex + 8));
       } finally {
         setLoading(false);
       }
@@ -147,7 +168,7 @@ export default function HomePage() {
 
     const timer = setTimeout(loadProducts, 200);
     return () => clearTimeout(timer);
-  }, [search, selectedCategory]);
+  }, [search, selectedCategory, currentPage]);
 
   const handleModalAddToCart = (
     item: {
@@ -162,21 +183,55 @@ export default function HomePage() {
     },
     quantity: number
   ) => {
+    addItem(item, quantity);
+    setToast({
+      message: `Đã thêm ${quantity} ly ${item.productName} (Size ${item.size} - ${item.topping}) vào giỏ hàng.`,
+      type: 'success',
+    });
+  };
+
+  const handleModalBuyNow = (
+    item: {
+      id: string;
+      variantId: string;
+      productId: string;
+      productName: string;
+      imageUrl: string;
+      size: 'S' | 'M' | 'L';
+      price: number;
+      topping: string;
+    },
+    quantity: number
+  ) => {
+    // Mua ngay: Thêm món vào giỏ hàng ngay lập tức
+    addItem(item, quantity);
+    setModalProduct(null);
+
     if (!user) {
-      setToastMsg('⚠️ Vui lòng đăng nhập tài khoản trước khi thêm món vào giỏ hàng!');
-      router.push('/login?redirect=/');
+      setToast({
+        message: 'Bạn cần đăng nhập tài khoản để mua ngay và thanh toán đơn hàng.',
+        type: 'info',
+        action: {
+          label: 'Đăng nhập',
+          href: '/login?redirect=/checkout',
+        },
+      });
       return;
     }
 
-    addItem(item, quantity);
-    setToastMsg(`Đã thêm ${quantity} ly ${item.productName} (Size ${item.size} - ${item.topping}) vào giỏ hàng.`);
+    router.push('/checkout');
   };
 
   return (
     <div className="space-y-10">
       {/* Toast Notification */}
-      {toastMsg && (
-        <Toast message={toastMsg} type="success" onClose={() => setToastMsg(null)} />
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          action={toast.action}
+          onClose={() => setToast(null)}
+        />
       )}
 
       {/* Quick Select Size & Topping Modal */}
@@ -186,6 +241,7 @@ export default function HomePage() {
           onClose={() => setModalProduct(null)}
           product={modalProduct}
           onAddToCart={handleModalAddToCart}
+          onBuyNow={handleModalBuyNow}
         />
       )}
 
@@ -259,14 +315,69 @@ export default function HomePage() {
             }}
           />
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-            {products.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                onOpenModal={(p) => setModalProduct(p)}
-              />
-            ))}
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+              {products.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  onOpenModal={(p) => setModalProduct(p)}
+                />
+              ))}
+            </div>
+
+            {/* Phân trang (Pagination) */}
+            {totalPages > 1 && (
+              <div className="pt-6 border-t border-line flex flex-col sm:flex-row items-center justify-between gap-4">
+                <span className="text-xs text-ink-3">
+                  Hiển thị trang <strong className="text-ink">{currentPage}</strong> / {totalPages} (Tổng cộng {totalItems} món đồ uống)
+                </span>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={currentPage <= 1}
+                    onClick={() => {
+                      setCurrentPage((p) => Math.max(1, p - 1));
+                      window.scrollTo({ top: 320, behavior: 'smooth' });
+                    }}
+                    className="px-3 py-1.5 text-xs rounded border border-line bg-surface text-ink hover:bg-surface-2 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    ← Trước
+                  </button>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                    <button
+                      key={pageNum}
+                      type="button"
+                      onClick={() => {
+                        setCurrentPage(pageNum);
+                        window.scrollTo({ top: 320, behavior: 'smooth' });
+                      }}
+                      className={`w-8 h-8 text-xs font-medium rounded transition-colors ${
+                        currentPage === pageNum
+                          ? 'bg-accent text-white font-semibold shadow-sm'
+                          : 'border border-line bg-surface text-ink hover:bg-surface-2'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  ))}
+
+                  <button
+                    type="button"
+                    disabled={currentPage >= totalPages}
+                    onClick={() => {
+                      setCurrentPage((p) => Math.min(totalPages, p + 1));
+                      window.scrollTo({ top: 320, behavior: 'smooth' });
+                    }}
+                    className="px-3 py-1.5 text-xs rounded border border-line bg-surface text-ink hover:bg-surface-2 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Sau →
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </section>

@@ -16,6 +16,7 @@ export interface UserProfile {
   email: string;
   role: Role;
   loyaltyPoints?: number;
+  phone?: string;
 }
 
 export interface ProductVariant {
@@ -155,10 +156,50 @@ export interface TopProduct {
   revenue: number;
 }
 
+export interface RecipeRecord {
+  id: string;
+  variantId: string;
+  variant?: {
+    id: string;
+    productId: string;
+    size: string;
+    price: number;
+    topping?: string;
+    product?: { name: string; imageUrl?: string };
+  };
+  ingredientId: string;
+  ingredient?: {
+    id: string;
+    name: string;
+    unit: string;
+    stockQuantity: number;
+  };
+  quantityRequired: number;
+}
+
+export interface ImportReceiptRecord {
+  id: string;
+  supplierId: string;
+  supplier?: { name: string; phone: string };
+  importDate: string;
+  totalAmount: number;
+  items: Array<{
+    id: string;
+    ingredientId: string;
+    ingredient?: { name: string; unit: string };
+    quantity: number;
+    unitPrice: number;
+    lineTotal: number;
+  }>;
+}
+
 export interface AdminOverview {
   totalRevenue: number;
   totalOrders: number;
   activeCustomers: number;
+  totalCustomers?: number;
   lowStockIngredients: number;
+  totalProducts?: number;
 }
+
 

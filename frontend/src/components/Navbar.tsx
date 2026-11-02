@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { ShoppingBag, User, LogOut, Menu, X } from 'lucide-react';
+import { ShoppingBag, User, UserPlus, LogOut, Menu, X } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const pathname = usePathname();
@@ -144,13 +144,22 @@ export const Navbar: React.FC = () => {
               </button>
             </div>
           ) : (
-            <Link
-              href="/login"
-              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded border border-espresso-line text-espresso-text hover:bg-espresso-line transition-colors"
-            >
-              <User className="w-3.5 h-3.5" strokeWidth={1.75} />
-              <span>Đăng nhập</span>
-            </Link>
+            <div className="hidden sm:inline-flex items-center gap-2">
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded border border-espresso-line text-espresso-text hover:bg-espresso-line transition-colors"
+              >
+                <User className="w-3.5 h-3.5" strokeWidth={1.75} />
+                <span>Đăng nhập</span>
+              </Link>
+              <Link
+                href="/register"
+                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded bg-accent text-white hover:bg-accent/90 shadow-sm transition-colors"
+              >
+                <UserPlus className="w-3.5 h-3.5" strokeWidth={1.75} />
+                <span>Đăng ký</span>
+              </Link>
+            </div>
           )}
 
           {/* Mobile Menu Button */}
@@ -250,13 +259,22 @@ export const Navbar: React.FC = () => {
                 </button>
               </>
             ) : (
-              <Link
-                href="/login"
-                onClick={() => setMobileMenuOpen(false)}
-                className="w-full text-center py-2 text-xs font-medium rounded bg-accent text-on-accent"
-              >
-                Đăng nhập tài khoản
-              </Link>
+              <div className="grid grid-cols-2 gap-2 w-full">
+                <Link
+                  href="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full text-center py-2 text-xs font-medium rounded border border-espresso-line text-espresso-text hover:bg-espresso-line transition-colors"
+                >
+                  Đăng nhập
+                </Link>
+                <Link
+                  href="/register"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full text-center py-2 text-xs font-medium rounded bg-accent text-white hover:bg-accent/90 transition-colors"
+                >
+                  Đăng ký
+                </Link>
+              </div>
             )}
           </div>
         </div>
