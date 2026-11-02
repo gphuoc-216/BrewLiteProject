@@ -46,6 +46,8 @@ Thumbs.db
 
 # Testing & IDE artifacts
 .playwright-mcp/
+.impeccable/
+.taste-skill/
 *.zip
 *.exe
 *.pdf

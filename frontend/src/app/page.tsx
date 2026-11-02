@@ -164,15 +164,19 @@ export default function HomePage() {
         params.append('page', String(currentPage));
         params.append('limit', '8');
 
-        const data = await fetchApi<{ items?: ProductItem[]; meta?: { page: number; totalPages: number; totalItems: number } }>(`/products?${params.toString()}`);
-        if (data && data.items) {
+        const data = await fetchApi<{ items?: ProductItem[]; meta?: { page: number; totalPages: number; totalItems: number } } | ProductItem[]>(`/products?${params.toString()}`);
+        if (Array.isArray(data)) {
+          setProducts(data);
+          setTotalPages(Math.ceil(data.length / 8) || 1);
+          setTotalItems(data.length);
+        } else if (data && Array.isArray(data.items)) {
           setProducts(data.items);
           if (data.meta) {
             setTotalPages(data.meta.totalPages || 1);
             setTotalItems(data.meta.totalItems || data.items.length);
           }
         }
-      } catch (err) {
+      } catch {
         let fallback = [...MOCK_PRODUCTS] as unknown as ProductItem[];
         if (selectedCategory !== 'ALL') {
           fallback = fallback.filter((p) => p.category === selectedCategory);
