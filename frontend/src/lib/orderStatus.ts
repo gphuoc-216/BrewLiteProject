@@ -8,7 +8,7 @@ export interface OrderStatusConfig {
   text: string;
   border: string;
   baristaTitle?: string;
-  timelineSub?: string;
+  timelineSub?: string;                     
 }
 
 export const ORDER_STATUS: Record<OrderStatus, OrderStatusConfig> = {

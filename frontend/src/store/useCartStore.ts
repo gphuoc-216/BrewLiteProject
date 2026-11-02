@@ -3,13 +3,13 @@ import { create } from 'zustand';
 export interface CartItem {
   id: string; // Unique line key: `${variantId}:${topping || 'default'}`
   variantId: string;
-  productId: string;
+  productId: string;    
   productName: string;
-  imageUrl: string;
+  imageUrl: string;    
   size: string;
   price: number;
-  topping?: string;
-  quantity: number;
+  topping?: string;   
+  quantity: number;    
 }
 
 export interface AppliedPromotion {
