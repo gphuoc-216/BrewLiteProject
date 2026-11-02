@@ -47,4 +47,6 @@ Thumbs.db
 # Testing & IDE artifacts
 .playwright-mcp/
 *.zip
+*.exe
+cloudflared*
 example_screenshot.png
