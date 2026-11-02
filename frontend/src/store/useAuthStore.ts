@@ -9,16 +9,16 @@ export interface User {
   status?: string;
   profileId?: string;
   fullName?: string;
-  email?: string;
+  email?: string;                           
   loyaltyPoints?: number;
 }
 
 interface AuthState {
   user: User | null;
-  token: string | null;
+  token: string | null;                      
   setAuth: (user: User, token: string, refreshToken?: string) => void;
   logout: () => void;
-  updateLoyaltyPoints: (points: number) => void;
+  updateLoyaltyPoints: (points: number) => void;                   
   updatePoints: (points: number) => void;
   fetchProfile: () => Promise<void>;
 }
@@ -34,11 +34,11 @@ const getStoredUser = (): User | null => {
 };
 
 const getStoredToken = (): string | null => {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === 'undefined') return null;                    
   try {
     return localStorage.getItem('brewlite_token');
   } catch {
-    return null;
+    return null;                   
   }
 };
 
@@ -56,16 +56,16 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
     set({ user, token });
     try {
-      useCartStore.getState().loadUserCart(user.accountId || user.username);
+      useCartStore.getState().loadUserCart(user.accountId || user.username);                     
     } catch {
       // ignore
     }
   },
 
   logout: () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('brewlite_user');
-      localStorage.removeItem('brewlite_token');
+    if (typeof window !== 'undefined') {                   
+      localStorage.removeItem('brewlite_user');           
+      localStorage.removeItem('brewlite_token');                 
       localStorage.removeItem('brewlite_refresh_token');
     }
     try {
@@ -76,14 +76,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ user: null, token: null });
   },
 
-  updateLoyaltyPoints: (points) => {
+  updateLoyaltyPoints: (points) => {              
     set((state) => {
-      if (!state.user) return state;
+      if (!state.user) return state;            
       const updatedUser = { ...state.user, loyaltyPoints: (state.user.loyaltyPoints || 0) + points };
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('brewlite_user', JSON.stringify(updatedUser));
+      if (typeof window !== 'undefined') {         
+        localStorage.setItem('brewlite_user', JSON.stringify(updatedUser));  
       }
-      return { user: updatedUser };
+      return { user: updatedUser };        
     });
   },
 
@@ -95,7 +95,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         localStorage.setItem('brewlite_user', JSON.stringify(updatedUser));
       }
       return { user: updatedUser };
-    });
+    });                 
   },
 
   fetchProfile: async () => {
@@ -103,7 +103,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       const data = await fetchApi<{ fullName?: string; email?: string; loyaltyPoints?: number }>('/auth/profile');
       if (data) {
         set((state) => {
-          if (!state.user) return state;
+          if (!state.user) return state;       
           const updatedUser: User = {
             ...state.user,
             fullName: data.fullName ?? state.user.fullName,
