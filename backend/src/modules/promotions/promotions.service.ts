@@ -28,12 +28,6 @@ export const VOUCHER_RULES: Record<string, PromotionRule> = {
     badge: "Giờ Vàng 15K",
     description: "Ưu đãi khung giờ vàng tại quán (14h - 17h)",
   },
-  FREESHIP: {
-    minOrderValue: 45000,
-    maxDiscount: 15000,
-    badge: "Phục Vụ 15K",
-    description: "Miễn phí phục vụ tận bàn và giao nhanh",
-  },
   GIAM20K: {
     minOrderValue: 60000,
     maxDiscount: 20000,

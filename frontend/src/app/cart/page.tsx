@@ -65,20 +65,6 @@ const DEFAULT_COFFEE_VOUCHERS: AvailableVoucher[] = [
     progressPercent: 0,
   },
   {
-    id: 'promo-freeship',
-    code: 'FREESHIP',
-    name: 'Freeship Đồ Uống - Giảm 15K',
-    discountType: 'FIXED',
-    discountValue: 15000,
-    minOrderValue: 45000,
-    maxDiscount: 15000,
-    badge: 'Giảm 15K',
-    description: 'Giảm ngay 15.000đ cho đơn đồ uống từ 45.000đ',
-    isEligible: false,
-    missingAmount: 0,
-    progressPercent: 0,
-  },
-  {
     id: 'promo-giam20k',
     code: 'GIAM20K',
     name: 'Ưu Đãi Giờ Vàng - Giảm 20K',
@@ -243,10 +229,10 @@ export default function CartPage() {
 
     // Nếu voucher không phải stackable (tức là ORDER_DISCOUNT như BANMOI, BREW10, GIAM20K, GIAM30K...)
     // thì chỉ được chọn 1 mã: tự động gỡ các mã ORDER_DISCOUNT khác đã chọn
-    const isStackable = v.code.toUpperCase() === 'FREESHIP' || v.code.toUpperCase() === 'HAPPYHOUR';
+    const isStackable = v.code.toUpperCase() === 'HAPPYHOUR';
     if (!isStackable) {
       promotions.forEach((p) => {
-        const isOtherStackable = p.code.toUpperCase() === 'FREESHIP' || p.code.toUpperCase() === 'HAPPYHOUR';
+        const isOtherStackable = p.code.toUpperCase() === 'HAPPYHOUR';
         if (!isOtherStackable) {
           removePromotion(p.code);
         }
@@ -263,7 +249,7 @@ export default function CartPage() {
       calcDiscount = v.discountValue;
     }
     const stackableSum = promotions
-      .filter((p) => p.code.toUpperCase() === 'FREESHIP' || p.code.toUpperCase() === 'HAPPYHOUR')
+      .filter((p) => p.code.toUpperCase() === 'HAPPYHOUR')
       .reduce((sum, p) => sum + (p.discountAmount || 0), 0);
     const remainingBefore = Math.max(0, subtotal - (isStackable ? currentDiscount : stackableSum));
     calcDiscount = Math.min(calcDiscount, remainingBefore);

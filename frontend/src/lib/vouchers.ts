@@ -7,10 +7,10 @@ export interface QuickVoucher {
   discountType: 'PERCENT' | 'FIXED';
   discountValue: number;
   maxDiscount?: number;
-  badge: string;                            
+  badge: string;
   description: string;
   category: VoucherCategory;
-  isStackable: boolean; // true = được cộng dồn thêm (Giờ vàng, Freeship); false = voucher đơn hàng (chỉ chọn 1)
+  isStackable: boolean; // true = được cộng dồn thêm (như Giờ Vàng); false = voucher đơn hàng (chỉ chọn 1)
 }
 
 export const SHOP_VOUCHERS: QuickVoucher[] = [
@@ -46,17 +46,6 @@ export const SHOP_VOUCHERS: QuickVoucher[] = [
     badge: 'Giờ Vàng 15K (Cộng dồn)',
     description: 'Ưu đãi khung giờ vàng tại quán (14h - 17h) - Được phép cộng dồn',
     category: 'HAPPY_HOUR',
-    isStackable: true,
-  },
-  {
-    code: 'FREESHIP',
-    label: 'Freeship 15K (Đơn từ 45K)',
-    minOrder: 45000,
-    discountType: 'FIXED',
-    discountValue: 15000,
-    badge: 'Freeship 15K (Cộng dồn)',
-    description: 'Miễn phí phục vụ tận bàn & giao nhanh nội khu - Được phép cộng dồn',
-    category: 'SERVICE',
     isStackable: true,
   },
   {
@@ -156,7 +145,7 @@ export function calcDiscountForVoucherList(
  * Quy tắc áp dụng đa voucher nghiêm ngặt:
  * 1. Khi đơn hàng đã về 0đ -> Khóa toàn bộ các voucher khác, không cho chọn thêm.
  * 2. Voucher Đơn Hàng (ORDER_DISCOUNT): Chỉ được chọn tối đa 1 mã. Nếu chọn mã mới sẽ thay thế mã cũ.
- * 3. Voucher Khung Giờ Vàng (HAPPY_HOUR) & Freeship (SERVICE): Được phép cộng dồn thêm cùng mã đơn hàng nếu đơn chưa về 0đ.
+ * 3. Voucher Khung Giờ Vàng (HAPPY_HOUR): Được phép cộng dồn thêm cùng mã đơn hàng nếu đơn chưa về 0đ.
  */
 export function toggleSmartVoucherSelection(
   currentCodes: string[],
@@ -199,14 +188,14 @@ export function toggleSmartVoucherSelection(
     // Lọc bỏ voucher ORDER_DISCOUNT cũ (nếu có) và thay bằng voucher mới
     const filtered = currentCodes.filter((code) => {
       const existing = SHOP_VOUCHERS.find((v) => v.code.toUpperCase() === code.toUpperCase());
-      return existing?.isStackable; // Chỉ giữ lại các voucher stackable (giờ vàng, freeship)
+      return existing?.isStackable; // Chỉ giữ lại các voucher stackable (như giờ vàng)
     });
     return {
       nextCodes: [...filtered, targetVoucher.code],
     };
   }
 
-  // Nếu là voucher stackable (giờ vàng, freeship) -> Thêm vào danh sách
+  // Nếu là voucher stackable (giờ vàng) -> Thêm vào danh sách
   return {
     nextCodes: [...currentCodes, targetVoucher.code],
   };
