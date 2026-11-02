@@ -5,7 +5,7 @@ export interface QuickVoucher {
   discountType: 'PERCENT' | 'FIXED';
   discountValue: number;
   maxDiscount?: number;
-  badge: string;
+  badge: string;                            
   description: string;
 }
 
