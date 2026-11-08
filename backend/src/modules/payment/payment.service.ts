@@ -92,7 +92,7 @@ export class PaymentService {
     // -------------------------------------------------------------------------------------
     // Bắt buộc Client phải gửi kèm Header "Idempotency-Key" (thường là một chuỗi UUID ngẫu nhiên)
     if (!idempotencyKey || !idempotencyKey.trim()) {
-      throw new BadRequestException('Bắt buộc phải có header Idempotency-Key để thực hiện thanh toán');
+      throw new BadRequestException('Thông tin phiên thanh toán không hợp lệ. Vui lòng thử lại.');
     }
 
     try {
@@ -108,8 +108,9 @@ export class PaymentService {
           // 🛡️ CHỐNG GIAN LẬN TRÁO ĐỔI PAYLOAD:
           // Nếu cùng Idempotency-Key nhưng lại cố tình tráo đổi phương thức thanh toán (ví dụ: đã trả WALLET lại đòi đổi CARD)
           if (existingPayment.method && existingPayment.method !== dto.method) {
+            const methodLabel = existingPayment.method === 'WALLET' ? 'Ví điện tử' : 'Thẻ ngân hàng';
             throw new UnprocessableEntityException(
-              `Xung đột Idempotency-Key: Khóa này đã được thanh toán bằng phương thức '${existingPayment.method}'. Không thể tráo đổi sang phương thức '${dto.method}'!`,
+              `Giao dịch này đã được thanh toán bằng ${methodLabel}. Quý khách vui lòng không thay đổi phương thức thanh toán.`,
             );
           }
 
@@ -128,7 +129,7 @@ export class PaymentService {
           // Cùng 1 Idempotency-Key nhưng lại đem dùng cho một đơn hàng KHÁC -> Gian lận hoặc lỗi phần mềm.
           // Bắt buộc ném lỗi HTTP 422 Unprocessable Entity theo chuẩn RESTful quốc tế.
           throw new UnprocessableEntityException(
-            'Idempotency-Key đã được sử dụng cho một đơn hàng khác. Vui lòng sinh key mới.',
+            'Phiên giao dịch đã được sử dụng cho một đơn hàng khác. Quý khách vui lòng làm mới trang và thử lại.',
           );
         }
       }
@@ -204,9 +205,10 @@ export class PaymentService {
         const pastPayment = await this.prisma.payment.findFirst({
           where: { orderId: order.id, status: PaymentStatus.SUCCESS },
         });
-        const paidMethod = pastPayment?.method || 'phương thức khác';
+        const paidMethod = pastPayment?.method;
+        const methodLabel = paidMethod === 'WALLET' ? 'Ví điện tử' : (paidMethod === 'CARD' ? 'Thẻ ngân hàng' : 'phương thức khác');
         throw new ConflictException(
-          `Đơn hàng "${order.id}" đã được thanh toán thành công (PAID) trước đó bằng '${paidMethod}'. Không thể thanh toán lại bằng '${dto.method}'!`,
+          `Đơn hàng này đã được thanh toán thành công trước đó bằng ${methodLabel}. Quý khách vui lòng không thanh toán lại.`,
         );
       }
 
@@ -293,13 +295,13 @@ export class PaymentService {
 
         if (!currentOrder || currentOrder.status === OrderStatus.PAID) {
           throw new ConflictException(
-            `Đơn hàng "${order.id}" đã được thanh toán thành công (PAID) trước đó. Không thể thanh toán lại!`,
+            'Đơn hàng này đã được thanh toán thành công trước đó. Quý khách vui lòng không thanh toán lại.',
           );
         }
 
         if (currentOrder.status !== OrderStatus.PENDING && currentOrder.status !== OrderStatus.PAYMENT_FAILED) {
           throw new ConflictException(
-            `Đơn hàng "${order.id}" đang ở trạng thái '${currentOrder.status}', không thể thực hiện thanh toán!`,
+            `Đơn hàng đang ở trạng thái '${currentOrder.status}', không thể thực hiện thanh toán.`,
           );
         }
         // .................................................................................
@@ -486,8 +488,9 @@ export class PaymentService {
     if (existing) {
       if (existing.orderId === dto.orderId) {
         if (existing.method && existing.method !== dto.method) {
+          const methodLabel = existing.method === 'WALLET' ? 'Ví điện tử' : 'Thẻ ngân hàng';
           throw new UnprocessableEntityException(
-            `Xung đột Idempotency-Key: Khóa này đã được thanh toán bằng phương thức '${existing.method}'. Không thể tráo đổi sang phương thức '${dto.method}'!`,
+            `Giao dịch này đã được thanh toán bằng ${methodLabel}. Quý khách vui lòng không thay đổi phương thức thanh toán.`,
           );
         }
         return {
@@ -499,7 +502,7 @@ export class PaymentService {
         };
       } else {
         throw new UnprocessableEntityException(
-          'Idempotency-Key đã được sử dụng cho một đơn hàng khác. Vui lòng sinh key mới.',
+          'Phiên giao dịch đã được sử dụng cho một đơn hàng khác. Quý khách vui lòng làm mới trang và thử lại.',
         );
       }
     }
@@ -523,7 +526,7 @@ export class PaymentService {
 
     if (order.status === OrderStatus.PAID) {
       throw new ConflictException(
-        `Đơn hàng "${order.id}" đã được thanh toán thành công (PAID) trước đó. Không thể thanh toán lại bằng '${dto.method}'!`,
+        'Đơn hàng này đã được thanh toán thành công trước đó. Quý khách vui lòng không thanh toán lại.',
       );
     }
 
