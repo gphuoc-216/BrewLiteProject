@@ -115,62 +115,64 @@ stateDiagram-v2
 
 ---
 
-### 5.2 Cách 1: Khởi Chạy Nhanh Bằng Docker Compose (Khuyên Dùng)
+### 5.2 Khởi Tạo Dự Án Cho Máy Mới (Zero-Config — Chạy 1 Lệnh Duy Nhất)
 
-Tại thư mục gốc dự án, chạy lệnh:
+Khi vừa tải hoặc clone dự án về bất kỳ máy tính nào (Windows, macOS, Linux), bạn chỉ cần mở terminal tại thư mục gốc và chạy đúng **1 lệnh duy nhất**:
+
+```powershell
+npm run setup
+```
+
+> ⚡ **Lệnh này tự động 100%:**
+> 1. Tự sinh file cấu hình `.env` cho Backend và `.env.local` cho Frontend từ template.
+> 2. Tự cài đặt đầy đủ thư viện `node_modules` cho cả Root, Backend và Frontend.
+> 3. Tự dọn dẹp container cũ bị kẹt và khởi chạy PostgreSQL container trên Docker.
+> 4. Tự sinh Prisma Client và đồng bộ cấu trúc Database (`prisma db push`).
+> 5. Tự nạp dữ liệu mẫu ban đầu (`seed` sẵn tài khoản Admin, Barista, Khách hàng, 8 món đồ uống, 10 nguyên liệu, 3 mã voucher).
+
+---
+
+### 5.3 Khởi Động Hệ Thống Để Sử Dụng & Demo
+
+Sau khi chạy `npm run setup`, bạn mở 2 cửa sổ Terminal tại thư mục gốc:
+
+#### 🪟 Terminal 1: Khởi động Backend NestJS (Cổng 3001 & Swagger)
+```powershell
+npm run dev:backend
+```
+> ✅ Backend API: `http://localhost:3001` | 📑 Swagger Docs: `http://localhost:3001/api/docs`
+
+#### 🪟 Terminal 2: Khởi động Frontend Next.js (Cổng 3000)
+```powershell
+npm run dev:frontend
+```
+> ✅ Giao diện Khách hàng: `http://localhost:3000` | 👨‍🍳 Quầy Barista: `http://localhost:3000/staff`
+
+---
+
+#### 🛑 Tắt hoặc khởi động lại Database khi cần:
+- Khởi động lại Database: `npm run docker:up`
+- Tắt Database: `npm run docker:down`
+
+---
+
+### 5.4 Cách 2: Khởi Chạy Toàn Bộ Bằng Docker Compose (Production Build)
+
+Nếu muốn đóng gói toàn bộ cả 3 dịch vụ chạy khép kín trong Docker container:
 ```bash
+npm run docker:all
+# Hoặc:
 docker compose up -d --build
 ```
-> Hệ thống sẽ tự động:
-> 1. Dựng CSDL PostgreSQL 16 Alpine (`brewlite_postgres`).
-> 2. Build multi-stage image Backend NestJS (`brewlite_backend`), tự migrate CSDL.
-> 3. Build production Frontend Next.js 14 (`brewlite_frontend`).
-> 4. Gắn healthcheck kiểm tra trạng thái sẵn sàng.
 
-#### Nạp dữ liệu hạt giống ban đầu (Seed Database):
+#### Dừng toàn bộ Docker containers:
 ```bash
-docker exec -it brewlite_backend npm run seed
-```
-
-#### Dừng hệ thống:
-```bash
-docker compose down
+npm run docker:down
 ```
 
 ---
 
-### 5.3 Cách 2: Khởi Chạy Thủ Công Từng Phần (Local Development)
-
-#### Bước 1: Khởi động CSDL PostgreSQL
-```bash
-docker run --name brewlite_postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgrespassword -e POSTGRES_DB=brewlite_db -p 5432:5432 -d postgres:16-alpine
-```
-
-#### Bước 2: Cấu hình và chạy Backend (NestJS)
-```powershell
-cd backend
-copy .env.example .env
-npm install
-npx prisma generate
-npx prisma migrate deploy
-npm run seed              # Nạp danh mục món, nguyên liệu kho và tài khoản mẫu
-npm run start:dev
-```
-> ✅ Backend API: `http://localhost:3001` | 📑 Swagger API Docs: `http://localhost:3001/api/docs`
-
-#### Bước 3: Cấu hình và chạy Frontend (Next.js)
-Mở cửa sổ Terminal thứ hai:
-```powershell
-cd frontend
-copy .env.example .env.local
-npm install
-npm run dev
-```
-> ✅ Giao diện Khách hàng: `http://localhost:3000`
-
----
-
-### 5.4 Cách 3: Demo Quét Mã QR Bằng Điện Thoại Thật (Mobile QR Payment)
+### 5.5 Cách 3: Demo Quét Mã QR Bằng Điện Thoại Thật (Mobile QR Payment)
 ```powershell
 npm run phone
 # Hoặc:
@@ -180,7 +182,7 @@ node scripts/tunnel.js
 
 ---
 
-### 5.5 Cách 4: Chạy Kiểm Thử Tự Động (Automated Testing)
+### 5.6 Cách 4: Chạy Kiểm Thử Tự Động (Automated Testing)
 
 #### 1. Chạy 6 Test Suites Unit Tests Backend (48 unit tests Jest pass 100%):
 ```powershell

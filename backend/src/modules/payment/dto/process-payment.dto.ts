@@ -4,7 +4,7 @@ import { PaymentMethod } from '@prisma/client';
 
 export class ProcessPaymentDto {
   @ApiProperty({
-    example: '1f86ddf8-3a10-48d4-9ddc-28944a7108b3',
+    example: '',
     description: 'ID đơn hàng cần thực hiện thanh toán',
   })
   @IsString({ message: 'Mã đơn hàng phải là chuỗi ký tự' })

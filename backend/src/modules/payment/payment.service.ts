@@ -21,7 +21,9 @@ import { OrderStatus, PaymentMethod, PaymentStatus } from '@prisma/client';
  * 2. method: Phương thức thanh toán (chỉ chấp nhận ví ảo 'WALLET' hoặc thẻ ngân hàng 'CARD').
  * 3. simulateError (tùy chọn): Dùng trong lúc demo để ép hệ thống tạo lỗi thử nghiệm.
  */
-export class ProcessPaymentDto {
+export { ProcessPaymentDto } from './dto/process-payment.dto';
+import { ProcessPaymentDto } from './dto/process-payment.dto';
+class _DeprecatedProcessPaymentDto {
   @IsString()
   @IsNotEmpty({ message: 'Mã đơn hàng (orderId) không được để trống' })
   orderId: string;
