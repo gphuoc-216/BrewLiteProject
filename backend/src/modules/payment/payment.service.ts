@@ -105,6 +105,14 @@ export class PaymentService {
       // 1.2 Nếu khóa ĐÃ TỒN TẠI trong hệ thống:
       if (existingPayment) {
         if (existingPayment.orderId === dto.orderId) {
+          // 🛡️ CHỐNG GIAN LẬN TRÁO ĐỔI PAYLOAD:
+          // Nếu cùng Idempotency-Key nhưng lại cố tình tráo đổi phương thức thanh toán (ví dụ: đã trả WALLET lại đòi đổi CARD)
+          if (existingPayment.method && existingPayment.method !== dto.method) {
+            throw new UnprocessableEntityException(
+              `Xung đột Idempotency-Key: Khóa này đã được thanh toán bằng phương thức '${existingPayment.method}'. Không thể tráo đổi sang phương thức '${dto.method}'!`,
+            );
+          }
+
           // 👉 [KỊCH BẢN 1: BẤM ĐÚP / REPLAY HỢP LỆ]:
           // Cùng 1 Idempotency-Key gửi lại cho CÙNG 1 đơn hàng -> Khách bị lag mạng bấm 2 lần liên tiếp.
           // HỆ THỐNG TRẢ LẠI KẾT QUẢ CŨ (HTTP 200), TUYỆT ĐỐI KHÔNG TRỪ TIỀN HOẶC TRỪ KHO LẦN 2!
@@ -191,7 +199,18 @@ export class PaymentService {
         throw new BadRequestException('Bạn không thể thanh toán đơn hàng của khách hàng khác');
       }
 
-      // 2.4 Kích hoạt Máy Trạng Thái (Order State Machine):
+      // 2.4 CHỐNG THANH TOÁN TRÙNG & GIAN LẬN: Nếu đơn hàng ĐÃ ĐƯỢC THANH TOÁN (PAID) trước đó
+      if (order.status === OrderStatus.PAID) {
+        const pastPayment = await this.prisma.payment.findFirst({
+          where: { orderId: order.id, status: PaymentStatus.SUCCESS },
+        });
+        const paidMethod = pastPayment?.method || 'phương thức khác';
+        throw new ConflictException(
+          `Đơn hàng "${order.id}" đã được thanh toán thành công (PAID) trước đó bằng '${paidMethod}'. Không thể thanh toán lại bằng '${dto.method}'!`,
+        );
+      }
+
+      // 2.5 Kích hoạt Máy Trạng Thái (Order State Machine):
       // Chỉ cho phép chuyển từ PENDING hoặc PAYMENT_FAILED sang PAID.
       // Nếu đơn đã CANCELLED hoặc COMPLETED, assertTransition() sẽ ném lỗi HTTP 409 Conflict.
       try {
@@ -264,6 +283,25 @@ export class PaymentService {
       // Nếu bất kỳ thao tác nào bên dưới gặp lỗi (ví dụ hết kho hoặc thanh toán lỗi),
       // toàn bộ thay đổi sẽ được TỰ ĐỘNG ROLLBACK, đảm bảo dữ liệu không bao giờ bị sai lệch.
       return await this.prisma.$transaction(async (tx) => {
+        // 🔒 CHỐNG RACE CONDITION / MUA CÙNG LÚC (CONCURRENCY CHECK TRONG TRANSACTION):
+        // Nếu 2 tab hoặc 2 request cùng bấm thanh toán ở cùng 1 tích tắc,
+        // request thứ 2 khi vào Transaction sẽ phát hiện đơn đã PAID và lập tức bị chặn an toàn!
+        const currentOrder = await tx.order.findUnique({
+          where: { id: order.id },
+          include: { payments: true },
+        });
+
+        if (!currentOrder || currentOrder.status === OrderStatus.PAID) {
+          throw new ConflictException(
+            `Đơn hàng "${order.id}" đã được thanh toán thành công (PAID) trước đó. Không thể thanh toán lại!`,
+          );
+        }
+
+        if (currentOrder.status !== OrderStatus.PENDING && currentOrder.status !== OrderStatus.PAYMENT_FAILED) {
+          throw new ConflictException(
+            `Đơn hàng "${order.id}" đang ở trạng thái '${currentOrder.status}', không thể thực hiện thanh toán!`,
+          );
+        }
         // .................................................................................
         // 4.1 KHẤU TRỪ TỒN KHO BẰNG OPTIMISTIC LOCKING KÈM RETRY 3 LẦN (TASK 10.3)
         // .................................................................................
@@ -447,6 +485,11 @@ export class PaymentService {
     const existing = fallbackStore.findPaymentByIdempotencyKey(idempotencyKey.trim());
     if (existing) {
       if (existing.orderId === dto.orderId) {
+        if (existing.method && existing.method !== dto.method) {
+          throw new UnprocessableEntityException(
+            `Xung đột Idempotency-Key: Khóa này đã được thanh toán bằng phương thức '${existing.method}'. Không thể tráo đổi sang phương thức '${dto.method}'!`,
+          );
+        }
         return {
           cached: true,
           replayed: true,
@@ -476,6 +519,12 @@ export class PaymentService {
 
     if (user.role === 'CUSTOMER' && order.customerId !== user.profileId) {
       throw new BadRequestException('Bạn không thể thanh toán đơn hàng của khách hàng khác');
+    }
+
+    if (order.status === OrderStatus.PAID) {
+      throw new ConflictException(
+        `Đơn hàng "${order.id}" đã được thanh toán thành công (PAID) trước đó. Không thể thanh toán lại bằng '${dto.method}'!`,
+      );
     }
 
     assertTransition(order.status, OrderStatus.PAID);
