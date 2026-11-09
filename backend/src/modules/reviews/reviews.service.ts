@@ -269,7 +269,11 @@ export class ReviewsService {
     if (!review) throw new NotFoundException('Không tìm thấy đánh giá');
 
     if (review.customerId !== actorId) {
-      const cust = await this.prisma.customer.findUnique({ where: { id: actorId } });
+      const cust = await this.prisma.customer.findFirst({
+        where: {
+          OR: [{ id: actorId }, { accountId: actorId }],
+        },
+      });
       if (!cust || cust.id !== review.customerId) {
         throw new ForbiddenException('Bạn không có quyền sửa đánh giá này');
       }
@@ -281,6 +285,10 @@ export class ReviewsService {
         ...(stars ? { stars } : {}),
         ...(content !== undefined ? { content } : {}),
       },
+      include: {
+        customer: { select: { fullName: true } },
+        product: { select: { name: true } },
+      },
     });
   }
 
@@ -288,13 +296,17 @@ export class ReviewsService {
     const review = await this.prisma.review.findUnique({ where: { id: reviewId } });
     if (!review) throw new NotFoundException('Không tìm thấy đánh giá');
     if (role !== 'ADMIN' && review.customerId !== actorId) {
-      const cust = await this.prisma.customer.findUnique({ where: { id: actorId } });
+      const cust = await this.prisma.customer.findFirst({
+        where: {
+          OR: [{ id: actorId }, { accountId: actorId }],
+        },
+      });
       if (!cust || cust.id !== review.customerId) {
         throw new ForbiddenException('Bạn không có quyền xóa đánh giá này');
       }
     }
 
     await this.prisma.review.delete({ where: { id: reviewId } });
-    return { message: 'Đã xóa đánh giá thành công' };
+    return { message: 'Đã xóa đánh giá thành công', reviewId };
   }
 }
