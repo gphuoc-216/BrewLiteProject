@@ -25,6 +25,7 @@ export function calculateToppingsExtraPrice(toppings?: string[]): number {
     const rawName = name.trim().toLowerCase();
     const item = TOPPING_CATALOG.find(
       (t) =>
+        t.id.toLowerCase() === rawName ||
         t.name.toLowerCase() === rawName ||
         t.name.toLowerCase().includes(rawName) ||
         rawName.includes(t.name.toLowerCase()),
