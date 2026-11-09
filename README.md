@@ -132,34 +132,58 @@ npm run setup
 
 ---
 
-### 5.3 Hướng Dẫn Mở Dự Án Thủ Công Bằng Tay (Khuyên Dùng Cho Dev & Demo)
+### 5.3 Quy Trình Khởi Chạy Hàng Ngày (Chuẩn 4 Bước — Khuyên Dùng Cho Dev & Demo)
 
-Mở **3 cửa sổ Terminal** riêng biệt tại thư mục gốc `Assigment1`:
+Khi mở máy lên để làm việc hoặc chuẩn bị thuyết trình đồ án, bạn chạy lần lượt theo **đúng thứ tự 4 bước** sau:
 
-#### 🪟 Terminal 1: Khởi động Backend API (NestJS — Cổng 3001)
+#### 🐳 Bước 1: Khởi động Database PostgreSQL (Chạy ngầm trên Docker)
+Mở Terminal tại thư mục gốc dự án và gõ:
+```powershell
+npm run docker:up
+```
+> *(Lệnh này sẽ bật container `brewlite_postgres` trên cổng `5432` trong 2 giây. Chỉ cần chạy 1 lần duy nhất khi mới mở máy).*
+
+---
+
+#### 🪟 Bước 2: Khởi động Backend API (NestJS — Cổng 3001)
+Mở một cửa sổ Terminal mới (Terminal 1) tại thư mục gốc:
 ```powershell
 npm run dev:backend
 ```
-*(Hoặc vào thư mục con: `cd backend; npm run start:dev`)*
 * 🟢 **Backend URL**: [http://localhost:3001](http://localhost:3001)
 * 📑 **Tài liệu Swagger OpenAPI**: [http://localhost:3001/api/docs](http://localhost:3001/api/docs)
+*(Đợi 5–10 giây khi thấy dòng chữ xanh: `Nest application successfully started` là Backend đã sẵn sàng).*
 
-#### 🪟 Terminal 2: Khởi động Frontend Web App (Next.js 14 — Cổng 3000)
+---
+
+#### 🪟 Bước 3: Khởi động Frontend Web App (Next.js 14 — Cổng 3000)
+Mở thêm một cửa sổ Terminal mới (Terminal 2) tại thư mục gốc:
 ```powershell
 npm run dev:frontend
 ```
-*(Hoặc vào thư mục con: `cd frontend; npm run dev`)*
 * ☕ **Trang Đặt Món Khách Hàng**: [http://localhost:3000](http://localhost:3000)
 * 👨‍🍳 **Bảng Kanban Quầy Barista**: [http://localhost:3000/staff](http://localhost:3000/staff)
 * 👑 **Dashboard Quản Trị Viên (Admin)**: [http://localhost:3000/admin](http://localhost:3000/admin)
+*(Đợi hiển thị: `Ready in ... on http://localhost:3000` là vào web được ngay).*
 
-#### 🪟 Terminal 3: Mở Trình Quản Trị Database Trực Quan (Prisma Studio — Cổng 5555)
+---
+
+#### 🗄️ Bước 4 (Tùy chọn): Mở Trình Quản Trị CSDL Trực Quan (Prisma Studio — Cổng 5555)
+Nếu muốn mở giao diện web xem toàn bộ bảng dữ liệu, đơn hàng, khách hàng, tồn kho như Excel:
 ```powershell
 npm run prisma:studio
 ```
-*(Hoặc vào thư mục con: `cd backend; npx prisma studio`)*
 * 🗄️ **Giao diện CSDL trực quan**: [http://localhost:5555](http://localhost:5555)
-* Cho phép xem, thêm, sửa bảng `Product`, `Ingredient`, `Order`, `Review`, `Account` trực tiếp trên web.
+* Nhấp đúp chuột vào bất kỳ ô nào để sửa dữ liệu trực tiếp và bấm **"Save changes"**.
+
+---
+
+#### 🧹 Lệnh Phụ Trợ Đặc Biệt: Reset Database Trắng Tinh Cho Buổi Demo
+Bất cứ khi nào bạn test thử đặt hàng xong và muốn **xóa trắng toàn bộ đơn cũ, khôi phục lại 100% tồn kho nguyên liệu**:
+```powershell
+npm run clean:db
+```
+*(Chỉ mất 1 giây để đưa toàn bộ hệ thống về trạng thái sạch sẽ ban đầu).*
 
 ---
 
