@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { fetchApi, getErrorMessage } from '../../../lib/api';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { StatusBadge, Button, Card, EmptyState, Skeleton, Modal, Toast } from '../../../components/ui';
-import { Check, ArrowLeft, Award, AlertTriangle, Home } from 'lucide-react';
+import { Check, ArrowLeft, Award, AlertTriangle, Home, CreditCard, RefreshCw } from 'lucide-react';
 import { OrderRecord, OrderItemRecord, OrderStatus } from '@/types';
 import { ORDER_STATUS } from '@/lib/orderStatus';
 import { useRequireRole } from '@/hooks/useRequireRole';
@@ -100,9 +100,14 @@ export default function OrderConfirmationPage() {
 
   if (!ready || loading) {
     return (
-      <div className="max-w-xl mx-auto py-12 space-y-4">
-        <Skeleton className="h-8 w-48 mx-auto" />
-        <Skeleton className="h-40 w-full" />
+      <div className="max-w-xl mx-auto py-16 text-center space-y-4 animate-fade-in">
+        <div className="w-12 h-12 mx-auto rounded-full bg-surface-2 flex items-center justify-center text-accent">
+          <RefreshCw className="w-6 h-6 animate-spin" />
+        </div>
+        <div className="space-y-1">
+          <h3 className="font-display font-semibold text-base text-ink">Đang tải chi tiết đơn hàng...</h3>
+          <p className="text-xs text-ink-3">Vui lòng chờ trong giây lát.</p>
+        </div>
       </div>
     );
   }
@@ -287,6 +292,17 @@ export default function OrderConfirmationPage() {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-line">
+          {(order.status === 'PENDING' || order.status === 'PAYMENT_FAILED') && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => router.push(`/checkout?orderId=${order.id}`)}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+            >
+              <CreditCard className="w-3.5 h-3.5 mr-1" />
+              <span>Thanh toán ngay ({Number(order.totalAfterDiscount).toLocaleString('vi-VN')}đ)</span>
+            </Button>
+          )}
           <Button variant="secondary" size="sm" onClick={() => router.push('/')}>
             <Home className="w-3.5 h-3.5" />
             <span>Về trang chủ</span>

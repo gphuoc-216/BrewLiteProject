@@ -577,20 +577,16 @@ export class PaymentService {
    * Tự động trích xuất mã đơn hàng (ví dụ BL810243 hoặc ORD-XXX) từ chuỗi nội dung chuyển khoản.
    */
   async syncMbPayment(data: any) {
-    const content = String(data?.content || '').toUpperCase().trim();
+    const content = String(data?.content || '').toUpperCase().trim().replace(/\s+/g, ' ');
     const rawCode = String(data?.invoice_code || '').toUpperCase().trim();
 
-    // Thuật toán Regex tách mã đơn hàng: ưu tiên 6 số BL\d{6}
+    // Thuật toán kiểm tra chính xác nội dung: Bắt buộc đúng cấu trúc "BREWLITE <mã_đơn>"
     let orderCode = '';
-    const match6Digits = content.match(/BL\d{6}/) || rawCode.match(/BL\d{6}/);
-    if (match6Digits) {
-      orderCode = match6Digits[0];
-    } else {
-      const matchGeneral = content.match(/BL\d+/) || content.match(/ORD-[A-Z0-9]+/) || [rawCode];
-      orderCode = (matchGeneral[0] || rawCode).replace(/^BREWLITE\s*/i, '').trim();
-      if (orderCode.length === 10 && orderCode.endsWith('6304')) {
-        orderCode = orderCode.slice(0, 6);
-      }
+    const matchExact = content.match(/^BREWLITE\s+(BL\d{6}|ORD-[A-Z0-9]+)$/i);
+    if (matchExact) {
+      orderCode = matchExact[1].toUpperCase();
+    } else if (rawCode && content === `BREWLITE ${rawCode}`) {
+      orderCode = rawCode;
     }
 
     const paymentRecord = {
@@ -630,19 +626,18 @@ export class PaymentService {
    */
   async checkMbPayment(orderCode: string) {
     const code = String(orderCode || '').toUpperCase().trim();
-    console.log(`[checkMbPayment] Checking: "${code}", keys in map:`, Array.from(PaymentService.mbPayments.keys()));
+    if (!code) return { paid: false };
+
     let payment = PaymentService.mbPayments.get(code);
 
-    // Tìm kiếm mở rộng nếu mã nằm bên trong nội dung chuyển khoản
-    if (!payment) {
+    // Tìm kiếm đối soát nội dung: Bắt buộc nội dung giao dịch khớp chính xác "BREWLITE <mã_đơn>"
+    if (!payment && code.length >= 4) {
+      const expectedMemo = `BREWLITE ${code}`;
       for (const [key, val] of PaymentService.mbPayments.entries()) {
-        if (
-          key !== 'LATEST_TX' &&
-          (key.includes(code) ||
-          code.includes(key) ||
-          (val.content && (val.content.toUpperCase().includes(code) || code.includes(val.content.toUpperCase()))) ||
-          (val.orderCode && (val.orderCode.toUpperCase().includes(code) || code.includes(val.orderCode.toUpperCase()))))
-        ) {
+        if (key === 'LATEST_TX') continue;
+        const txContent = String(val?.content || '').toUpperCase().trim().replace(/\s+/g, ' ');
+        const txOrderCode = String(val?.orderCode || '').toUpperCase().trim();
+        if (txContent === expectedMemo || (txOrderCode && txOrderCode === code && txContent === expectedMemo)) {
           payment = val;
           break;
         }
@@ -658,22 +653,7 @@ export class PaymentService {
       };
     }
 
-    // 💡 NGHIỆP VỤ ĐẶC THÙ (Napas 247): Nếu có chuyển tiền trong 2 phút gần nhất nhưng không khớp mã đơn
-    // -> Báo ngay lỗi "GHI SAI NỘI DUNG CHUYỂN KHOẢN" để hướng dẫn người dùng
-    const latestTx = PaymentService.mbPayments.get('LATEST_TX');
-    if (latestTx && Date.now() - latestTx.time < 120000) {
-      const txContent = (latestTx.content || '').toUpperCase();
-      if (!txContent.includes(code)) {
-        return {
-          paid: false,
-          mismatched: true,
-          errorType: 'WRONG_CONTENT',
-          message: `Phát hiện giao dịch chuyển khoản SAI NỘI DUNG: Hệ thống nhận được nội dung "${latestTx.content}" (${Number(latestTx.amount || 0).toLocaleString('vi-VN')} đ), không khớp với mã hóa đơn "BREWLITE ${code}". Đơn hàng từ chối kích hoạt tự động theo quy chế.`,
-          latestPayment: latestTx,
-        };
-      }
-    }
-
+    // Nếu không khớp hoặc chuyển sai nội dung / số tiền: Mặc định không thanh toán, giữ trạng thái bình thường
     return { paid: false };
   }
 

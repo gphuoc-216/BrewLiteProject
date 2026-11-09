@@ -31,6 +31,8 @@ import {
   Trash2,
   ShieldCheck,
   Ticket,
+  Coins,
+  ShoppingBag,
 } from 'lucide-react';
 import { useRequireRole } from '@/hooks/useRequireRole';
 import { OrderRecord } from '@/types';
@@ -92,7 +94,33 @@ function CheckoutContent() {
   const [linkingLoading, setLinkingLoading] = useState(false);
   const [walletNotice, setWalletNotice] = useState<string | null>(null);
 
-    const userKey = (user as any)?.id || (user as any)?.accountId || (user as any)?.profileId || user?.username || 'customer';
+  const userKey = (user as any)?.id || (user as any)?.accountId || (user as any)?.profileId || user?.username || 'customer';
+
+  const [editingWallet, setEditingWallet] = useState<{ id: 'momo' | 'zalopay' | 'shopeepay'; name: string; balance: number } | null>(null);
+  const [newBalanceInput, setNewBalanceInput] = useState<string>('');
+
+  const openEditBalanceModal = (walletId: 'momo' | 'zalopay' | 'shopeepay') => {
+    const w = linkedWallets.find((item) => item.id === walletId);
+    if (!w) return;
+    setEditingWallet(w);
+    setNewBalanceInput(w.balance.toString());
+  };
+
+  const handleSaveBalance = (customAmount?: number) => {
+    if (!editingWallet) return;
+    const rawVal = customAmount !== undefined
+      ? customAmount
+      : parseInt(String(newBalanceInput).replace(/\D/g, ''), 10);
+    const amountToSet = isNaN(rawVal) ? 0 : Math.max(0, rawVal);
+    const updated = linkedWallets.map((w) => (w.id === editingWallet.id ? { ...w, balance: amountToSet } : w));
+    setLinkedWallets(updated);
+    setSelectedWalletId(editingWallet.id);
+    try {
+      localStorage.setItem(`brewlite_wallets_${userKey}`, JSON.stringify(updated));
+    } catch {}
+    setEditingWallet(null);
+    setErrorMsg(null);
+  };
 
   // Mặc định tài khoản mới đăng ký là CHƯA liên kết ví nào
   useEffect(() => {
@@ -182,6 +210,7 @@ function CheckoutContent() {
     senderName: string;
     code: string;
   } | null>(null);
+  const isPayingRef = useRef(false);
 
   // Đồng hồ đếm ngược 5 phút (TTL 300 giây)
   const [ttlSeconds, setTtlSeconds] = useState(300);
@@ -210,13 +239,17 @@ function CheckoutContent() {
         : (promotions && promotions.length > 0
             ? promotions.reduce((sum, p) => sum + (p.discountAmount || 0), 0)
             : (promotion ? promotion.discountAmount : 0)));
-  const pointsDiscount = isBuyNow
-    ? Number(buyNowItem?.pointsDiscount || 0)
-    : (loyaltyPointsUsed || 0) * 100;
+  const pointsDiscount = retryOrder
+    ? 0
+    : (isBuyNow
+        ? Number(buyNowItem?.pointsDiscount || 0)
+        : (loyaltyPointsUsed || 0) * 100);
   const buyNowLoyaltyPoints = isBuyNow ? Number(buyNowItem?.loyaltyPointsUsed || 0) : 0;
-  const discountAmount = voucherDiscount + pointsDiscount;
-  const finalTotal = Math.max(0, subtotal - discountAmount);
-  const hasPayableOrder = activeItems.length > 0 || !!retryOrder;
+  const discountAmount = retryOrder ? retryDiscount : (voucherDiscount + pointsDiscount);
+  const finalTotal = retryOrder
+    ? Number(retryOrder.totalAfterDiscount || 0)
+    : Math.max(0, subtotal - discountAmount);
+  const hasPayableOrder = activeItems.length > 0 || !!retryOrder || paymentStatus === 'SUCCESS';
   const [orderCodeDisplay, setOrderCodeDisplay] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       const saved =
@@ -438,6 +471,7 @@ function CheckoutContent() {
   // Xử lý xác nhận thanh toán & chuyển trang
   const handlePay = useCallback(
     async (paymentDetails?: { senderStk: string; senderName: string }) => {
+      if (isPayingRef.current) return false;
       if (!user) {
         setErrorMsg('Vui lòng đăng nhập tài khoản trước khi thực hiện thanh toán!');
         router.push('/login?redirect=/checkout');
@@ -454,7 +488,24 @@ function CheckoutContent() {
         return false;
       }
 
+      // Kiểm tra nghiêm ngặt số dư ví nếu chọn phương thức WALLET
+      if (paymentMethod === 'WALLET') {
+        const currentWallet = linkedWallets.find((w) => w.id === selectedWalletId);
+        if (!currentWallet) {
+          setErrorMsg('Vui lòng chọn hoặc liên kết ví điện tử để thanh toán.');
+          return false;
+        }
+        const currentBalance = Number(currentWallet.balance || 0);
+        if (currentBalance < finalTotal) {
+          setErrorMsg(
+            `Thanh toán thất bại: Số dư ${currentWallet.name} hiện tại (${currentBalance.toLocaleString('vi-VN')} đ) không đủ để thanh toán đơn hàng (${finalTotal.toLocaleString('vi-VN')} đ). Vui lòng nạp thêm tiền hoặc sửa số dư!`
+          );
+          return false;
+        }
+      }
+
       try {
+        isPayingRef.current = true;
         setLoading(true);
         setErrorMsg(null);
 
@@ -462,6 +513,9 @@ function CheckoutContent() {
 
         // 1. Tạo đơn hàng mới nếu chưa có orderId
         if (!orderId) {
+          if (activeItems.length === 0) {
+            return false;
+          }
           const orderPayload = {
             items: activeItems.map((i) => ({
               variantId: i.variantId,
@@ -500,15 +554,17 @@ function CheckoutContent() {
         }
 
         // 3. Thực hiện thanh toán không tiền mặt lên máy chủ
+        const paymentPayload: any = {
+          orderId,
+          method: paymentMethod,
+        };
+
         await fetchApi('/payments', {
           method: 'POST',
           headers: {
             'Idempotency-Key': idempotencyKeyRef.current,
           },
-          body: JSON.stringify({
-            orderId,
-            method: paymentMethod,
-          }),
+          body: JSON.stringify(paymentPayload),
         });
 
         // Nếu thanh toán qua Ví điện tử, trừ số dư trên ví của tài khoản này
@@ -568,17 +624,19 @@ function CheckoutContent() {
         }
         fetchProfile();
 
-        // Chuyển hướng bằng router.replace để xóa bỏ trang checkout khỏi lịch sử duyệt web
+        // Phát chuông Ting Ting xong, để người dùng nhìn rõ giao diện thành công rồi từ từ mới chuyển sang trang đơn hàng (2.6 giây)
         setTimeout(() => {
           router.replace(`/orders/${orderId}`);
-        }, 800);
+        }, 2600);
         return true;
       } catch (err: unknown) {
-        setErrorMsg(getErrorMessage(err));
+        const errMsg = getErrorMessage(err);
+        setErrorMsg(errMsg);
         setPaymentStatus('WAITING');
         return false;
       } finally {
         setLoading(false);
+        isPayingRef.current = false;
       }
     },
     [
@@ -599,65 +657,43 @@ function CheckoutContent() {
       router,
       updateLoyaltyPoints,
       fetchProfile,
+      linkedWallets,
+      selectedWalletId,
+      userKey,
     ]
   );
-
-  // Chặn tuyệt đối: Nếu giỏ hàng rỗng HOẶC mã đơn này đã thanh toán xong -> Tự động chuyển hướng về trang Thực đơn / Menu
-  useEffect(() => {
-    if (!ready) return;
-
-    const isAlreadyCompleted =
-      typeof window !== 'undefined' &&
-      sessionStorage.getItem('brewlite_completed_order_' + orderCodeDisplay);
-
-    // Khi đã thanh toán thành công, không điều hướng về trang chủ mà để chuyển sang trang chi tiết đơn
-    if (paymentStatus === 'SUCCESS') return;
-    if ((activeItems.length === 0 && !retryOrderId) || isAlreadyCompleted) {
-      router.replace('/');
-    }
-  }, [ready, activeItems.length, retryOrderId, orderCodeDisplay, router, paymentStatus]);
-
-  // Chỉ chặn Back sau khi thanh toán thành công để tránh quay lại mã QR đã hoàn tất.
-  useEffect(() => {
-    const handlePopState = () => {
-      if (paymentStatus === 'SUCCESS') {
-        router.replace('/');
-      }
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [paymentStatus, router]);
 
   // Lắng nghe sự kiện chuyển khoản: kết hợp localStorage (cùng tab) & Backend API Polling (qua điện thoại thật trong LAN)
   useEffect(() => {
     let lastHandledTime = 0;
 
-    const processIncomingPayment = (data: any, isMismatched?: boolean) => {
+    const processIncomingPayment = (data: any) => {
+      if (!data) return;
+      if (isPayingRef.current || paymentStatus === 'SUCCESS') return;
+
       const paidAmt = Number(data?.amount || 0);
-      const content = String(data?.content || '').toUpperCase();
-      const targetCode = orderCodeDisplay.toUpperCase();
+      const content = String(data?.content || '').toUpperCase().trim().replace(/\s+/g, ' ');
+      const targetCode = orderCodeDisplay.toUpperCase().trim();
+      const expectedMemo = `BREWLITE ${targetCode}`;
 
       // 1. Kiểm tra nếu mã QR đã hết hạn (quá 5 phút)
       if (isQrExpired || ttlSeconds <= 0) {
         return;
       }
 
-      // 2. Kiểm tra nội dung chuyển khoản: Phải chứa mã đơn hàng
-      const hasCode =
-        content.includes(targetCode) ||
-        (data.orderCode && String(data.orderCode).toUpperCase().includes(targetCode));
-      if (!hasCode || isMismatched) {
+      // 2. Kiểm tra nội dung chuyển khoản: Phải CHÍNH XÁC là "BREWLITE <mã_đơn>"
+      // Bất kỳ sai khác nào (như BREWLITxxE, thiếu BREWLITE, sai chính tả...) đều là SAI NỘI DUNG
+      const isContentMatched = Boolean(targetCode && content === expectedMemo);
+
+      // 3. Kiểm tra số tiền: Phải ĐÚNG CHÍNH XÁC số tiền đơn hàng (không được thiếu, không được thừa)
+      const isAmountMatched = Math.round(paidAmt) === Math.round(finalTotal);
+
+      // Nếu SAI NỘI DUNG hoặc SAI SỐ TIỀN: Tuyệt đối im lặng, không xử lý gì hết (chuẩn thực tế VietQR/Napas)
+      if (!isContentMatched || !isAmountMatched) {
         return;
       }
 
-      // 3. Kiểm tra số tiền:
-      // Chuyển thiếu tiền (ví dụ chuyển 48k trong khi đơn 49k): Tuyệt đối KHÔNG báo gì hết, tiếp tục chờ khách chuyển đủ
-      if (paidAmt < finalTotal) {
-        return;
-      }
-
-      // 4. Khách chuyển ĐỦ TIỀN hoặc THỪA TIỀN & ĐÚNG NỘI DUNG (paidAmt >= finalTotal):
-      // Tự động gạch nợ thành công ngay lập tức! (Tiền dư sẽ tới quầy tính)
+      // 4. Đúng cả nội dung và đúng chính xác số tiền -> Thanh toán thành công!
       handlePay({
         senderStk: data.sender || '0589822346',
         senderName:
@@ -686,13 +722,7 @@ function CheckoutContent() {
             Date.now() - data.time < 120000
           ) {
             lastHandledTime = data.time;
-            const content = String(data.content || '').toUpperCase();
-            const targetCode = orderCodeDisplay.toUpperCase();
-
-            if (content.includes(targetCode)) {
-              processIncomingPayment(data, false);
-              return;
-            }
+            processIncomingPayment(data);
           }
         } catch {
           // Bỏ qua lỗi parse
@@ -703,11 +733,12 @@ function CheckoutContent() {
       if (orderCodeDisplay && !isPollingRef.current) {
         isPollingRef.current = true;
         try {
-          const res = await fetchApi<{ paid: boolean; payment?: any; mismatched?: boolean; latestPayment?: any; message?: string }>(
+          const res = await fetchApi<{ paid: boolean; payment?: any; data?: any }>(
             `/payments/mbbank-check/${orderCodeDisplay}`
           );
-          if (res && res.paid && res.payment) {
-            processIncomingPayment(res.payment, false);
+          const payData = res?.payment || (res as any)?.data;
+          if (res && res.paid && payData) {
+            processIncomingPayment(payData);
           }
         } catch {
           // Bỏ qua lỗi polling khi đang chờ
@@ -753,7 +784,21 @@ function CheckoutContent() {
     return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  if (!ready || !user) {
+  if (!ready) {
+    return (
+      <div className="max-w-md mx-auto py-24 text-center space-y-4 animate-fade-in">
+        <div className="w-12 h-12 mx-auto rounded-full bg-surface-2 flex items-center justify-center text-accent">
+          <Clock className="w-6 h-6 animate-spin" />
+        </div>
+        <div className="space-y-1">
+          <h3 className="font-display font-semibold text-base text-ink">Đang tải thông tin thanh toán...</h3>
+          <p className="text-xs text-ink-3">BrewLite đang đồng bộ phiên đăng nhập an toàn.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
     return (
       <div className="max-w-md mx-auto py-16 text-center space-y-5 animate-fade-in">
         <div className="w-16 h-16 mx-auto rounded-full bg-amber-500/10 border-2 border-amber-500/30 flex items-center justify-center text-amber-600">
@@ -801,14 +846,17 @@ function CheckoutContent() {
 
   if (!hasPayableOrder) {
     return (
-      <div className="max-w-md mx-auto py-20 text-center space-y-4 animate-fade-in">
-        <div className="w-12 h-12 mx-auto rounded-full bg-surface-2 flex items-center justify-center text-accent">
-          <Clock className="w-6 h-6 animate-spin" />
+      <div className="max-w-md mx-auto py-20 text-center space-y-5 animate-fade-in">
+        <div className="w-16 h-16 mx-auto rounded-full bg-surface-2 flex items-center justify-center text-accent">
+          <ShoppingBag className="w-8 h-8" />
         </div>
-        <div className="space-y-1">
-          <h3 className="font-display font-semibold text-base text-ink">Đang chuyển hướng về thực đơn...</h3>
-          <p className="text-xs text-ink-3">Giỏ hàng của bạn đang trống hoặc đơn hàng này đã hoàn tất thanh toán.</p>
+        <div className="space-y-1.5">
+          <h3 className="font-display font-semibold text-lg text-ink">Giỏ hàng của bạn đang trống</h3>
+          <p className="text-xs text-ink-3">Hãy chọn một vài món thức uống ngon miệng từ thực đơn trước khi thanh toán nhé.</p>
         </div>
+        <Button variant="primary" onClick={() => router.push('/')} className="mx-auto">
+          Xem thực đơn BrewLite
+        </Button>
       </div>
     );
   }
@@ -831,6 +879,30 @@ function CheckoutContent() {
         title="Thanh toán không dùng tiền mặt"
         description="Chọn Ví điện tử hoặc Thẻ ngân hàng, sau đó xác nhận trả để hoàn tất đơn hàng."
       />
+
+      {/* THÔNG BÁO TING TING & GIAO DIỆN CHÚC MỪNG THÀNH CÔNG */}
+      {paymentStatus === 'SUCCESS' && (
+        <div className="bg-emerald-500/10 border-2 border-emerald-500 rounded-3xl p-6 sm:p-10 text-center space-y-4 animate-fade-in shadow-xl max-w-2xl mx-auto">
+          <div className="w-20 h-20 bg-emerald-500 text-white rounded-full flex items-center justify-center mx-auto shadow-lg animate-bounce">
+            <CheckCircle2 className="w-12 h-12" />
+          </div>
+          <div className="space-y-1.5">
+            <h2 className="font-display font-extrabold text-2xl sm:text-3xl text-emerald-700 dark:text-emerald-300">
+              🎉 TING TING! THANH TOÁN THÀNH CÔNG
+            </h2>
+            <p className="text-lg font-bold text-ink font-mono">
+              Đã nhận {finalTotal.toLocaleString('vi-VN')} đ
+            </p>
+            <p className="text-xs text-ink-2 max-w-md mx-auto">
+              Đơn hàng <b className="font-mono">#{orderCodeDisplay}</b> đã được gạch nợ thành công và tự động chuyển xuống quầy pha chế!
+            </p>
+          </div>
+          <div className="pt-2 flex items-center justify-center gap-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+            <RefreshCw className="w-4 h-4 animate-spin" />
+            <span>Đang chuyển hướng sang trang theo dõi đơn hàng sau giây lát...</span>
+          </div>
+        </div>
+      )}
 
       {/* KHI ĐƠN HÀNG CÓ TỔNG TIỀN BẰNG 0Đ (THANH TOÁN 100% BẰNG VOUCHER / ĐIỂM THƯỞNG) */}
       {finalTotal === 0 ? (
@@ -1217,10 +1289,32 @@ function CheckoutContent() {
                   </div>
                 </div>
 
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <a
+                    href={`/mbbank/index.html?amount=${finalTotal}&orderCode=${orderCodeDisplay}&memo=BREWLITE%20${orderCodeDisplay}&name=BREWLITE%20COFFEE&account=99998888&bank=MBB`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
+                  >
+                    <Smartphone className="w-4 h-4" />
+                    <span>📱 Mở App MBBank Simulator</span>
+                  </a>
+                  <a
+                    href="/mbbank/admin.html"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-surface hover:bg-surface-2 text-ink border border-line hover:border-line-strong rounded-xl text-xs font-bold transition-all shadow-sm"
+                  >
+                    <Coins className="w-4 h-4 text-amber-500" />
+                    <span>⚙️ Admin MBBank (Chỉnh số dư & Test)</span>
+                  </a>
+                </div>
+
 
 
               </div>
             </div>
+
 
             {/* THÔNG BÁO THÀNH CÔNG (TING TING) */}
             {paymentStatus === 'SUCCESS' && successNotice && (
@@ -1359,6 +1453,18 @@ function CheckoutContent() {
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
+                            title="Chỉnh số dư ví (Demo/Debug)"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEditBalanceModal(prov.id);
+                            }}
+                            className="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 rounded-lg transition-colors text-[11px] font-semibold flex items-center gap-1"
+                          >
+                            <Coins className="w-3.5 h-3.5" />
+                            <span>Sửa số dư</span>
+                          </button>
+                          <button
+                            type="button"
                             title="Hủy liên kết ví này"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1460,20 +1566,66 @@ function CheckoutContent() {
             )}
           </div>
 
+          {/* Cảnh báo rõ ràng tình trạng số dư ví */}
+          {selectedWallet && (
+            selectedWallet.balance < finalTotal ? (
+              <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs text-rose-600 dark:text-rose-400 flex items-center justify-between gap-2 animate-fade-in">
+                <div className="flex items-center gap-2 min-w-0">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+                  <span className="leading-snug">
+                    <b>Số dư không đủ:</b> {selectedWallet.name} hiện có{' '}
+                    <b className="font-mono">{selectedWallet.balance.toLocaleString('vi-VN')} đ</b>, còn thiếu{' '}
+                    <b className="font-mono text-rose-700 dark:text-rose-300 underline">
+                      {(finalTotal - selectedWallet.balance).toLocaleString('vi-VN')} đ
+                    </b>
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openEditBalanceModal(selectedWallet.id)}
+                  className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold text-[11px] shrink-0 transition-colors shadow-sm"
+                >
+                  Sửa số dư
+                </button>
+              </div>
+            ) : (
+              <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs text-emerald-700 dark:text-emerald-300 flex items-center justify-between gap-2 animate-fade-in">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                  <span>
+                    <b>Số dư khả dụng:</b> Đủ thanh toán! Sau khi trừ còn dư{' '}
+                    <b className="font-mono">{(selectedWallet.balance - finalTotal).toLocaleString('vi-VN')} đ</b>
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openEditBalanceModal(selectedWallet.id)}
+                  className="text-[11px] font-semibold underline text-emerald-600 hover:text-emerald-800 dark:text-emerald-400"
+                >
+                  Sửa số dư
+                </button>
+              </div>
+            )
+          )}
+
           {/* Nút Thanh toán */}
           {selectedWallet ? (
             <Button
               type="button"
               onClick={() => handlePay()}
               disabled={loading || selectedWallet.balance < finalTotal}
-              className="w-full py-3 text-xs font-semibold"
+              className={`w-full py-3.5 text-xs font-bold transition-all shadow-sm ${
+                selectedWallet.balance < finalTotal
+                  ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed hover:bg-slate-300 dark:hover:bg-slate-700'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
+              }`}
             >
               {loading ? (
                 'Đang Xử Lý Giao Dịch...'
               ) : selectedWallet.balance < finalTotal ? (
-                'Số dư ví không đủ để thanh toán'
+                `❌ Số dư ví không đủ (Thiếu ${(finalTotal - selectedWallet.balance).toLocaleString('vi-VN')} đ)`
               ) : (
-                `Xác nhận trả bằng ${selectedWallet.name} (${finalTotal.toLocaleString('vi-VN')} đ)`
+                `Xác nhận trả ${finalTotal.toLocaleString('vi-VN')} đ bằng ${selectedWallet.name}`
               )}
             </Button>
           ) : (
@@ -1487,8 +1639,6 @@ function CheckoutContent() {
               <span>Liên kết Ví MoMo để thanh toán ngay</span>
             </Button>
           )}
-
-          
         </div>
       )}
     </>
@@ -1592,6 +1742,115 @@ function CheckoutContent() {
                 className="w-1/2 text-xs font-semibold"
               >
                 {linkingLoading ? 'Đang Liên Kết...' : 'Xác Nhận Liên Kết'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Chỉnh Số Dư Ví (Demo / Debug Trường Hợp Hết Tiền) */}
+      {editingWallet && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-surface border border-line rounded-2xl shadow-2xl w-full max-w-sm p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <div className="flex items-center gap-2">
+                <Coins className="w-5 h-5 text-amber-500" />
+                <h3 className="font-display font-bold text-base text-ink">Chỉnh số dư {editingWallet.name}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingWallet(null)}
+                className="p-1 text-ink-3 hover:text-ink rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-ink-2 mb-1.5">
+                Số dư ví mong muốn (VNĐ):
+              </label>
+              <input
+                type="text"
+                value={newBalanceInput}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '');
+                  setNewBalanceInput(val);
+                }}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-line bg-surface-2 text-ink font-mono font-bold text-base outline-none focus:border-accent"
+                placeholder="Nhập số tiền (VD: 80000 hoặc 80.000)..."
+              />
+              <div className="mt-1 text-[11px] text-ink-3 flex justify-between">
+                <span>Số tiền quy đổi:</span>
+                <span className="font-mono font-bold text-accent">
+                  {(parseInt(newBalanceInput || '0', 10) || 0).toLocaleString('vi-VN')} đ
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <span className="text-[11px] font-semibold text-ink-3 block mb-1.5">Chọn nhanh số dư:</span>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleSaveBalance(0)}
+                  className="px-2 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 rounded-xl text-[11px] font-bold transition-all text-center"
+                >
+                  0 đ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveBalance(50000)}
+                  className="px-2 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 rounded-xl text-[11px] font-bold transition-all text-center"
+                >
+                  50.000 đ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveBalance(100000)}
+                  className="px-2 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded-xl text-[11px] font-bold transition-all text-center"
+                >
+                  100.000 đ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveBalance(200000)}
+                  className="px-2 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30 rounded-xl text-[11px] font-bold transition-all text-center"
+                >
+                  200.000 đ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveBalance(500000)}
+                  className="px-2 py-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/30 rounded-xl text-[11px] font-bold transition-all text-center"
+                >
+                  500.000 đ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveBalance(2000000)}
+                  className="px-2 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded-xl text-[11px] font-bold transition-all text-center"
+                >
+                  2.000.000 đ
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-2.5 pt-2 border-t border-line">
+              <Button
+                type="button"
+                variant="secondary"
+                className="flex-1 text-xs"
+                onClick={() => setEditingWallet(null)}
+              >
+                Hủy bỏ
+              </Button>
+              <Button
+                type="button"
+                className="flex-1 text-xs font-bold"
+                onClick={() => handleSaveBalance()}
+              >
+                Lưu số dư
               </Button>
             </div>
           </div>
