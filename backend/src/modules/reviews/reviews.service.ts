@@ -4,6 +4,7 @@ import {
   NotFoundException,
   ForbiddenException,
   ConflictException,
+  HttpException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { fallbackStore } from '../../prisma/fallback-store';
@@ -211,7 +212,7 @@ export class ReviewsService {
           });
         }
 
-        // 5. Kiểm tra nếu đã đánh giá thì Update, chưa thì Create ngay lập tức
+        // 5. Kiểm tra nếu đã đánh giá thì chặn và báo lỗi ConflictException (không ghi đè sửa lại nội dung)
         const existingReview = await this.prisma.review.findFirst({
           where: {
             customerId: finalCustId,
@@ -220,18 +221,7 @@ export class ReviewsService {
         });
 
         if (existingReview) {
-          return await this.prisma.review.update({
-            where: { id: existingReview.id },
-            data: {
-              stars: dto.stars,
-              content: dto.content || 'Đồ uống rất ngon và vừa miệng!',
-              status: ReviewStatus.VISIBLE,
-            },
-            include: {
-              customer: { select: { fullName: true } },
-              product: { select: { name: true } },
-            },
-          });
+          throw new ConflictException('Bạn đã đánh giá món đồ uống này rồi. Không thể đánh giá lại!');
         }
 
         return await this.prisma.review.create({
@@ -249,6 +239,9 @@ export class ReviewsService {
           },
         });
       } catch (err: any) {
+        if (err instanceof HttpException) {
+          throw err;
+        }
         console.error('Lỗi khi lưu Review vào PostgreSQL:', err);
       }
     }
