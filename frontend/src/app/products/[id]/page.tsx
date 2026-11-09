@@ -77,21 +77,22 @@ export default function ProductDetailPage() {
 
   const checkIsReviewOwner = (rev: { id: string; customerId?: string; customer?: { fullName: string } }) => {
     if (!user) return false;
+    // Quyền Quản trị viên (ADMIN) được phép quản lý mọi đánh giá
     if (user.role === 'ADMIN') return true;
+
+    // So khớp chính xác theo ID người dùng (Customer ID hoặc Account ID)
     if (rev.customerId) {
-      if (
+      return (
         rev.customerId === user.profileId ||
         rev.customerId === user.id ||
         rev.customerId === user.accountId ||
         rev.customerId === (user as any).customerId
-      ) {
-        return true;
-      }
+      );
     }
+
+    // Chỉ khi review cũ không có customerId mới đối chiếu theo họ tên
     if (rev.customer?.fullName && user.fullName) {
-      if (rev.customer.fullName.trim().toLowerCase() === user.fullName.trim().toLowerCase()) {
-        return true;
-      }
+      return rev.customer.fullName.trim().toLowerCase() === user.fullName.trim().toLowerCase();
     }
     return false;
   };
