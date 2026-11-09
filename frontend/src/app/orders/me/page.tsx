@@ -13,7 +13,7 @@ import {
   EmptyState,
   Skeleton,
 } from '../../../components/ui';
-import { Star, ArrowRight, AlertTriangle, Check } from 'lucide-react';
+import { Star, ArrowRight, AlertTriangle, Check, CreditCard, RefreshCw } from 'lucide-react';
 import { OrderRecord, OrderItemRecord, OrderStatus } from '@/types';
 import { ORDER_STATUS } from '@/lib/orderStatus';
 import { useRequireRole } from '@/hooks/useRequireRole';
@@ -162,11 +162,16 @@ export default function OrdersMePage() {
     }
   };
 
-  if (!ready) {
+  if (!ready || loading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-24 w-full" />
+      <div className="max-w-xl mx-auto py-16 text-center space-y-4 animate-fade-in">
+        <div className="w-12 h-12 mx-auto rounded-full bg-surface-2 flex items-center justify-center text-accent">
+          <RefreshCw className="w-6 h-6 animate-spin" />
+        </div>
+        <div className="space-y-1">
+          <h3 className="font-display font-semibold text-base text-ink">Đang tải lịch sử đơn hàng...</h3>
+          <p className="text-xs text-ink-3">Vui lòng chờ trong giây lát.</p>
+        </div>
       </div>
     );
   }
@@ -279,6 +284,15 @@ export default function OrdersMePage() {
                       >
                         Hủy đơn
                       </Button>
+                    )}
+
+                    {(order.status === 'PENDING' || order.status === 'PAYMENT_FAILED') && (
+                      <Link href={`/checkout?orderId=${order.id}`}>
+                        <Button variant="primary" size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
+                          <CreditCard className="w-3.5 h-3.5 mr-1" />
+                          <span>Thanh toán</span>
+                        </Button>
+                      </Link>
                     )}
 
                     <Link href={`/orders/${order.id}`}>

@@ -18,6 +18,7 @@ describe('PaymentService (Thanh Toán Idempotent & Tồn Kho Đồng Thời - Ta
     mockPrisma = {
       payment: {
         findUnique: jest.fn(),
+        findFirst: jest.fn(),
         create: jest.fn(),
       },
       order: {
@@ -67,6 +68,7 @@ describe('PaymentService (Thanh Toán Idempotent & Tồn Kho Đồng Thời - Ta
         orderId: 'ord-1',
         amount: 50000,
         status: 'SUCCESS',
+        method: PaymentMethod.WALLET,
         order: { id: 'ord-1', status: OrderStatus.PAID },
       };
 
@@ -102,6 +104,52 @@ describe('PaymentService (Thanh Toán Idempotent & Tồn Kho Đồng Thời - Ta
           { profileId: 'cust-1', role: 'CUSTOMER' },
         ),
       ).rejects.toThrow(UnprocessableEntityException);
+    });
+
+    // Ca kiểm thử 3b: Cố tình tráo đổi phương thức thanh toán WALLET sang CARD với cùng Idempotency-Key
+    it('gửi cùng Idempotency-Key nhưng tráo đổi method từ WALLET sang CARD sẽ ném UnprocessableEntityException (422)', async () => {
+      const mockExistingPayment = {
+        id: 'pay-1',
+        idempotencyKey: 'KEY-12345',
+        orderId: 'ord-1',
+        method: PaymentMethod.WALLET,
+        amount: 50000,
+        status: 'SUCCESS',
+        order: { id: 'ord-1', status: OrderStatus.PAID },
+      };
+
+      mockPrisma.payment.findUnique.mockResolvedValue(mockExistingPayment);
+
+      await expect(
+        service.processPayment(
+          { orderId: 'ord-1', method: PaymentMethod.CARD }, // Tráo sang CARD
+          'KEY-12345',
+          { profileId: 'cust-1', role: 'CUSTOMER' },
+        ),
+      ).rejects.toThrow(UnprocessableEntityException);
+    });
+
+    // Ca kiểm thử 3c: Cố tình thanh toán lại đơn hàng đã PAID bằng key mới
+    it('thanh toán lại đơn hàng đã PAID bằng key mới sẽ ném ConflictException (409)', async () => {
+      mockPrisma.payment.findUnique.mockResolvedValue(null); // Key mới tinh
+      mockPrisma.order.findUnique.mockResolvedValue({
+        id: 'ord-1',
+        customerId: 'cust-1',
+        status: OrderStatus.PAID, // Đơn đã thanh toán
+        items: [],
+      });
+      mockPrisma.payment.findFirst.mockResolvedValue({
+        id: 'pay-old',
+        method: PaymentMethod.WALLET,
+      });
+
+      await expect(
+        service.processPayment(
+          { orderId: 'ord-1', method: PaymentMethod.CARD },
+          'KEY-NEW-999',
+          { profileId: 'cust-1', role: 'CUSTOMER' },
+        ),
+      ).rejects.toThrow(ConflictException);
     });
   });
 

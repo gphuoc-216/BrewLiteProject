@@ -1,7 +1,8 @@
 import { Controller, Post, Get, Body, Headers, Param, UseGuards, Res, HttpStatus } from '@nestjs/common';
 import { Response } from 'express';
-import { ApiTags, ApiOperation, ApiResponse, ApiHeader, ApiBearerAuth } from '@nestjs/swagger';
-import { PaymentService, ProcessPaymentDto } from './payment.service';
+import { ApiTags, ApiOperation, ApiResponse, ApiHeader, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
+import { PaymentService } from './payment.service';
+import { ProcessPaymentDto } from './dto/process-payment.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
@@ -25,7 +26,7 @@ export class PaymentController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Thực hiện thanh toán đơn hàng không tiền mặt (Idempotent)' })
   @ApiHeader({
-    name: 'Idempotency-Key',
+    name: 'idempotency-key',
     required: true,
     description: 'Khóa chống trùng lặp giao dịch (UUIDv4 sinh từ client)',
   })
@@ -33,6 +34,10 @@ export class PaymentController {
   @ApiResponse({ status: 200, description: 'Giao dịch đã xử lý trước đó (Idempotent Replay)' })
   @ApiResponse({ status: 409, description: 'Hết nguyên liệu hoặc xung đột phiên bản' })
   @ApiResponse({ status: 422, description: 'Trùng Idempotency-Key nhưng khác payload' })
+  @ApiBody({
+    type: ProcessPaymentDto,
+    description: 'Dữ liệu thanh toán đơn hàng (hỗ trợ method: WALLET hoặc CARD)',
+  })
   async pay(
     @Body() dto: ProcessPaymentDto,
     @Headers('idempotency-key') idempotencyKey: string,

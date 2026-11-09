@@ -8,6 +8,8 @@
 # Tự động kết nối mạng nội bộ (brewlite_network) và gắn ổ đĩa bền vững (brewlite_postgres_data).
 # =========================================================================================
 
+name: brewlite
+
 services:
   # ---------------------------------------------------------------------------------------
   # SERVICE 1: POSTGRESQL DATABASE (CƠ SỞ DỮ LIỆU)

@@ -21,7 +21,9 @@ import { OrderStatus, PaymentMethod, PaymentStatus } from '@prisma/client';
  * 2. method: Phương thức thanh toán (chỉ chấp nhận ví ảo 'WALLET' hoặc thẻ ngân hàng 'CARD').
  * 3. simulateError (tùy chọn): Dùng trong lúc demo để ép hệ thống tạo lỗi thử nghiệm.
  */
-export class ProcessPaymentDto {
+export { ProcessPaymentDto } from './dto/process-payment.dto';
+import { ProcessPaymentDto } from './dto/process-payment.dto';
+class _DeprecatedProcessPaymentDto {
   @IsString()
   @IsNotEmpty({ message: 'Mã đơn hàng (orderId) không được để trống' })
   orderId: string;
@@ -90,7 +92,7 @@ export class PaymentService {
     // -------------------------------------------------------------------------------------
     // Bắt buộc Client phải gửi kèm Header "Idempotency-Key" (thường là một chuỗi UUID ngẫu nhiên)
     if (!idempotencyKey || !idempotencyKey.trim()) {
-      throw new BadRequestException('Bắt buộc phải có header Idempotency-Key để thực hiện thanh toán');
+      throw new BadRequestException('Thông tin phiên thanh toán không hợp lệ. Vui lòng thử lại.');
     }
 
     try {
@@ -103,6 +105,15 @@ export class PaymentService {
       // 1.2 Nếu khóa ĐÃ TỒN TẠI trong hệ thống:
       if (existingPayment) {
         if (existingPayment.orderId === dto.orderId) {
+          // 🛡️ CHỐNG GIAN LẬN TRÁO ĐỔI PAYLOAD:
+          // Nếu cùng Idempotency-Key nhưng lại cố tình tráo đổi phương thức thanh toán (ví dụ: đã trả WALLET lại đòi đổi CARD)
+          if (existingPayment.method && existingPayment.method !== dto.method) {
+            const methodLabel = existingPayment.method === 'WALLET' ? 'Ví điện tử' : 'Thẻ ngân hàng';
+            throw new UnprocessableEntityException(
+              `Giao dịch này đã được thanh toán bằng ${methodLabel}. Quý khách vui lòng không thay đổi phương thức thanh toán.`,
+            );
+          }
+
           // 👉 [KỊCH BẢN 1: BẤM ĐÚP / REPLAY HỢP LỆ]:
           // Cùng 1 Idempotency-Key gửi lại cho CÙNG 1 đơn hàng -> Khách bị lag mạng bấm 2 lần liên tiếp.
           // HỆ THỐNG TRẢ LẠI KẾT QUẢ CŨ (HTTP 200), TUYỆT ĐỐI KHÔNG TRỪ TIỀN HOẶC TRỪ KHO LẦN 2!
@@ -118,7 +129,7 @@ export class PaymentService {
           // Cùng 1 Idempotency-Key nhưng lại đem dùng cho một đơn hàng KHÁC -> Gian lận hoặc lỗi phần mềm.
           // Bắt buộc ném lỗi HTTP 422 Unprocessable Entity theo chuẩn RESTful quốc tế.
           throw new UnprocessableEntityException(
-            'Idempotency-Key đã được sử dụng cho một đơn hàng khác. Vui lòng sinh key mới.',
+            'Phiên giao dịch đã được sử dụng cho một đơn hàng khác. Quý khách vui lòng làm mới trang và thử lại.',
           );
         }
       }
@@ -189,7 +200,19 @@ export class PaymentService {
         throw new BadRequestException('Bạn không thể thanh toán đơn hàng của khách hàng khác');
       }
 
-      // 2.4 Kích hoạt Máy Trạng Thái (Order State Machine):
+      // 2.4 CHỐNG THANH TOÁN TRÙNG & GIAN LẬN: Nếu đơn hàng ĐÃ ĐƯỢC THANH TOÁN (PAID) trước đó
+      if (order.status === OrderStatus.PAID) {
+        const pastPayment = await this.prisma.payment.findFirst({
+          where: { orderId: order.id, status: PaymentStatus.SUCCESS },
+        });
+        const paidMethod = pastPayment?.method;
+        const methodLabel = paidMethod === 'WALLET' ? 'Ví điện tử' : (paidMethod === 'CARD' ? 'Thẻ ngân hàng' : 'phương thức khác');
+        throw new ConflictException(
+          `Đơn hàng này đã được thanh toán thành công trước đó bằng ${methodLabel}. Quý khách vui lòng không thanh toán lại.`,
+        );
+      }
+
+      // 2.5 Kích hoạt Máy Trạng Thái (Order State Machine):
       // Chỉ cho phép chuyển từ PENDING hoặc PAYMENT_FAILED sang PAID.
       // Nếu đơn đã CANCELLED hoặc COMPLETED, assertTransition() sẽ ném lỗi HTTP 409 Conflict.
       try {
@@ -262,6 +285,25 @@ export class PaymentService {
       // Nếu bất kỳ thao tác nào bên dưới gặp lỗi (ví dụ hết kho hoặc thanh toán lỗi),
       // toàn bộ thay đổi sẽ được TỰ ĐỘNG ROLLBACK, đảm bảo dữ liệu không bao giờ bị sai lệch.
       return await this.prisma.$transaction(async (tx) => {
+        // 🔒 CHỐNG RACE CONDITION / MUA CÙNG LÚC (CONCURRENCY CHECK TRONG TRANSACTION):
+        // Nếu 2 tab hoặc 2 request cùng bấm thanh toán ở cùng 1 tích tắc,
+        // request thứ 2 khi vào Transaction sẽ phát hiện đơn đã PAID và lập tức bị chặn an toàn!
+        const currentOrder = await tx.order.findUnique({
+          where: { id: order.id },
+          include: { payments: true },
+        });
+
+        if (!currentOrder || currentOrder.status === OrderStatus.PAID) {
+          throw new ConflictException(
+            'Đơn hàng này đã được thanh toán thành công trước đó. Quý khách vui lòng không thanh toán lại.',
+          );
+        }
+
+        if (currentOrder.status !== OrderStatus.PENDING && currentOrder.status !== OrderStatus.PAYMENT_FAILED) {
+          throw new ConflictException(
+            `Đơn hàng đang ở trạng thái '${currentOrder.status}', không thể thực hiện thanh toán.`,
+          );
+        }
         // .................................................................................
         // 4.1 KHẤU TRỪ TỒN KHO BẰNG OPTIMISTIC LOCKING KÈM RETRY 3 LẦN (TASK 10.3)
         // .................................................................................
@@ -445,6 +487,12 @@ export class PaymentService {
     const existing = fallbackStore.findPaymentByIdempotencyKey(idempotencyKey.trim());
     if (existing) {
       if (existing.orderId === dto.orderId) {
+        if (existing.method && existing.method !== dto.method) {
+          const methodLabel = existing.method === 'WALLET' ? 'Ví điện tử' : 'Thẻ ngân hàng';
+          throw new UnprocessableEntityException(
+            `Giao dịch này đã được thanh toán bằng ${methodLabel}. Quý khách vui lòng không thay đổi phương thức thanh toán.`,
+          );
+        }
         return {
           cached: true,
           replayed: true,
@@ -454,7 +502,7 @@ export class PaymentService {
         };
       } else {
         throw new UnprocessableEntityException(
-          'Idempotency-Key đã được sử dụng cho một đơn hàng khác. Vui lòng sinh key mới.',
+          'Phiên giao dịch đã được sử dụng cho một đơn hàng khác. Quý khách vui lòng làm mới trang và thử lại.',
         );
       }
     }
@@ -474,6 +522,12 @@ export class PaymentService {
 
     if (user.role === 'CUSTOMER' && order.customerId !== user.profileId) {
       throw new BadRequestException('Bạn không thể thanh toán đơn hàng của khách hàng khác');
+    }
+
+    if (order.status === OrderStatus.PAID) {
+      throw new ConflictException(
+        'Đơn hàng này đã được thanh toán thành công trước đó. Quý khách vui lòng không thanh toán lại.',
+      );
     }
 
     assertTransition(order.status, OrderStatus.PAID);
@@ -523,20 +577,16 @@ export class PaymentService {
    * Tự động trích xuất mã đơn hàng (ví dụ BL810243 hoặc ORD-XXX) từ chuỗi nội dung chuyển khoản.
    */
   async syncMbPayment(data: any) {
-    const content = String(data?.content || '').toUpperCase().trim();
+    const content = String(data?.content || '').toUpperCase().trim().replace(/\s+/g, ' ');
     const rawCode = String(data?.invoice_code || '').toUpperCase().trim();
 
-    // Thuật toán Regex tách mã đơn hàng: ưu tiên 6 số BL\d{6}
+    // Thuật toán kiểm tra chính xác nội dung: Bắt buộc đúng cấu trúc "BREWLITE <mã_đơn>"
     let orderCode = '';
-    const match6Digits = content.match(/BL\d{6}/) || rawCode.match(/BL\d{6}/);
-    if (match6Digits) {
-      orderCode = match6Digits[0];
-    } else {
-      const matchGeneral = content.match(/BL\d+/) || content.match(/ORD-[A-Z0-9]+/) || [rawCode];
-      orderCode = (matchGeneral[0] || rawCode).replace(/^BREWLITE\s*/i, '').trim();
-      if (orderCode.length === 10 && orderCode.endsWith('6304')) {
-        orderCode = orderCode.slice(0, 6);
-      }
+    const matchExact = content.match(/^BREWLITE\s+(BL\d{6}|ORD-[A-Z0-9]+)$/i);
+    if (matchExact) {
+      orderCode = matchExact[1].toUpperCase();
+    } else if (rawCode && content === `BREWLITE ${rawCode}`) {
+      orderCode = rawCode;
     }
 
     const paymentRecord = {
@@ -576,19 +626,18 @@ export class PaymentService {
    */
   async checkMbPayment(orderCode: string) {
     const code = String(orderCode || '').toUpperCase().trim();
-    console.log(`[checkMbPayment] Checking: "${code}", keys in map:`, Array.from(PaymentService.mbPayments.keys()));
+    if (!code) return { paid: false };
+
     let payment = PaymentService.mbPayments.get(code);
 
-    // Tìm kiếm mở rộng nếu mã nằm bên trong nội dung chuyển khoản
-    if (!payment) {
+    // Tìm kiếm đối soát nội dung: Bắt buộc nội dung giao dịch khớp chính xác "BREWLITE <mã_đơn>"
+    if (!payment && code.length >= 4) {
+      const expectedMemo = `BREWLITE ${code}`;
       for (const [key, val] of PaymentService.mbPayments.entries()) {
-        if (
-          key !== 'LATEST_TX' &&
-          (key.includes(code) ||
-          code.includes(key) ||
-          (val.content && (val.content.toUpperCase().includes(code) || code.includes(val.content.toUpperCase()))) ||
-          (val.orderCode && (val.orderCode.toUpperCase().includes(code) || code.includes(val.orderCode.toUpperCase()))))
-        ) {
+        if (key === 'LATEST_TX') continue;
+        const txContent = String(val?.content || '').toUpperCase().trim().replace(/\s+/g, ' ');
+        const txOrderCode = String(val?.orderCode || '').toUpperCase().trim();
+        if (txContent === expectedMemo || (txOrderCode && txOrderCode === code && txContent === expectedMemo)) {
           payment = val;
           break;
         }
@@ -604,22 +653,7 @@ export class PaymentService {
       };
     }
 
-    // 💡 NGHIỆP VỤ ĐẶC THÙ (Napas 247): Nếu có chuyển tiền trong 2 phút gần nhất nhưng không khớp mã đơn
-    // -> Báo ngay lỗi "GHI SAI NỘI DUNG CHUYỂN KHOẢN" để hướng dẫn người dùng
-    const latestTx = PaymentService.mbPayments.get('LATEST_TX');
-    if (latestTx && Date.now() - latestTx.time < 120000) {
-      const txContent = (latestTx.content || '').toUpperCase();
-      if (!txContent.includes(code)) {
-        return {
-          paid: false,
-          mismatched: true,
-          errorType: 'WRONG_CONTENT',
-          message: `Phát hiện giao dịch chuyển khoản SAI NỘI DUNG: Hệ thống nhận được nội dung "${latestTx.content}" (${Number(latestTx.amount || 0).toLocaleString('vi-VN')} đ), không khớp với mã hóa đơn "BREWLITE ${code}". Đơn hàng từ chối kích hoạt tự động theo quy chế.`,
-          latestPayment: latestTx,
-        };
-      }
-    }
-
+    // Nếu không khớp hoặc chuyển sai nội dung / số tiền: Mặc định không thanh toán, giữ trạng thái bình thường
     return { paid: false };
   }
 
