@@ -118,6 +118,9 @@ export default function AdminDashboardPage() {
   const [importUnitPrice, setImportUnitPrice] = useState<string>('10000');
   const [importLoading, setImportLoading] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [editingStockIngredient, setEditingStockIngredient] = useState<IngredientRecord | null>(null);
+  const [quickStockValue, setQuickStockValue] = useState<string>('10');
+  const [savingStock, setSavingStock] = useState<boolean>(false);
 
   // 2. Add Product Modal
   const [productModalOpen, setProductModalOpen] = useState(false);
@@ -400,6 +403,32 @@ export default function AdminDashboardPage() {
   const handleQuickImport = (ingId: string) => {
     setSelectedIngredientId(ingId);
     setImportModalOpen(true);
+  };
+
+  const handleSaveQuickStock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingStockIngredient) return;
+    try {
+      setSavingStock(true);
+      await fetchApi(`/admin/ingredients/${editingStockIngredient.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ stockQuantity: Number(quickStockValue) }),
+      });
+      setIngredients((prev) =>
+        prev.map((i) =>
+          i.id === editingStockIngredient.id ? { ...i, stockQuantity: Number(quickStockValue) } : i
+        )
+      );
+      setToastMsg({
+        message: `Đã cập nhật tồn kho ${editingStockIngredient.name} thành ${Number(quickStockValue).toLocaleString('vi-VN')} ${editingStockIngredient.unit}`,
+        type: 'success',
+      });
+      setEditingStockIngredient(null);
+    } catch (err: unknown) {
+      setToastMsg({ message: getErrorMessage(err), type: 'danger' });
+    } finally {
+      setSavingStock(false);
+    }
   };
 
   // Xử lý tạo sản phẩm mới
@@ -1225,14 +1254,29 @@ export default function AdminDashboardPage() {
                                     )}
                                   </td>
                                   <td className="py-3 px-3 text-right">
-                                    <Button
-                                      variant="secondary"
-                                      size="sm"
-                                      onClick={() => handleQuickImport(ing.id)}
-                                      className="text-xs py-1 px-2.5 h-7"
-                                    >
-                                      Nhập thêm
-                                    </Button>
+                                    <div className="flex items-center justify-end gap-1.5">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          setEditingStockIngredient(ing);
+                                          setQuickStockValue(String(ing.stockQuantity));
+                                        }}
+                                        className="text-xs py-1 px-2 h-7 text-ink-2 hover:text-accent hover:bg-surface-2"
+                                        title="Chỉnh sửa trực tiếp số lượng tồn kho (dùng cho test tranh mua hoặc hết hàng)"
+                                      >
+                                        <Edit3 className="w-3.5 h-3.5 mr-1" />
+                                        <span>Sửa tồn</span>
+                                      </Button>
+                                      <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={() => handleQuickImport(ing.id)}
+                                        className="text-xs py-1 px-2.5 h-7"
+                                      >
+                                        Nhập thêm
+                                      </Button>
+                                    </div>
                                   </td>
                                 </tr>
                               );
@@ -2402,6 +2446,48 @@ export default function AdminDashboardPage() {
             </Button>
             <Button variant="primary" size="sm" type="submit">
               Tạo mã
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* MODAL: Chỉnh sửa trực tiếp tồn kho (dùng cho test tranh mua hoặc hết hàng) */}
+      <Modal
+        isOpen={Boolean(editingStockIngredient)}
+        onClose={() => setEditingStockIngredient(null)}
+        title="Chỉnh sửa tồn kho nguyên liệu trực tiếp"
+        description={`Cập nhật số lượng tồn thực tế cho: ${editingStockIngredient?.name || 'Nguyên liệu'}`}
+      >
+        <form onSubmit={handleSaveQuickStock} className="space-y-4 text-xs text-left">
+          <div className="space-y-1.5">
+            <label className="font-semibold text-ink block">
+              Số lượng tồn kho mới ({editingStockIngredient?.unit})
+            </label>
+            <input
+              type="number"
+              min="0"
+              required
+              value={quickStockValue}
+              onChange={(e) => setQuickStockValue(e.target.value)}
+              className="w-full h-9 px-3 bg-bg border border-line rounded text-ink text-sm font-mono focus:border-accent focus:outline-none"
+              placeholder="VD: 10 để test tranh mua hoặc 0 để test hết hàng"
+            />
+            <span className="text-[11px] text-ink-3 block">
+              💡 Mẹo kiểm thử: Đặt = 10 để test 2 khách cùng tranh mua 1 ly cuối, hoặc đặt = 0 để kiểm tra hiển thị "Tạm hết hàng".
+            </span>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-line">
+            <Button
+              variant="secondary"
+              size="sm"
+              type="button"
+              onClick={() => setEditingStockIngredient(null)}
+            >
+              Hủy
+            </Button>
+            <Button variant="primary" size="sm" type="submit" loading={savingStock}>
+              Lưu số lượng
             </Button>
           </div>
         </form>

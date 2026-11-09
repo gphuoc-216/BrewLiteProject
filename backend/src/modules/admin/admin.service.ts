@@ -423,9 +423,34 @@ export class AdminService {
     });
   }
 
-  async updateIngredient(id: string, dto: { name?: string; unit?: string; stockQuantity?: number }) {
+  async updateIngredient(identifier: string, dto: { name?: string; unit?: string; stockQuantity?: number }) {
+    let ing = null;
+    const cleanId = (identifier || '').trim();
+
+    // 1. Nếu là chuỗi UUID hợp lệ, tìm theo ID
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
+    if (isUuid) {
+      ing = await this.prisma.ingredient.findUnique({ where: { id: cleanId } }).catch(() => null);
+    }
+
+    // 2. Nếu không phải UUID hoặc không tìm thấy, tự động tìm theo TÊN nguyên liệu (không phân biệt hoa thường)
+    if (!ing) {
+      ing = await this.prisma.ingredient.findFirst({
+        where: {
+          name: {
+            contains: cleanId,
+            mode: 'insensitive',
+          },
+        },
+      });
+    }
+
+    if (!ing) {
+      throw new NotFoundException(`Không tìm thấy nguyên liệu có mã hoặc tên chứa '${cleanId}'`);
+    }
+
     return this.prisma.ingredient.update({
-      where: { id },
+      where: { id: ing.id },
       data: dto,
     });
   }
