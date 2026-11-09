@@ -1,17 +1,84 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
+function isLocalHost(host: string): boolean {
+  return (
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host === '::1' ||
+    host === '[::1]'
+  );
+}
+
+function isLocalLan(host: string): boolean {
+  return (
+    /^192\.168\./.test(host) ||
+    /^10\./.test(host) ||
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host) ||
+    host.endsWith('.local')
+  );
+}
+
+function isDevTunnel(host: string): boolean {
+  return (
+    host.includes('trycloudflare.com') ||
+    host.includes('ngrok') ||
+    host.includes('loca.lt')
+  );
+}
+
 export function getApiBaseUrl(): string {
   if (typeof window !== 'undefined') {
     const host = window.location.hostname;
-    // Khi truy cập qua Cloudflare Tunnel hoặc tên miền công khai -> dùng đường dẫn tương đối /api
-    if (host.includes('trycloudflare.com') || host.includes('ngrok') || host.includes('loca.lt')) {
+
+    // 1. Localhost: ưu tiên NEXT_PUBLIC_API_URL nếu có, fallback về http://localhost:3001/api
+    if (isLocalHost(host)) {
+      return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+    }
+
+    // 2. Dev Tunnel (Cloudflare Tunnel, ngrok, loca.lt): dùng NEXT_PUBLIC_API_URL hoặc relative /api
+    if (isDevTunnel(host)) {
+      if (
+        process.env.NEXT_PUBLIC_API_URL &&
+        !process.env.NEXT_PUBLIC_API_URL.includes('localhost') &&
+        !process.env.NEXT_PUBLIC_API_URL.includes('127.0.0.1')
+      ) {
+        return process.env.NEXT_PUBLIC_API_URL;
+      }
       return '/api';
     }
-    if (host && host !== 'localhost' && host !== '127.0.0.1') {
+
+    // 3. Mạng LAN cục bộ (khi test điện thoại cùng Wi-Fi, ví dụ 192.168.x.x)
+    if (isLocalLan(host)) {
+      if (
+        process.env.NEXT_PUBLIC_API_URL &&
+        !process.env.NEXT_PUBLIC_API_URL.includes('localhost') &&
+        !process.env.NEXT_PUBLIC_API_URL.includes('127.0.0.1')
+      ) {
+        return process.env.NEXT_PUBLIC_API_URL;
+      }
       const port = process.env.NEXT_PUBLIC_API_PORT || '3001';
       return `${window.location.protocol}//${host}:${port}/api`;
     }
+
+    // 4. Môi trường Production (Vercel hoặc tên miền thực tế):
+    // Dùng chính xác NEXT_PUBLIC_API_URL đã cấu hình (ví dụ: https://<backend-render>.onrender.com/api)
+    // Tuyệt đối không tự ghép domain hiện tại với cổng :3001.
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (
+      !apiUrl ||
+      !apiUrl.trim() ||
+      apiUrl.includes('localhost') ||
+      apiUrl.includes('127.0.0.1')
+    ) {
+      throw new ApiError(
+        'Chưa cấu hình biến môi trường NEXT_PUBLIC_API_URL hợp lệ cho môi trường production. Vui lòng thiết lập NEXT_PUBLIC_API_URL trên Vercel trỏ tới backend Render (ví dụ: https://<backend-render>.onrender.com/api).',
+        500
+      );
+    }
+    return apiUrl.trim();
   }
+
+  // SSR / Build time fallback
   return API_URL;
 }
 
@@ -49,8 +116,10 @@ export async function fetchApi<T = unknown>(endpoint: string, options: RequestIn
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const baseUrl = getApiBaseUrl();
-  const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`;
+  const rawBaseUrl = getApiBaseUrl();
+  const baseUrl = rawBaseUrl.replace(/\/+$/, '');
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${cleanEndpoint}`;
   const response = await fetch(url, {
     ...options,
     headers,
