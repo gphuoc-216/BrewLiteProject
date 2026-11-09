@@ -4,15 +4,15 @@ const prisma = new PrismaClient();
 const productImages = {
   // --- COFFEE (10 món) ---
   'Cà phê Sữa Đá Truyền Thống': 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=600&auto=format&fit=crop&q=80',
-  'Cà Phê Muối Xứ Huế': 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=600&auto=format&fit=crop&q=80',
+  'Cà Phê Muối Xứ Huế': 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=600&auto=format&fit=crop&q=80',
   'Cà phê Đen Đá Đậm Vị': 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&auto=format&fit=crop&q=80',
-  'Cà Phê Trứng Hà Nội': 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=600&auto=format&fit=crop&q=80',
+  'Cà Phê Trứng Hà Nội': 'https://images.unsplash.com/photo-1588195538326-c5b1e9f80a1b?w=600&auto=format&fit=crop&q=80',
   'Americano Đá Tỉnh Táo': 'https://images.unsplash.com/photo-1551030173-122aabc4489c?w=600&auto=format&fit=crop&q=80',
-  'Cold Brew Cam Vàng Băng Đăng': 'https://images.unsplash.com/photo-1517256064527-09c73fc73e38?w=600&auto=format&fit=crop&q=80',
+  'Cold Brew Cam Vàng Băng Đăng': 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=600&auto=format&fit=crop&q=80',
   'Cappuccino Ý Bọt Mịn': 'https://images.unsplash.com/photo-1534778101976-62847782c213?w=600&auto=format&fit=crop&q=80',
-  'Caramel Macchiato Nóng': 'https://images.unsplash.com/photo-1485808191679-5f86510681a2?w=600&auto=format&fit=crop&q=80',
+  'Caramel Macchiato Nóng': 'https://images.unsplash.com/photo-1570968915860-54d5c301fa9f?w=600&auto=format&fit=crop&q=80',
   'Latte Hạt Dẻ Thơm Béo': 'https://images.unsplash.com/photo-1541167760496-1628856ab772?w=600&auto=format&fit=crop&q=80',
-  'Bạc Xỉu Sữa Tươi Kem Béo': 'https://images.unsplash.com/photo-1577968897966-3d4325b36b61?w=600&auto=format&fit=crop&q=80',
+  'Bạc Xỉu Sữa Tươi 3 Tầng': 'https://images.unsplash.com/photo-1517487881594-2787fef5ebf7?w=600&auto=format&fit=crop&q=80',
 
   // --- FREEZE / ĐÁ XAY (6 món) ---
   'Cà Phê Cốt Dừa Bến Tre': 'https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=600&auto=format&fit=crop&q=80',

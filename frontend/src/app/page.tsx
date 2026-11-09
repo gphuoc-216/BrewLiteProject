@@ -30,6 +30,11 @@ function ProductCard({
   onOpenModal: (product: ProductItem) => void;
 }) {
   const [imgSrc, setImgSrc] = useState(product.imageUrl || FALLBACK_IMAGE);
+
+  useEffect(() => {
+    setImgSrc(product.imageUrl || FALLBACK_IMAGE);
+  }, [product.imageUrl]);
+
   const defaultVariant = product.variants?.[0];
   const minPrice = defaultVariant ? defaultVariant.price : product.minPrice || 0;
   const isOutOfStock = Boolean(product.isOutOfStock);
