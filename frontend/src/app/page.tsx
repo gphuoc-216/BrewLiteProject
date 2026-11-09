@@ -272,6 +272,7 @@ export default function HomePage() {
       {/* Quick Select Size & Topping Modal */}
       {modalProduct && (
         <ProductQuickSelectModal
+          key={modalProduct.id}
           isOpen={!!modalProduct}
           onClose={() => setModalProduct(null)}
           product={modalProduct}

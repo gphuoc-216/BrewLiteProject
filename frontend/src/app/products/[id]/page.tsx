@@ -179,10 +179,17 @@ export default function ProductDetailPage() {
   };
 
   useEffect(() => {
+    let isCancelled = false;
+
     async function loadProduct() {
+      if (!params.id) return;
+      const targetId = Array.isArray(params.id) ? params.id[0] : params.id;
+
       try {
         setLoading(true);
-        const data = await fetchApi<ProductDetail>(`/products/${params.id}`);
+        setProduct(null); // Reset dữ liệu món cũ trước khi nạp món mới
+        const data = await fetchApi<ProductDetail>(`/products/${targetId}`);
+        if (isCancelled) return;
         if (!data || !data.id) {
           throw new Error('Product not found');
         }
@@ -192,7 +199,9 @@ export default function ProductDetailPage() {
           setSelectedSize(availableVariant.size);
         }
       } catch {
-        const found = MOCK_PRODUCTS.find((p) => p.id === params.id) || MOCK_PRODUCTS[0];
+        if (isCancelled) return;
+        // Chỉ fallback khi khớp đúng ID của mock data, TUYỆT ĐỐI không ép về MOCK_PRODUCTS[0] (Cà phê sữa)
+        const found = MOCK_PRODUCTS.find((p) => p.id === targetId);
         if (found) {
           const fallbackData: ProductDetail = {
             id: found.id,
@@ -218,13 +227,21 @@ export default function ProductDetailPage() {
             const availableVariant = fallbackData.variants.find((v) => !v.isOutOfStock) || fallbackData.variants[0];
             setSelectedSize(availableVariant.size);
           }
+        } else {
+          setProduct(null);
         }
       } finally {
-        setLoading(false);
+        if (!isCancelled) {
+          setLoading(false);
+        }
       }
     }
 
-    if (params.id) loadProduct();
+    loadProduct();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [params.id]);
 
   if (loading) {
