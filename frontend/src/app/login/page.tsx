@@ -20,6 +20,16 @@ function LoginFormContent() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Tải trước (prefetch) các trang đích để khi bấm Đăng nhập là chuyển trang tức thì (< 50ms)
+  React.useEffect(() => {
+    try {
+      router.prefetch('/');
+      router.prefetch('/staff');
+      router.prefetch('/admin');
+      router.prefetch('/checkout');
+    } catch {}
+  }, [router]);
+
   const executeLogin = async (u: string, p: string) => {
     try {
       setLoading(true);
@@ -36,22 +46,17 @@ function LoginFormContent() {
 
       setAuth(res.user, res.accessToken, res.refreshToken);
 
-      if (res.user.role === 'STAFF') {
-        router.push('/staff');
-      } else if (res.user.role === 'ADMIN') {
-        router.push('/admin');
-      } else {
-        router.push(redirectUrl);
-      }
+      const targetPath = res.user.role === 'STAFF' ? '/staff' : res.user.role === 'ADMIN' ? '/admin' : redirectUrl;
+      router.replace(targetPath);
+      // Giữ loading = true để tránh hiện tượng nhấp nháy form trong khi trình duyệt đang chuyển hướng trang
     } catch (err: unknown) {
+      setLoading(false);
       const msg = getErrorMessage(err);
       if (msg.includes('khóa') || msg.includes('khoá') || msg.includes('LOCKED') || u === 'customer_locked') {
         setErrorMsg('Tài khoản đã bị khoá, vui lòng liên hệ quầy');
       } else {
         setErrorMsg(msg || 'Tên đăng nhập hoặc mật khẩu không chính xác.');
       }
-    } finally {
-      setLoading(false);
     }
   };
 

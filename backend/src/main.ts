@@ -48,8 +48,8 @@ async function bootstrap() {
   });
 
   const port = process.env.PORT || 3001;
-  await app.listen(port);
-  logger.log(`🚀 BrewLite Backend API is running on: http://localhost:${port}/api`);
+  await app.listen(port, '0.0.0.0');
+  logger.log(`🚀 BrewLite Backend API is running on: http://127.0.0.1:${port}/api`);
   logger.log(`📚 Swagger OpenAPI documentation available at: http://localhost:${port}/api/docs`);
 }
 

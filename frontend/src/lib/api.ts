@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001/api';
 
 export function getApiBaseUrl(): string {
   if (typeof window !== 'undefined') {
@@ -7,7 +7,10 @@ export function getApiBaseUrl(): string {
     if (host.includes('trycloudflare.com') || host.includes('ngrok') || host.includes('loca.lt')) {
       return '/api';
     }
-    if (host && host !== 'localhost' && host !== '127.0.0.1') {
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return 'http://127.0.0.1:3001/api';
+    }
+    if (host) {
       const port = process.env.NEXT_PUBLIC_API_PORT || '3001';
       return `${window.location.protocol}//${host}:${port}/api`;
     }
