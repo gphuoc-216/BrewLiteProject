@@ -234,7 +234,7 @@ export default function OrdersMePage() {
       ) : (
         <div className="border border-line rounded bg-surface divide-y divide-line">
           {filteredOrders.map((order) => {
-            const canCancel = order.status === 'PENDING' || order.status === 'PAID';
+            const canCancel = order.status === 'PENDING' || order.status === 'PAID' || order.status === 'PAYMENT_FAILED';
             const allReviewed = isAllProductsReviewed(order);
             const canReview = order.status === 'COMPLETED' && !allReviewed;
             const currentStep = ORDER_STATUS[order.status]?.step ?? -1;

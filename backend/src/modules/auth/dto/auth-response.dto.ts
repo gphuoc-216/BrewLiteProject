@@ -47,3 +47,4 @@ export class AuthResponseDto {
   @ApiProperty({ example: 604800, description: 'Thời hạn token tính bằng giây (7 ngày)' })
   expiresIn: number;
 }
+

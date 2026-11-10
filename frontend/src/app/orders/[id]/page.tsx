@@ -183,7 +183,7 @@ export default function OrderConfirmationPage() {
   const currentIndex = ORDER_STATUS[order.status]?.step ?? -1;
   const isSpecialStatus = ['PENDING', 'PAYMENT_FAILED', 'CANCELLED'].includes(order.status);
   const earnedPoints = Math.floor((Number(order.totalAfterDiscount) || 0) / 10000);
-  const canCancel = order.status === 'PENDING' || order.status === 'PAID';
+  const canCancel = order.status === 'PENDING' || order.status === 'PAID' || order.status === 'PAYMENT_FAILED';
 
   return (
     <div className="max-w-xl mx-auto space-y-6">
