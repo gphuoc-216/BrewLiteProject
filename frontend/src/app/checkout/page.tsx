@@ -59,8 +59,12 @@ function CheckoutContent() {
   useEffect(() => {
     if (ready) {
       fetchProfile();
+      try {
+        router.prefetch('/');
+        router.prefetch('/orders/me');
+      } catch {}
     }
-  }, [ready, fetchProfile]);
+  }, [ready, fetchProfile, router]);
 
   const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'WALLET'>('CARD');
   const [loading, setLoading] = useState(false);

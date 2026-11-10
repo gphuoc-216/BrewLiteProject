@@ -141,3 +141,4 @@ Ngay trước khi thầy tới bàn chấm, bạn chỉ cần gõ đúng 1 lện
 npm run clean:db
 ```
 Toàn bộ đơn hàng test sẽ về 0 và toàn bộ 11 nguyên liệu sẽ đầy 100%, sẵn sàng cho một buổi thuyết trình hoàn hảo!
+

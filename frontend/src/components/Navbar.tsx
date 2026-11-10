@@ -19,6 +19,16 @@ export const Navbar: React.FC = () => {
   useEffect(() => {
     setMounted(true);
     try {
+      // Tải trước (prefetch) toàn bộ các trang chính để bấm chuyển trang tức thì
+      router.prefetch('/');
+      router.prefetch('/cart');
+      router.prefetch('/checkout');
+      router.prefetch('/orders/me');
+      router.prefetch('/staff');
+      router.prefetch('/admin');
+      router.prefetch('/login');
+      router.prefetch('/register');
+
       const storedToken = localStorage.getItem('brewlite_token');
       const storedUser = localStorage.getItem('brewlite_user');
       if (storedToken && storedUser) {
@@ -33,7 +43,7 @@ export const Navbar: React.FC = () => {
     } catch {
       setHasAuthSession(false);
     }
-  }, [user]);
+  }, [user, router]);
 
   const totalItems = mounted ? getTotalCount() : 0;
 

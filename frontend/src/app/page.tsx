@@ -154,6 +154,15 @@ export default function HomePage() {
   const { user } = useAuthStore();
   const router = useRouter();
 
+  useEffect(() => {
+    try {
+      router.prefetch('/cart');
+      router.prefetch('/checkout');
+      router.prefetch('/orders/me');
+      router.prefetch('/login');
+    } catch {}
+  }, [router]);
+
   // Reset về trang 1 khi đổi danh mục hoặc tìm kiếm
   useEffect(() => {
     setCurrentPage(1);
