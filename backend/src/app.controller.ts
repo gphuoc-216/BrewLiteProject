@@ -7,7 +7,7 @@ import { PrismaService } from './prisma/prisma.service';
 export class AppController {
   constructor(private readonly prisma: PrismaService) {}
 
-  @Get('health')
+  @Get(['health', 'api/health'])
   @ApiOperation({ summary: 'Kiểm tra trạng thái hoạt động của hệ thống (Health Check)' })
   @ApiResponse({ status: 200, description: 'Hệ thống hoạt động bình thường' })
   async getHealth() {

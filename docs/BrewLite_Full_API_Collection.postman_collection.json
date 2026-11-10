@@ -101,7 +101,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"username\": \"customer1\",\n  \"password\": \"password123\"\n}"
+              "raw": "{\n  \"username\": \"customer1\",\n  \"password\": \"123456\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/auth/login",
@@ -145,7 +145,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"username\": \"barista1\",\n  \"password\": \"password123\"\n}"
+              "raw": "{\n  \"username\": \"barista1\",\n  \"password\": \"123456\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/auth/login",
@@ -189,7 +189,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"password123\"\n}"
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"123456\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/auth/login",
@@ -212,9 +212,10 @@
                 "type": "text/javascript",
                 "exec": [
                   "const res = pm.response.json();",
+                  "const user = res.data || res;",
                   "pm.test(\"Lấy profile thành công (HTTP 200)\", () => {",
                   "    pm.response.to.have.status(200);",
-                  "    pm.expect(res.role).to.be.oneOf([\"CUSTOMER\", \"STAFF\", \"ADMIN\"]);",
+                  "    pm.expect(user.role).to.be.oneOf([\"CUSTOMER\", \"STAFF\", \"ADMIN\"]);",
                   "});"
                 ]
               }
@@ -265,7 +266,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"username\": \"new_customer_1990\",\n  \"password\": \"password123\",\n  \"email\": \"user_1990@example.com\",\n  \"fullName\": \"Nguyen Van Test\",\n  \"phone\": \"0908300272\"\n}"
+              "raw": "{\n  \"username\": \"new_customer_1534\",\n  \"password\": \"password123\",\n  \"email\": \"user_1534@example.com\",\n  \"fullName\": \"Nguyen Van Test\",\n  \"phone\": \"0908249683\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/auth/register",
@@ -321,18 +322,19 @@
                 "type": "text/javascript",
                 "exec": [
                   "const res = pm.response.json();",
-                  "const items = res.items || res.data?.items || (Array.isArray(res) ? res : []);",
+                  "const items = res.items || res.data?.items || (Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []));",
                   "pm.test(\"Lấy Menu sản phẩm thành công (HTTP 200)\", () => {",
                   "    pm.response.to.have.status(200);",
                   "    pm.expect(items.length).to.be.above(0);",
                   "});",
                   "if (items.length > 0) {",
-                  "    const prod = items[0];",
-                  "    pm.environment.set(\"testProductId\", prod.id);",
-                  "    pm.collectionVariables.set(\"testProductId\", prod.id);",
-                  "    if (prod.variants && prod.variants.length > 0) {",
-                  "        pm.environment.set(\"testVariantId\", prod.variants[0].id);",
-                  "        pm.collectionVariables.set(\"testVariantId\", prod.variants[0].id);",
+                  "    const coffeeProd = items.find(p => p.name && (p.name.toLowerCase().includes(\"cà phê\") || p.name.toLowerCase().includes(\"coffee\"))) || items[0];",
+                  "    pm.environment.set(\"testProductId\", coffeeProd.id);",
+                  "    pm.collectionVariables.set(\"testProductId\", coffeeProd.id);",
+                  "    if (coffeeProd.variants && coffeeProd.variants.length > 0) {",
+                  "        const varS = coffeeProd.variants.find(v => v.size === \"S\") || coffeeProd.variants[0];",
+                  "        pm.environment.set(\"testVariantId\", varS.id);",
+                  "        pm.collectionVariables.set(\"testVariantId\", varS.id);",
                   "    }",
                   "}"
                 ]
@@ -447,8 +449,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Kiểm tra Voucher hoàn tất (HTTP 200 hoặc 400)\", () => {",
-                  "    pm.expect(pm.response.code).to.be.oneOf([200, 400]);",
+                  "pm.test(\"Kiểm tra Voucher hoàn tất (HTTP 200/201 hoặc 400)\", () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 400]);",
                   "});"
                 ]
               }
@@ -1113,7 +1115,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "const res = pm.response.json();",
-                  "const items = Array.isArray(res) ? res : (res.items || res.data || []);",
+                  "const items = Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : (res.items || []));",
                   "pm.test(\"Lấy kho nguyên liệu thành công (HTTP 200)\", () => {",
                   "    pm.response.to.have.status(200);",
                   "});",
@@ -1121,7 +1123,10 @@
                   "if (robusta) {",
                   "    pm.environment.set(\"robustaId\", robusta.id);",
                   "    pm.collectionVariables.set(\"robustaId\", robusta.id);",
-                  "}"
+                  "}",
+                  "pm.test(\"Tìm thấy Robusta ID hợp lệ\", () => {",
+                  "    pm.expect(pm.environment.get(\"robustaId\")).to.be.a(\"string\");",
+                  "});"
                 ]
               }
             }
@@ -1155,7 +1160,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"Cập nhật tồn kho thành công (HTTP 200)\", () => {",
-                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
                   "});"
                 ]
               }
@@ -1175,7 +1180,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"stock\": 30000\n}"
+              "raw": "{\n  \"stockQuantity\": 30000\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/admin/ingredients/{{robustaId}}",

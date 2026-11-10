@@ -11,7 +11,7 @@ async function bootstrap() {
 
   // 1. Cấu hình tiền tố toàn cục /api (loại trừ /health để hỗ trợ cả /health và /api/health)
   app.setGlobalPrefix('api', {
-    exclude: ['health'],
+    exclude: ['health', 'api/health'],
   });
 
   // 2. Cấu hình CORS

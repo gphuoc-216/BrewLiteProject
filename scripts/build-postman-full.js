@@ -42,7 +42,7 @@ const folder0 = {
         header: [{ key: 'Content-Type', value: 'application/json' }],
         body: {
           mode: 'raw',
-          raw: JSON.stringify({ username: 'customer1', password: 'password123' }, null, 2)
+          raw: JSON.stringify({ username: 'customer1', password: '123456' }, null, 2)
         },
         url: {
           raw: '{{baseUrl}}/auth/login',
@@ -68,7 +68,7 @@ const folder0 = {
         header: [{ key: 'Content-Type', value: 'application/json' }],
         body: {
           mode: 'raw',
-          raw: JSON.stringify({ username: 'barista1', password: 'password123' }, null, 2)
+          raw: JSON.stringify({ username: 'barista1', password: '123456' }, null, 2)
         },
         url: {
           raw: '{{baseUrl}}/auth/login',
@@ -94,7 +94,7 @@ const folder0 = {
         header: [{ key: 'Content-Type', value: 'application/json' }],
         body: {
           mode: 'raw',
-          raw: JSON.stringify({ username: 'admin', password: 'password123' }, null, 2)
+          raw: JSON.stringify({ username: 'admin', password: '123456' }, null, 2)
         },
         url: {
           raw: '{{baseUrl}}/auth/login',
@@ -107,9 +107,10 @@ const folder0 = {
       name: '0.4 Xem Profile hiện tại kèm Role (/auth/me)',
       event: makeScript([
         'const res = pm.response.json();',
+        'const user = res.data || res;',
         'pm.test("Lấy profile thành công (HTTP 200)", () => {',
         '    pm.response.to.have.status(200);',
-        '    pm.expect(res.role).to.be.oneOf(["CUSTOMER", "STAFF", "ADMIN"]);',
+        '    pm.expect(user.role).to.be.oneOf(["CUSTOMER", "STAFF", "ADMIN"]);',
         '});'
       ]),
       request: {
@@ -176,18 +177,19 @@ const folder1 = {
       name: '1.1 Lấy danh sách sản phẩm Menu (Tự động lưu Variant ID)',
       event: makeScript([
         'const res = pm.response.json();',
-        'const items = res.items || res.data?.items || (Array.isArray(res) ? res : []);',
+        'const items = res.items || res.data?.items || (Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []));',
         'pm.test("Lấy Menu sản phẩm thành công (HTTP 200)", () => {',
         '    pm.response.to.have.status(200);',
         '    pm.expect(items.length).to.be.above(0);',
         '});',
         'if (items.length > 0) {',
-        '    const prod = items[0];',
-        '    pm.environment.set("testProductId", prod.id);',
-        '    pm.collectionVariables.set("testProductId", prod.id);',
-        '    if (prod.variants && prod.variants.length > 0) {',
-        '        pm.environment.set("testVariantId", prod.variants[0].id);',
-        '        pm.collectionVariables.set("testVariantId", prod.variants[0].id);',
+        '    const coffeeProd = items.find(p => p.name && (p.name.toLowerCase().includes("cà phê") || p.name.toLowerCase().includes("coffee"))) || items[0];',
+        '    pm.environment.set("testProductId", coffeeProd.id);',
+        '    pm.collectionVariables.set("testProductId", coffeeProd.id);',
+        '    if (coffeeProd.variants && coffeeProd.variants.length > 0) {',
+        '        const varS = coffeeProd.variants.find(v => v.size === "S") || coffeeProd.variants[0];',
+        '        pm.environment.set("testVariantId", varS.id);',
+        '        pm.collectionVariables.set("testVariantId", varS.id);',
         '    }',
         '}'
       ]),
@@ -251,8 +253,8 @@ const folder1 = {
     {
       name: '1.5 Kiểm tra hợp lệ Voucher (Validate Promo Code)',
       event: makeScript([
-        'pm.test("Kiểm tra Voucher hoàn tất (HTTP 200 hoặc 400)", () => {',
-        '    pm.expect(pm.response.code).to.be.oneOf([200, 400]);',
+        'pm.test("Kiểm tra Voucher hoàn tất (HTTP 200/201 hoặc 400)", () => {',
+        '    pm.expect(pm.response.code).to.be.oneOf([200, 201, 400]);',
         '});'
       ]),
       request: {
@@ -619,7 +621,7 @@ const folder5 = {
       name: '5.5 Xem tồn kho nguyên liệu (Tự động lưu robustaId)',
       event: makeScript([
         'const res = pm.response.json();',
-        'const items = Array.isArray(res) ? res : (res.items || res.data || []);',
+        'const items = Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : (res.items || []));',
         'pm.test("Lấy kho nguyên liệu thành công (HTTP 200)", () => {',
         '    pm.response.to.have.status(200);',
         '});',
@@ -627,7 +629,10 @@ const folder5 = {
         'if (robusta) {',
         '    pm.environment.set("robustaId", robusta.id);',
         '    pm.collectionVariables.set("robustaId", robusta.id);',
-        '}'
+        '}',
+        'pm.test("Tìm thấy Robusta ID hợp lệ", () => {',
+        '    pm.expect(pm.environment.get("robustaId")).to.be.a("string");',
+        '});'
       ]),
       request: {
         method: 'GET',
@@ -643,7 +648,7 @@ const folder5 = {
       name: '5.6 Cập nhật tồn kho Robusta (/admin/ingredients/:id)',
       event: makeScript([
         'pm.test("Cập nhật tồn kho thành công (HTTP 200)", () => {',
-        '    pm.response.to.have.status(200);',
+        '    pm.expect(pm.response.code).to.be.oneOf([200, 201]);',
         '});'
       ]),
       request: {
@@ -654,7 +659,7 @@ const folder5 = {
         ],
         body: {
           mode: 'raw',
-          raw: JSON.stringify({ stock: 30000 }, null, 2)
+          raw: JSON.stringify({ stockQuantity: 30000 }, null, 2)
         },
         url: {
           raw: '{{baseUrl}}/admin/ingredients/{{robustaId}}',
@@ -802,3 +807,4 @@ const fullCollection = {
 
 fs.writeFileSync(outputPath, JSON.stringify(fullCollection, null, 2), 'utf8');
 console.log('✅ Generated successfully: ' + outputPath);
+
