@@ -9,7 +9,7 @@ import { MOCK_PRODUCTS } from '@/lib/mockProducts';
 import { useCartStore } from '@/store/useCartStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Button, QuantityStepper, Toast, Skeleton, EmptyState, Modal } from '@/components/ui';
-import { ArrowLeft, Star, Check, Lock, ShoppingBag, Zap, Ticket, AlertCircle, Sparkles } from 'lucide-react';
+import { ArrowLeft, Star, Check, Lock, ShoppingBag, Zap, Ticket, AlertCircle, Sparkles, Pencil, Trash2 } from 'lucide-react';
 import { ProductVariant } from '@/types';
 import {
   SHOP_VOUCHERS,
@@ -32,6 +32,7 @@ interface ProductDetail {
   variants: ProductVariant[];
   reviews?: Array<{
     id: string;
+    customerId?: string;
     stars: number;
     content: string;
     createdAt: string;
@@ -66,10 +67,50 @@ export default function ProductDetailPage() {
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [eligibleOrderId, setEligibleOrderId] = useState<string | null>(null);
+  const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
+  const [reviewToDelete, setReviewToDelete] = useState<{ id: string; content: string } | null>(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
   const [selectedVoucherCodes, setSelectedVoucherCodes] = useState<string[]>([]);
   const [usePoints, setUsePoints] = useState(false);
   const [manualVoucherCode, setManualVoucherCode] = useState('');
   const [voucherError, setVoucherError] = useState<string | null>(null);
+
+  const checkIsReviewOwner = (rev: { id: string; customerId?: string; customer?: { fullName: string } }) => {
+    if (!user) return false;
+    // Quyền Quản trị viên (ADMIN) được phép quản lý mọi đánh giá
+    if (user.role === 'ADMIN') return true;
+
+    // So khớp chính xác theo ID người dùng (Customer ID hoặc Account ID)
+    if (rev.customerId) {
+      return (
+        rev.customerId === user.profileId ||
+        rev.customerId === user.id ||
+        rev.customerId === user.accountId ||
+        rev.customerId === (user as any).customerId
+      );
+    }
+
+    // Chỉ khi review cũ không có customerId mới đối chiếu theo họ tên
+    if (rev.customer?.fullName && user.fullName) {
+      return rev.customer.fullName.trim().toLowerCase() === user.fullName.trim().toLowerCase();
+    }
+    return false;
+  };
+
+  const handleStartEditReview = (rev: { id: string; stars: number; content: string }) => {
+    setEditingReviewId(rev.id);
+    setReviewStars(rev.stars);
+    setReviewContent(rev.content);
+    setReviewError(null);
+    setReviewModalOpen(true);
+  };
+
+  const handleCloseReviewModal = () => {
+    setReviewModalOpen(false);
+    setEditingReviewId(null);
+    setReviewContent('');
+    setReviewError(null);
+  };
 
   const handleOpenReviewModal = async () => {
     if (!user) {
@@ -78,7 +119,18 @@ export default function ProductDetailPage() {
       }
       return;
     }
+
+    // Nếu người dùng đã từng đánh giá món này, tự động mở modal ở chế độ chỉnh sửa
+    const existing = product?.reviews?.find(checkIsReviewOwner);
+    if (existing) {
+      handleStartEditReview(existing);
+      return;
+    }
+
     try {
+      setEditingReviewId(null);
+      setReviewStars(5);
+      setReviewContent('');
       setReviewError(null);
       let orderIdToUse: string | null = null;
       try {
@@ -113,60 +165,119 @@ export default function ProductDetailPage() {
     try {
       setReviewSubmitting(true);
       setReviewError(null);
-      const res = await fetchApi<any>('/reviews', {
-        method: 'POST',
-        body: JSON.stringify({
-          productId: product.id,
-          orderId: eligibleOrderId || undefined,
+
+      if (editingReviewId) {
+        // CẬP NHẬT ĐÁNH GIÁ (PATCH /api/reviews/:id)
+        await fetchApi<any>(`/reviews/${editingReviewId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            stars: reviewStars,
+            content: reviewContent.trim(),
+          }),
+        });
+
+        setProduct((prev) => {
+          if (!prev) return null;
+          const updatedReviews = (prev.reviews || []).map((r) =>
+            r.id === editingReviewId
+              ? { ...r, stars: reviewStars, content: reviewContent.trim() }
+              : r
+          );
+          const totalStars = updatedReviews.reduce((sum, r) => sum + r.stars, 0);
+          return {
+            ...prev,
+            reviews: updatedReviews,
+            avgRating: updatedReviews.length > 0 ? Number((totalStars / updatedReviews.length).toFixed(1)) : undefined,
+          };
+        });
+
+        setToast({ message: '✨ Cập nhật đánh giá món uống thành công!', type: 'success' });
+        handleCloseReviewModal();
+      } else {
+        // TẠO MỚI ĐÁNH GIÁ (POST /api/reviews)
+        const res = await fetchApi<any>('/reviews', {
+          method: 'POST',
+          body: JSON.stringify({
+            productId: product.id,
+            orderId: eligibleOrderId || undefined,
+            stars: reviewStars,
+            content: reviewContent.trim(),
+          }),
+        });
+
+        const newRev = {
+          id: res?.id || 'rev-' + Date.now(),
+          customerId: res?.customerId || user?.profileId || user?.id,
           stars: reviewStars,
           content: reviewContent.trim(),
-        }),
-      });
-
-      const newRev = {
-        id: res?.id || 'rev-' + Date.now(),
-        stars: reviewStars,
-        content: reviewContent.trim(),
-        createdAt: new Date().toISOString(),
-        customer: { fullName: res?.customer?.fullName || user?.fullName || user?.username || 'Khách hàng' },
-      };
-
-      setProduct((prev) => {
-        if (!prev) return null;
-        const existingIdx = (prev.reviews || []).findIndex(
-          (r) => r.id === newRev.id || r.customer?.fullName === newRev.customer.fullName
-        );
-        let updatedReviews: any[];
-        if (existingIdx >= 0) {
-          updatedReviews = [...(prev.reviews || [])];
-          updatedReviews[existingIdx] = newRev;
-        } else {
-          updatedReviews = [newRev, ...(prev.reviews || [])];
-        }
-        const totalStars = updatedReviews.reduce((sum, r) => sum + r.stars, 0);
-        return {
-          ...prev,
-          reviews: updatedReviews,
-          reviewCount: updatedReviews.length,
-          avgRating: Number((totalStars / updatedReviews.length).toFixed(1)),
+          createdAt: new Date().toISOString(),
+          customer: { fullName: res?.customer?.fullName || user?.fullName || user?.username || 'Khách hàng' },
         };
-      });
 
-      // Lấy dữ liệu mới nhất từ database
+        setProduct((prev) => {
+          if (!prev) return null;
+          const updatedReviews = [newRev, ...(prev.reviews || [])];
+          const totalStars = updatedReviews.reduce((sum, r) => sum + r.stars, 0);
+          return {
+            ...prev,
+            reviews: updatedReviews,
+            reviewCount: updatedReviews.length,
+            avgRating: Number((totalStars / updatedReviews.length).toFixed(1)),
+          };
+        });
+
+        setToast({ message: '🎉 Đánh giá của bạn đã được ghi nhận vào hệ thống thành công!', type: 'success' });
+        handleCloseReviewModal();
+      }
+
+      // Lấy dữ liệu mới nhất đồng bộ từ database
       try {
         const fresh = await fetchApi<ProductDetail>(`/products/${product.id}`);
         if (fresh && Array.isArray(fresh.reviews)) {
           setProduct(fresh);
         }
       } catch {}
-
-      setReviewModalOpen(false);
-      setReviewContent('');
-      setToast({ message: '🎉 Đánh giá của bạn đã được ghi nhận vào hệ thống thành công!', type: 'success' });
     } catch (err: unknown) {
-      setReviewError(err instanceof Error ? err.message : 'Không thể gửi đánh giá.');
+      setReviewError(err instanceof Error ? err.message : 'Không thể lưu đánh giá.');
     } finally {
       setReviewSubmitting(false);
+    }
+  };
+
+  const handleDeleteReview = async () => {
+    if (!reviewToDelete || !product) return;
+    try {
+      setDeleteSubmitting(true);
+      await fetchApi(`/reviews/${reviewToDelete.id}`, {
+        method: 'DELETE',
+      });
+
+      setProduct((prev) => {
+        if (!prev) return null;
+        const updatedReviews = (prev.reviews || []).filter((r) => r.id !== reviewToDelete.id);
+        const totalStars = updatedReviews.reduce((sum, r) => sum + r.stars, 0);
+        return {
+          ...prev,
+          reviews: updatedReviews,
+          reviewCount: updatedReviews.length,
+          avgRating: updatedReviews.length > 0 ? Number((totalStars / updatedReviews.length).toFixed(1)) : undefined,
+        };
+      });
+
+      setToast({ message: '🗑️ Đã xóa đánh giá của bạn thành công.', type: 'info' });
+      setReviewToDelete(null);
+
+      // Đồng bộ từ database
+      try {
+        const fresh = await fetchApi<ProductDetail>(`/products/${product.id}`);
+        if (fresh && Array.isArray(fresh.reviews)) {
+          setProduct(fresh);
+        }
+      } catch {}
+    } catch (err: unknown) {
+      setToast({ message: err instanceof Error ? err.message : 'Lỗi khi xóa đánh giá.', type: 'danger' });
+    } finally {
+      setDeleteSubmitting(false);
     }
   };
 
@@ -179,10 +290,17 @@ export default function ProductDetailPage() {
   };
 
   useEffect(() => {
+    let isCancelled = false;
+
     async function loadProduct() {
+      if (!params.id) return;
+      const targetId = Array.isArray(params.id) ? params.id[0] : params.id;
+
       try {
         setLoading(true);
-        const data = await fetchApi<ProductDetail>(`/products/${params.id}`);
+        setProduct(null); // Reset dữ liệu món cũ trước khi nạp món mới
+        const data = await fetchApi<ProductDetail>(`/products/${targetId}`);
+        if (isCancelled) return;
         if (!data || !data.id) {
           throw new Error('Product not found');
         }
@@ -192,7 +310,9 @@ export default function ProductDetailPage() {
           setSelectedSize(availableVariant.size);
         }
       } catch {
-        const found = MOCK_PRODUCTS.find((p) => p.id === params.id) || MOCK_PRODUCTS[0];
+        if (isCancelled) return;
+        // Chỉ fallback khi khớp đúng ID của mock data, TUYỆT ĐỐI không ép về MOCK_PRODUCTS[0] (Cà phê sữa)
+        const found = MOCK_PRODUCTS.find((p) => p.id === targetId);
         if (found) {
           const fallbackData: ProductDetail = {
             id: found.id,
@@ -218,13 +338,21 @@ export default function ProductDetailPage() {
             const availableVariant = fallbackData.variants.find((v) => !v.isOutOfStock) || fallbackData.variants[0];
             setSelectedSize(availableVariant.size);
           }
+        } else {
+          setProduct(null);
         }
       } finally {
-        setLoading(false);
+        if (!isCancelled) {
+          setLoading(false);
+        }
       }
     }
 
-    if (params.id) loadProduct();
+    loadProduct();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [params.id]);
 
   if (loading) {
@@ -848,54 +976,105 @@ export default function ProductDetailPage() {
 
       {/* Customer Reviews Section */}
       <div id="reviews-section" className="border-t border-line pt-8 space-y-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="font-display text-lg font-semibold text-ink flex items-center gap-2">
-              <span>Đánh giá từ khách hàng</span>
-              <span className="text-xs font-normal text-ink-3 bg-surface-2 px-2 py-0.5 rounded-full">
-                {product.reviews?.length || product.reviewCount || 0}
-              </span>
-            </h2>
-            <p className="text-xs text-ink-3 mt-0.5">Nhận xét thực tế từ khách hàng đã thưởng thức món này.</p>
-          </div>
+        {(() => {
+          const myExistingReview = product.reviews?.find(checkIsReviewOwner);
+          return (
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-display text-lg font-semibold text-ink flex items-center gap-2">
+                  <span>Đánh giá từ khách hàng</span>
+                  <span className="text-xs font-normal text-ink-3 bg-surface-2 px-2 py-0.5 rounded-full">
+                    {product.reviews?.length || product.reviewCount || 0}
+                  </span>
+                </h2>
+                <p className="text-xs text-ink-3 mt-0.5">Nhận xét thực tế từ khách hàng đã thưởng thức món này.</p>
+              </div>
 
-          <button
-            type="button"
-            onClick={handleOpenReviewModal}
-            className="px-3.5 py-1.5 border border-line-strong/60 bg-surface text-ink hover:bg-surface-2 text-xs font-medium rounded shadow-xs transition-colors flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          >
-            <Star className="w-3.5 h-3.5 text-amber-600 fill-amber-500" />
-            <span>Viết đánh giá món này</span>
-          </button>
-        </div>
+              {myExistingReview ? (
+                <button
+                  type="button"
+                  onClick={handleOpenReviewModal}
+                  className="px-3.5 py-1.5 border border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300 hover:bg-amber-500/20 text-xs font-semibold rounded shadow-xs transition-colors flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                >
+                  <Pencil className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Sửa đánh giá của bạn</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleOpenReviewModal}
+                  className="px-3.5 py-1.5 border border-line-strong/60 bg-surface text-ink hover:bg-surface-2 text-xs font-medium rounded shadow-xs transition-colors flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                >
+                  <Star className="w-3.5 h-3.5 text-amber-600 fill-amber-500" />
+                  <span>Viết đánh giá món này</span>
+                </button>
+              )}
+            </div>
+          );
+        })()}
 
         {product.reviews && product.reviews.length > 0 ? (
           <div className="divide-y divide-line border-y border-line text-xs">
-            {product.reviews.map((rev) => (
-              <div key={rev.id} className="py-4 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-ink">{rev.customer?.fullName || 'Khách hàng'}</span>
-                    <span className="text-[10px] bg-emerald-500/10 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-500/20">
-                      ✓ Đã mua hàng
-                    </span>
+            {product.reviews.map((rev) => {
+              const isOwner = checkIsReviewOwner(rev);
+              return (
+                <div key={rev.id} className="py-4 space-y-2 transition-colors">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-ink">{rev.customer?.fullName || 'Khách hàng'}</span>
+                      <span className="text-[10px] bg-emerald-500/10 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                        ✓ Đã mua hàng
+                      </span>
+                      {isOwner && (
+                        <span className="text-[10px] bg-amber-500/10 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/20 font-medium">
+                          Đánh giá của bạn
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-0.5">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star
+                            key={s}
+                            className={s <= rev.stars ? "w-3.5 h-3.5 text-amber-500 fill-amber-500" : "w-3.5 h-3.5 text-line"}
+                            strokeWidth={1.5}
+                          />
+                        ))}
+                      </div>
+
+                      {isOwner && (
+                        <div className="flex items-center gap-1.5 ml-1 border-l border-line pl-2.5">
+                          <button
+                            type="button"
+                            onClick={() => handleStartEditReview(rev)}
+                            className="inline-flex items-center gap-1 text-[11px] font-medium text-ink-2 hover:text-accent px-2 py-1 rounded hover:bg-surface-2 transition-colors"
+                            title="Chỉnh sửa đánh giá"
+                          >
+                            <Pencil className="w-3 h-3 text-amber-600" />
+                            <span>Sửa</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setReviewToDelete({ id: rev.id, content: rev.content })}
+                            className="inline-flex items-center gap-1 text-[11px] font-medium text-rose-600 hover:text-rose-700 px-2 py-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+                            title="Xóa đánh giá này"
+                          >
+                            <Trash2 className="w-3 h-3 text-rose-500" />
+                            <span>Xóa</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-0.5">
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <Star
-                        key={s}
-                        className={s <= rev.stars ? "w-3.5 h-3.5 text-amber-500 fill-amber-500" : "w-3.5 h-3.5 text-line"}
-                        strokeWidth={1.5}
-                      />
-                    ))}
-                  </div>
+
+                  <p className="text-ink-2 leading-relaxed text-xs">{rev.content}</p>
+                  <span className="text-[11px] text-ink-3 block">
+                    {new Date(rev.createdAt).toLocaleDateString('vi-VN')}
+                  </span>
                 </div>
-                <p className="text-ink-2 leading-relaxed text-xs">{rev.content}</p>
-                <span className="text-[11px] text-ink-3 block">
-                  {new Date(rev.createdAt).toLocaleDateString('vi-VN')}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="p-8 text-center bg-surface-2/40 border border-dashed border-line rounded-2xl space-y-3 text-xs">
@@ -919,12 +1098,12 @@ export default function ProductDetailPage() {
         )}
       </div>
 
-      {/* Modal Viết Đánh Giá Sản Phẩm */}
+      {/* Modal Viết / Sửa Đánh Giá Sản Phẩm */}
       <Modal
         isOpen={reviewModalOpen}
-        onClose={() => setReviewModalOpen(false)}
-        title={"Đánh giá món " + product.name}
-        description="Chia sẻ trải nghiệm của bạn về hương vị, độ ngọt, độ béo để người khác cùng tham khảo."
+        onClose={handleCloseReviewModal}
+        title={editingReviewId ? ("Chỉnh sửa đánh giá món " + product.name) : ("Đánh giá món " + product.name)}
+        description={editingReviewId ? "Thay đổi mức độ hài lòng hoặc nhận xét chi tiết của bạn về món đồ uống này." : "Chia sẻ trải nghiệm của bạn về hương vị, độ ngọt, độ béo để người khác cùng tham khảo."}
       >
         <form onSubmit={handleSubmitReview} className="space-y-4 text-xs text-left">
           <div className="space-y-1.5 text-center p-3 bg-surface-2/40 rounded-xl border border-line">
@@ -966,14 +1145,61 @@ export default function ProductDetailPage() {
           )}
 
           <div className="flex justify-end gap-2 pt-2 border-t border-line">
-            <Button variant="secondary" size="sm" type="button" onClick={() => setReviewModalOpen(false)}>
+            <Button variant="secondary" size="sm" type="button" onClick={handleCloseReviewModal}>
               Hủy
             </Button>
             <Button variant="primary" size="sm" type="submit" loading={reviewSubmitting}>
-              Gửi đánh giá
+              {editingReviewId ? 'Lưu thay đổi' : 'Gửi đánh giá'}
             </Button>
           </div>
         </form>
-      </Modal></div>
+      </Modal>
+
+      {/* Modal Xác Nhận Xóa Đánh Giá */}
+      <Modal
+        isOpen={Boolean(reviewToDelete)}
+        onClose={() => setReviewToDelete(null)}
+        title="Xác nhận xóa đánh giá"
+        description="Bạn có chắc chắn muốn xóa bài đánh giá này không? Sau khi xóa, bạn có thể viết lại bài đánh giá mới bất cứ lúc nào."
+      >
+        <div className="space-y-4 text-xs text-left">
+          {reviewToDelete && (
+            <div className="p-3 bg-surface-2 rounded-lg border border-line space-y-1">
+              <span className="text-[11px] text-ink-3 block">Nội dung đánh giá sẽ xóa:</span>
+              <p className="text-ink font-medium italic">"{reviewToDelete.content}"</p>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-line">
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={deleteSubmitting}
+              onClick={() => setReviewToDelete(null)}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              loading={deleteSubmitting}
+              onClick={handleDeleteReview}
+            >
+              Xác nhận xóa
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Thông báo Toast toàn trang */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type || 'info'}
+          onClose={() => setToast(null)}
+          action={toast.action}
+        />
+      )}
+    </div>
   );
 }

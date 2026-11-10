@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { TOPPING_CATALOG, ToppingItem } from './constants/toppings.constant';
 
 export const SAMPLE_PRODUCTS = [
   {
@@ -308,5 +309,9 @@ export class ProductsService {
       throw new NotFoundException('Không tìm thấy thông tin sản phẩm đồ uống');
     }
     return sample;
+  }
+
+  getToppings(): ToppingItem[] {
+    return TOPPING_CATALOG;
   }
 }

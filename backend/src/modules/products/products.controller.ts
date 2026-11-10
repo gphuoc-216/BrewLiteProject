@@ -22,6 +22,13 @@ export class ProductsController {
     return this.productsService.findAll({ search, category, page, limit });
   }
 
+  @Get('toppings')
+  @ApiOperation({ summary: 'Lấy danh sách các loại Topping kèm đơn giá' })
+  @ApiResponse({ status: 200, description: 'Danh sách topping khả dụng trong toàn hệ thống' })
+  getToppings() {
+    return this.productsService.getToppings();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Xem chi tiết sản phẩm, danh sách biến thể size/topping và đánh giá' })
   @ApiResponse({ status: 200, description: 'Chi tiết sản phẩm' })

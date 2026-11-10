@@ -105,74 +105,134 @@ stateDiagram-v2
 
 ---
 
-## 🚀 5. HƯỚNG DẪN CÀI ĐẶT & KHỞI CHẠY HỆ THỐNG (TỪ A ĐẾN Z)
+## 🚀 5. HƯỚNG DẪN CÀI ĐẶT & KHỞI CHẠY HỆ THỐNG (CHI TIẾT TỪ A ĐẾN Z)
 
 ### 5.1 Yêu Cầu Tiên Quyết (Prerequisites)
-- **Node.js**: Phiên bản `18.x` hoặc `20.x LTS` (Khuyến nghị `Node.js 20.x`). Kiểm tra: `node -v`.
+- **Node.js**: Phiên bản `18.x`, `20.x LTS` hoặc `22.x` (Khuyến nghị `Node.js 20.x`). Kiểm tra: `node -v`.
 - **NPM**: Phiên bản `9.x` hoặc `10.x`. Kiểm tra: `npm -v`.
 - **Git**: Đã cài đặt trên máy. Kiểm tra: `git --version`.
-- **Docker Desktop**: *(Khuyên dùng)* để chạy toàn bộ hệ thống bằng 1 câu lệnh.
+- **Docker Desktop**: Chạy dịch vụ PostgreSQL cục bộ. Kiểm tra: `docker --version`.
 
 ---
 
-### 5.2 Khởi Tạo Dự Án Cho Máy Mới (Zero-Config — Chạy 1 Lệnh Duy Nhất)
+### 5.2 Khởi Tạo Dự Án Lần Đầu (Zero-Config — Chạy 1 Lệnh Duy Nhất)
 
-Khi vừa tải hoặc clone dự án về bất kỳ máy tính nào (Windows, macOS, Linux), bạn chỉ cần mở terminal tại thư mục gốc và chạy đúng **1 lệnh duy nhất**:
+Khi vừa clone dự án về máy mới, mở terminal tại thư mục gốc `Assigment1` và chạy:
 
 ```powershell
 npm run setup
 ```
 
 > ⚡ **Lệnh này tự động 100%:**
-> 1. Tự sinh file cấu hình `.env` cho Backend và `.env.local` cho Frontend từ template.
+> 1. Tự sinh file cấu hình `.env` cho Backend và `.env.local` cho Frontend.
 > 2. Tự cài đặt đầy đủ thư viện `node_modules` cho cả Root, Backend và Frontend.
-> 3. Tự dọn dẹp container cũ bị kẹt và khởi chạy PostgreSQL container trên Docker.
-> 4. Tự sinh Prisma Client và đồng bộ cấu trúc Database (`prisma db push`).
-> 5. Tự nạp dữ liệu mẫu ban đầu (`seed` sẵn tài khoản Admin, Barista, Khách hàng, 8 món đồ uống, 10 nguyên liệu, 3 mã voucher).
+> 3. Tự khởi chạy container PostgreSQL trên Docker (Port 5432).
+> 4. Tự sinh Prisma Client và đồng bộ cấu trúc cơ sở dữ liệu (`prisma db push`).
+> 5. Tự nạp dữ liệu mẫu ban đầu (`seed` sẵn tài khoản Admin, Barista, Khách hàng, 24 món đồ uống, 11 nguyên liệu, voucher).
 
 ---
 
-### 5.3 Khởi Động Hệ Thống Để Sử Dụng & Demo
+### 5.3 Quy Trình Khởi Chạy Hàng Ngày (Chuẩn 4 Bước — Khuyên Dùng Cho Dev & Demo)
 
-Sau khi chạy `npm run setup`, bạn mở 2 cửa sổ Terminal tại thư mục gốc:
+Khi mở máy lên để làm việc hoặc chuẩn bị thuyết trình đồ án, bạn chạy lần lượt theo **đúng thứ tự 4 bước** sau:
 
-#### 🪟 Terminal 1: Khởi động Backend NestJS (Cổng 3001 & Swagger)
+#### 🐳 Bước 1: Khởi động Database PostgreSQL (Chạy ngầm trên Docker)
+Mở Terminal tại thư mục gốc dự án và gõ:
+```powershell
+npm run docker:up
+```
+> *(Lệnh này sẽ bật container `brewlite_postgres` trên cổng `5432` trong 2 giây. Chỉ cần chạy 1 lần duy nhất khi mới mở máy).*
+
+---
+
+#### 🪟 Bước 2: Khởi động Backend API (NestJS — Cổng 3001)
+Mở một cửa sổ Terminal mới (Terminal 1) tại thư mục gốc:
 ```powershell
 npm run dev:backend
 ```
-> ✅ Backend API: `http://localhost:3001` | 📑 Swagger Docs: `http://localhost:3001/api/docs`
+* 🟢 **Backend URL**: [http://localhost:3001](http://localhost:3001)
+* 📑 **Tài liệu Swagger OpenAPI**: [http://localhost:3001/api/docs](http://localhost:3001/api/docs)
+*(Đợi 5–10 giây khi thấy dòng chữ xanh: `Nest application successfully started` là Backend đã sẵn sàng).*
 
-#### 🪟 Terminal 2: Khởi động Frontend Next.js (Cổng 3000)
+---
+
+#### 🪟 Bước 3: Khởi động Frontend Web App (Next.js 14 — Cổng 3000)
+Mở thêm một cửa sổ Terminal mới (Terminal 2) tại thư mục gốc:
 ```powershell
 npm run dev:frontend
 ```
-> ✅ Giao diện Khách hàng: `http://localhost:3000` | 👨‍🍳 Quầy Barista: `http://localhost:3000/staff`
+* ☕ **Trang Đặt Món Khách Hàng**: [http://localhost:3000](http://localhost:3000)
+* 👨‍🍳 **Bảng Kanban Quầy Barista**: [http://localhost:3000/staff](http://localhost:3000/staff)
+* 👑 **Dashboard Quản Trị Viên (Admin)**: [http://localhost:3000/admin](http://localhost:3000/admin)
+*(Đợi hiển thị: `Ready in ... on http://localhost:3000` là vào web được ngay).*
 
 ---
 
-#### 🛑 Tắt hoặc khởi động lại Database khi cần:
-- Khởi động lại Database: `npm run docker:up`
-- Tắt Database: `npm run docker:down`
+#### 🗄️ Bước 4 (Tùy chọn): Mở Trình Quản Trị CSDL Trực Quan (Prisma Studio — Cổng 5555)
+Nếu muốn mở giao diện web xem toàn bộ bảng dữ liệu, đơn hàng, khách hàng, tồn kho như Excel:
+```powershell
+npm run prisma:studio
+```
+* 🗄️ **Giao diện CSDL trực quan**: [http://localhost:5555](http://localhost:5555)
+* Nhấp đúp chuột vào bất kỳ ô nào để sửa dữ liệu trực tiếp và bấm **"Save changes"**.
 
 ---
 
-### 5.4 Cách 2: Khởi Chạy Toàn Bộ Bằng Docker Compose (Production Build)
+#### 🧹 Lệnh Phụ Trợ Đặc Biệt: Reset Database Trắng Tinh Cho Buổi Demo
+Bất cứ khi nào bạn test thử đặt hàng xong và muốn **xóa trắng toàn bộ đơn cũ, khôi phục lại 100% tồn kho nguyên liệu**:
+```powershell
+npm run clean:db
+```
+*(Chỉ mất 1 giây để đưa toàn bộ hệ thống về trạng thái sạch sẽ ban đầu).*
 
-Nếu muốn đóng gói toàn bộ cả 3 dịch vụ chạy khép kín trong Docker container:
-```bash
+---
+
+### 5.4 Công Cụ Chỉnh Nhanh Tồn Kho Để Kiểm Thử (Không Cần Nhớ UUID)
+
+Để kiểm tra các kịch bản **Hết hàng** hoặc **2 khách tranh mua 1 ly cuối cùng**, bạn có 3 cách thực hiện cực nhanh:
+
+#### ⚡ Cách A: Gõ lệnh terminal theo tên (Nhanh nhất — 1 giây)
+Tại thư mục gốc, sử dụng script `npm run stock` kèm tên món/nguyên liệu và số lượng:
+```powershell
+# 1. Đặt cà phê hạt Robusta còn đúng 10g (đủ cho 1 ly) để test 2 người tranh mua cùng lúc:
+npm run stock -- "Robusta" 10
+
+# 2. Đặt chanh tươi về 0 để test món Chanh Tuyết tự động báo "Tạm hết hàng":
+npm run stock -- "Chanh" 0
+
+# 3. Xem bảng tổng hợp tồn kho hiện tại của toàn bộ nguyên liệu:
+npm run stock
+```
+
+#### 🖥️ Cách B: Bấm nút "Sửa tồn" trên Web Admin
+1. Đăng nhập tài khoản Admin tại [http://localhost:3000/admin](http://localhost:3000/admin).
+2. Vào tab **Kho nguyên liệu**.
+3. Mỗi nguyên liệu đều có nút **`[✏️ Sửa tồn]`** trực tiếp. Bấm vào, gõ số lượng (vd: `10` hoặc `0`) rồi bấm **Lưu số lượng**.
+
+#### 🌐 Cách C: Nhập trực tiếp Tên nguyên liệu trên Swagger
+Tại endpoint `PATCH /api/admin/ingredients/{id}` trên Swagger ([http://localhost:3001/api/docs](http://localhost:3001/api/docs)):
+- Ô `{id}`: Nhập thẳng tên như `Chanh`, `Robusta`, `Trứng`, `Sữa`... (Backend tự nhận diện mà không cần UUID).
+- Body: `{"stockQuantity": 10}`.
+
+---
+
+### 5.5 Khởi Chạy Toàn Bộ Bằng Docker Compose (Chạy Khép Kín)
+
+Nếu muốn đóng gói toàn bộ cả 3 dịch vụ (PostgreSQL + Backend + Frontend) chạy đồng thời trong Docker:
+```powershell
 npm run docker:all
 # Hoặc:
 docker compose up -d --build
 ```
 
-#### Dừng toàn bộ Docker containers:
-```bash
+#### Tắt các container:
+```powershell
 npm run docker:down
 ```
 
 ---
 
-### 5.5 Cách 3: Demo Quét Mã QR Bằng Điện Thoại Thật (Mobile QR Payment)
+### 5.6 Demo Quét Mã QR Bằng Điện Thoại Thật (Mobile QR Payment)
 ```powershell
 npm run phone
 # Hoặc:
@@ -182,27 +242,54 @@ node scripts/tunnel.js
 
 ---
 
-### 5.6 Cách 4: Chạy Kiểm Thử Tự Động (Automated Testing)
+### 5.7 Chạy Kiểm Thử Tự Động (Automated Testing)
 
-#### 1. Chạy 6 Test Suites Unit Tests Backend (48 unit tests Jest pass 100%):
+#### 1. Chạy Unit Tests Backend (48 tests Jest pass 100%):
 ```powershell
 npm run test
 # Hoặc:
 npm --prefix backend test
 ```
-*Kiểm thử toàn diện: State Machine, Idempotency-Key, Loyalty, Optimistic Locking tồn kho, Case-insensitive category.*
+*Kiểm thử toàn diện: State Machine, Idempotency-Key, Loyalty, Optimistic Locking tồn kho.*
 
-#### 2. Kiểm thử xung đột đồng thời (Race Condition Test):
+#### 2. Kiểm thử xung đột đồng thời (Race Condition Concurrency Test):
 ```powershell
+npm run test:race
+# Hoặc:
 node scripts/test-race-condition.js
 ```
-*Chứng minh OCC xử lý 10 giao dịch đồng thời không gây bán lố nguyên liệu.*
+*Mô phỏng 10-20 request tranh mua cùng lúc, chứng minh OCC khóa lạc quan không bao giờ làm âm kho.*
 
-#### 3. Kiểm tra tính hợp lệ Build Production:
-```powershell
-npm run build:backend
-npm run build:frontend
-```
+---
+
+### 5.8 Xử Lý Các Sự Cố Thường Gặp (Troubleshooting / FAQ)
+
+#### ❓ Lỗi 1: `Error: listen EADDRINUSE: address already in use :::3000` (hoặc `:::3001`)
+* **Nguyên nhân**: Cổng 3000 hoặc 3001 đang bị một tiến trình Node.js trước đó chiếm dụng.
+* **Cách khắc phục nhanh trên PowerShell**:
+  ```powershell
+  # Tìm và tắt tiến trình đang chiếm cổng 3000:
+  Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+
+  # Tìm và tắt tiến trình đang chiếm cổng 3001:
+  Get-NetTCPConnection -LocalPort 3001 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+  ```
+
+#### ❓ Lỗi 2: `Cannot find module './948.js'` hoặc lỗi Webpack Cache 500
+* **Nguyên nhân**: Thư mục cache `.next` của Next.js bị xung đột khi lưu file trong quá trình biên dịch.
+* **Cách khắc phục**:
+  ```powershell
+  Remove-Item -Path "frontend\.next" -Recurse -Force
+  npm run dev:frontend
+  ```
+
+#### ❓ Lỗi 3: Chạy `npx prisma studio` ở thư mục gốc báo `UNKNOWN_COMMAND`
+* **Nguyên nhân**: Thư mục gốc monorepo không cài Prisma, khiến `npx` tự kéo bản Prisma v8 thử nghiệm từ internet.
+* **Cách khắc phục**: Luôn chạy lệnh shortcut đã cấu hình sẵn:
+  ```powershell
+  npm run prisma:studio
+  ```
+  *(hoặc `cd backend; npx prisma studio`)*
 
 ---
 

@@ -24,6 +24,14 @@ function RegisterFormContent() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Tải trước (prefetch) trang đích để chuyển hướng ngay lập tức
+  React.useEffect(() => {
+    try {
+      router.prefetch('/');
+      router.prefetch(redirectUrl);
+    } catch {}
+  }, [router, redirectUrl]);
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -33,11 +41,13 @@ function RegisterFormContent() {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email.trim())) {
         setErrorMsg('Email không đúng định dạng.');
+        setLoading(false);
         return;
       }
 
       if (password !== confirmPassword) {
         setErrorMsg('Mật khẩu xác nhận không khớp.');
+        setLoading(false);
         return;
       }
 
@@ -52,10 +62,10 @@ function RegisterFormContent() {
       });
 
       setAuth(res.user, res.accessToken, res.refreshToken);
-      router.push(redirectUrl);
+      router.replace(redirectUrl);
+      // Giữ loading = true khi đang chuyển hướng sang trang mới
     } catch (err: unknown) {
       setErrorMsg(getErrorMessage(err));
-    } finally {
       setLoading(false);
     }
   };

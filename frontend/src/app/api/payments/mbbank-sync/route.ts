@@ -14,20 +14,16 @@ const localPayments = global.__brewlite_mb_payments;
 export async function POST(request: Request) {
   try {
     const data = await request.json();
-    const content = String(data?.content || '').toUpperCase().trim();
+    const content = String(data?.content || '').toUpperCase().trim().replace(/\s+/g, ' ');
     const rawCode = String(data?.invoice_code || '').toUpperCase().trim();
 
-    // Tách mã hóa đơn chuẩn BLxxxxxx
+    // Bắt buộc nội dung chuyển khoản phải khớp chuẩn "BREWLITE <mã_đơn>"
     let orderCode = '';
-    const match6Digits = content.match(/BL\d{6}/) || rawCode.match(/BL\d{6}/);
-    if (match6Digits) {
-      orderCode = match6Digits[0];
-    } else {
-      const matchGeneral = content.match(/BL\d+/) || content.match(/ORD-[A-Z0-9]+/) || [rawCode];
-      orderCode = (matchGeneral[0] || rawCode).replace(/^BREWLITE\s*/i, '').trim();
-      if (orderCode.length === 10 && orderCode.endsWith('6304')) {
-        orderCode = orderCode.slice(0, 6);
-      }
+    const matchExact = content.match(/^BREWLITE\s+(BL\d{6}|ORD-[A-Z0-9]+)$/i);
+    if (matchExact) {
+      orderCode = matchExact[1].toUpperCase();
+    } else if (rawCode && content === `BREWLITE ${rawCode}`) {
+      orderCode = rawCode;
     }
 
     const paymentRecord = {

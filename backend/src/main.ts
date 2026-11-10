@@ -9,8 +9,10 @@ async function bootstrap() {
   const logger = new Logger('BrewLiteBootstrap');
   const app = await NestFactory.create(AppModule);
 
-  // 1. Cấu hình tiền tố toàn cục /api
-  app.setGlobalPrefix('api');
+  // 1. Cấu hình tiền tố toàn cục /api (loại trừ /health để hỗ trợ cả /health và /api/health)
+  app.setGlobalPrefix('api', {
+    exclude: ['health', 'api/health'],
+  });
 
   // 2. Cấu hình CORS
   app.enableCors({
@@ -48,8 +50,8 @@ async function bootstrap() {
   });
 
   const port = process.env.PORT || 3001;
-  await app.listen(port);
-  logger.log(`🚀 BrewLite Backend API is running on: http://localhost:${port}/api`);
+  await app.listen(port, '0.0.0.0');
+  logger.log(`🚀 BrewLite Backend API is running on: http://127.0.0.1:${port}/api`);
   logger.log(`📚 Swagger OpenAPI documentation available at: http://localhost:${port}/api/docs`);
 }
 

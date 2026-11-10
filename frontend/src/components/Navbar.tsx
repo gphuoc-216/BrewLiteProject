@@ -14,10 +14,36 @@ export const Navbar: React.FC = () => {
   const { user, logout } = useAuthStore();
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [hasAuthSession, setHasAuthSession] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    try {
+      // Tải trước (prefetch) toàn bộ các trang chính để bấm chuyển trang tức thì
+      router.prefetch('/');
+      router.prefetch('/cart');
+      router.prefetch('/checkout');
+      router.prefetch('/orders/me');
+      router.prefetch('/staff');
+      router.prefetch('/admin');
+      router.prefetch('/login');
+      router.prefetch('/register');
+
+      const storedToken = localStorage.getItem('brewlite_token');
+      const storedUser = localStorage.getItem('brewlite_user');
+      if (storedToken && storedUser) {
+        setHasAuthSession(true);
+        if (!user) {
+          const parsed = JSON.parse(storedUser);
+          useAuthStore.setState({ user: parsed, token: storedToken });
+        }
+      } else {
+        setHasAuthSession(false);
+      }
+    } catch {
+      setHasAuthSession(false);
+    }
+  }, [user, router]);
 
   const totalItems = mounted ? getTotalCount() : 0;
 
@@ -113,7 +139,11 @@ export const Navbar: React.FC = () => {
           </Link>
 
           {/* Account status */}
-          {mounted && user ? (
+          {!mounted || (hasAuthSession && !user) ? (
+            <div className="hidden sm:flex items-center gap-2 pl-3">
+              <div className="w-24 h-7 bg-espresso-line/50 rounded-lg animate-pulse" />
+            </div>
+          ) : user ? (
             <div className="hidden sm:flex items-center gap-3 pl-3 border-l border-espresso-line text-xs">
               <div className="text-right">
                 <Link
@@ -239,7 +269,9 @@ export const Navbar: React.FC = () => {
 
           {/* Mobile Auth row */}
           <div className="pt-3 border-t border-espresso-line flex items-center justify-between">
-            {mounted && user ? (
+            {!mounted || (hasAuthSession && !user) ? (
+              <div className="w-24 h-7 bg-espresso-line/50 rounded-lg animate-pulse" />
+            ) : user ? (
               <>
                 <div className="text-xs text-espresso-text">
                   <p className="font-medium">{user.fullName || user.username}</p>

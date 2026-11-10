@@ -18,23 +18,25 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto) {
-    // 1. Try DB first
+    // 1. Try DB first (chạy song song kiểm tra trùng lặp + hash mật khẩu để tăng tốc tối đa)
     try {
-      const existingAccount = await this.prisma.account.findUnique({
-        where: { username: dto.username },
-      });
+      const [existingAccount, existingEmail, passwordHash] = await Promise.all([
+        this.prisma.account.findUnique({
+          where: { username: dto.username },
+        }),
+        this.prisma.customer.findUnique({
+          where: { email: dto.email },
+        }),
+        bcrypt.hash(dto.password, 10),
+      ]);
+
       if (existingAccount) {
         throw new ConflictException('Tên đăng nhập đã được sử dụng');
       }
 
-      const existingEmail = await this.prisma.customer.findUnique({
-        where: { email: dto.email },
-      });
       if (existingEmail) {
         throw new ConflictException('Địa chỉ Email đã được đăng ký tài khoản khác');
       }
-
-      const passwordHash = await bcrypt.hash(dto.password, 10);
 
       const account = await this.prisma.account.create({
         data: {
@@ -235,15 +237,20 @@ export class AuthService {
     const jwtSecret = this.configService.get<string>('JWT_SECRET') || 'brewlite_super_secret_jwt_key_2026';
     const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET') || 'brewlite_refresh_secret_key_2026';
 
-    const accessToken = this.jwtService.sign(payload, {
-      secret: jwtSecret,
-      expiresIn: '7d',
-    });
+    const signFn = typeof this.jwtService.signAsync === 'function'
+      ? this.jwtService.signAsync.bind(this.jwtService)
+      : async (p: any, o: any) => this.jwtService.sign(p, o);
 
-    const refreshToken = this.jwtService.sign(payload, {
-      secret: refreshSecret,
-      expiresIn: '30d',
-    });
+    const [accessToken, refreshToken] = await Promise.all([
+      signFn(payload, {
+        secret: jwtSecret,
+        expiresIn: '7d',
+      }),
+      signFn(payload, {
+        secret: refreshSecret,
+        expiresIn: '30d',
+      }),
+    ]);
 
     return {
       accessToken,

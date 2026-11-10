@@ -380,14 +380,17 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
                   </span>
                 )}
               </div>
-              <Link
-                href={`/products/${product.id}`}
-                onClick={onClose}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent hover:underline bg-accent/10 px-2 py-0.5 rounded-md border border-accent/20 transition-all shrink-0"
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  router.push(`/products/${product.id}`);
+                }}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent hover:underline bg-accent/10 px-2 py-0.5 rounded-md border border-accent/20 transition-all shrink-0 cursor-pointer"
               >
                 <span>Chi tiết món</span>
                 <ArrowRight className="w-3 h-3" />
-              </Link>
+              </button>
             </div>
             <p className="text-xs text-ink-2 mt-1.5 flex items-center gap-1.5 flex-wrap">
               <span>Đơn giá:</span>

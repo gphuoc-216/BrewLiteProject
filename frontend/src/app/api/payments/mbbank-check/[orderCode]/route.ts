@@ -14,8 +14,8 @@ export async function GET(
 
   // 1. Thử hỏi NestJS Backend trước
   const backendEndpoints = [
-    `http://backend:3001/api/payments/mbbank-check/',
-    http://brewlite_backend:3001/api/payments/mbbank-check/${encodeURIComponent(code)}`,
+    `http://backend:3001/api/payments/mbbank-check/${encodeURIComponent(code)}`,
+    `http://brewlite_backend:3001/api/payments/mbbank-check/${encodeURIComponent(code)}`,
     `http://127.0.0.1:3001/api/payments/mbbank-check/${encodeURIComponent(code)}`,
     `http://localhost:3001/api/payments/mbbank-check/${encodeURIComponent(code)}`,
   ];
@@ -26,7 +26,7 @@ export async function GET(
       if (res.ok) {
         const json = await res.json();
         const payload = json.data || json;
-        if (payload && (payload.paid || payload.mismatched)) {
+        if (payload && payload.paid) {
           return NextResponse.json({ success: true, data: payload });
         }
       }
@@ -37,17 +37,15 @@ export async function GET(
 
   // 2. Fallback: tra cứu trong local cache của Next.js
   const localPayments = global.__brewlite_mb_payments;
-  if (localPayments) {
+  if (localPayments && code.length >= 4) {
     let payment = localPayments.get(code);
     if (!payment) {
+      const expectedMemo = `BREWLITE ${code}`;
       localPayments.forEach((val, key) => {
         if (!payment && key !== 'LATEST_TX') {
-          if (
-            key.includes(code) ||
-            code.includes(key) ||
-            (val.content && (val.content.toUpperCase().includes(code) || code.includes(val.content.toUpperCase()))) ||
-            (val.orderCode && (val.orderCode.toUpperCase().includes(code) || code.includes(val.orderCode.toUpperCase())))
-          ) {
+          const txContent = String(val?.content || '').toUpperCase().trim().replace(/\s+/g, ' ');
+          const txOrderCode = String(val?.orderCode || '').toUpperCase().trim();
+          if (txContent === expectedMemo || (txOrderCode === code && txContent === expectedMemo)) {
             payment = val;
           }
         }
@@ -59,17 +57,6 @@ export async function GET(
         success: true,
         data: { paid: true, payment },
       });
-    }
-
-    const latestTx = localPayments.get('LATEST_TX');
-    if (latestTx && Date.now() - latestTx.time < 60000) {
-      const txContent = (latestTx.content || '').toUpperCase();
-      if (!txContent.includes(code)) {
-        return NextResponse.json({
-          success: true,
-          data: { paid: false, mismatched: true, latestPayment: latestTx },
-        });
-      }
     }
   }
 

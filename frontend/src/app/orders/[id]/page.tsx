@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { fetchApi, getErrorMessage } from '../../../lib/api';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { StatusBadge, Button, Card, EmptyState, Skeleton, Modal, Toast } from '../../../components/ui';
-import { Check, ArrowLeft, Award, AlertTriangle, Home } from 'lucide-react';
+import { Check, ArrowLeft, Award, AlertTriangle, Home, CreditCard, RefreshCw, Star } from 'lucide-react';
 import { OrderRecord, OrderItemRecord, OrderStatus } from '@/types';
 import { ORDER_STATUS } from '@/lib/orderStatus';
 import { useRequireRole } from '@/hooks/useRequireRole';
@@ -22,6 +22,60 @@ export default function OrderConfirmationPage() {
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [toastMsg, setToastMsg] = useState<{ message: string; type: 'success' | 'danger' } | null>(null);
+
+  // Quản lý Đánh giá món uống (Review)
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState<string>('');
+  const [reviewStars, setReviewStars] = useState(5);
+  const [reviewContent, setReviewContent] = useState('');
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [hasReviewed, setHasReviewed] = useState(false);
+
+  const openReviewModal = (productId?: string) => {
+    if (productId) {
+      setSelectedProductId(productId);
+    } else if (order?.items && order.items.length > 0) {
+      const firstProdId = order.items[0]?.variant?.product?.id || (order.items[0]?.variant as any)?.productId || '';
+      setSelectedProductId(firstProdId);
+    }
+    setReviewStars(5);
+    setReviewContent('');
+    setReviewModalOpen(true);
+  };
+
+  const handleSendReview = async () => {
+    if (!order) return;
+    const finalProductId =
+      selectedProductId ||
+      order.items?.[0]?.variant?.product?.id ||
+      (order.items?.[0]?.variant as any)?.productId ||
+      '';
+
+    if (!finalProductId) {
+      setToastMsg({ message: 'Vui lòng chọn món uống cần đánh giá.', type: 'danger' });
+      return;
+    }
+
+    try {
+      setReviewLoading(true);
+      await fetchApi('/reviews', {
+        method: 'POST',
+        body: JSON.stringify({
+          orderId: order.id,
+          productId: finalProductId,
+          stars: reviewStars,
+          content: reviewContent.trim() || 'Đồ uống rất ngon và vừa miệng!',
+        }),
+      });
+      setToastMsg({ message: 'Cảm ơn bạn! Đánh giá món uống đã được gửi thành công.', type: 'success' });
+      setHasReviewed(true);
+      setReviewModalOpen(false);
+    } catch (err: unknown) {
+      setToastMsg({ message: getErrorMessage(err), type: 'danger' });
+    } finally {
+      setReviewLoading(false);
+    }
+  };
 
   const prevStatusRef = useRef<string | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -100,9 +154,14 @@ export default function OrderConfirmationPage() {
 
   if (!ready || loading) {
     return (
-      <div className="max-w-xl mx-auto py-12 space-y-4">
-        <Skeleton className="h-8 w-48 mx-auto" />
-        <Skeleton className="h-40 w-full" />
+      <div className="max-w-xl mx-auto py-16 text-center space-y-4 animate-fade-in">
+        <div className="w-12 h-12 mx-auto rounded-full bg-surface-2 flex items-center justify-center text-accent">
+          <RefreshCw className="w-6 h-6 animate-spin" />
+        </div>
+        <div className="space-y-1">
+          <h3 className="font-display font-semibold text-base text-ink">Đang tải chi tiết đơn hàng...</h3>
+          <p className="text-xs text-ink-3">Vui lòng chờ trong giây lát.</p>
+        </div>
       </div>
     );
   }
@@ -124,7 +183,7 @@ export default function OrderConfirmationPage() {
   const currentIndex = ORDER_STATUS[order.status]?.step ?? -1;
   const isSpecialStatus = ['PENDING', 'PAYMENT_FAILED', 'CANCELLED'].includes(order.status);
   const earnedPoints = Math.floor((Number(order.totalAfterDiscount) || 0) / 10000);
-  const canCancel = order.status === 'PENDING' || order.status === 'PAID';
+  const canCancel = order.status === 'PENDING' || order.status === 'PAID' || order.status === 'PAYMENT_FAILED';
 
   return (
     <div className="max-w-xl mx-auto space-y-6">
@@ -250,25 +309,70 @@ export default function OrderConfirmationPage() {
           </div>
         )}
 
+        {/* Review Action Banner for Completed Orders */}
+        {order.status === 'COMPLETED' && (
+          <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
+            <div className="flex items-start sm:items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-amber-500/20 text-amber-600 flex items-center justify-center shrink-0">
+                <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-ink">
+                  {hasReviewed ? 'Cảm ơn bạn đã gửi đánh giá!' : 'Bạn thấy hương vị đồ uống thế nào?'}
+                </p>
+                <p className="text-[11px] text-ink-3">
+                  {hasReviewed
+                    ? 'Bạn có thể chỉnh sửa lại số sao hoặc bổ sung thêm nhận xét.'
+                    : 'Đánh giá số sao và chia sẻ trải nghiệm để BrewLite phục vụ tốt hơn.'}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => openReviewModal()}
+              className="bg-amber-600 hover:bg-amber-700 text-white shrink-0 self-start sm:self-auto shadow-sm"
+            >
+              <Star className="w-3.5 h-3.5 mr-1 fill-white" />
+              <span>{hasReviewed ? 'Đánh giá lại' : '⭐ Đánh giá món uống'}</span>
+            </Button>
+          </div>
+        )}
+
         {/* Order Items Table */}
         <div className="border-t border-line pt-4 space-y-3">
           <h2 className="text-xs font-semibold text-ink">Chi tiết món đã đặt</h2>
           <div className="divide-y divide-line border-y border-line text-xs">
-            {order.items?.map((it: OrderItemRecord) => (
-              <div key={it.id} className="py-2.5 flex items-center justify-between">
-                <div>
-                  <span className="font-medium text-ink">
-                    {it.quantity}x {it.variant?.product?.name || 'Món uống'}
-                  </span>
-                  <span className="text-ink-3 block">
-                    Size: {it.variant?.size} {it.variant?.topping && `· ${it.variant.topping}`}
-                  </span>
+            {order.items?.map((it: OrderItemRecord) => {
+              const itemProdId = it.variant?.product?.id || (it.variant as any)?.productId;
+              return (
+                <div key={it.id} className="py-2.5 flex items-center justify-between">
+                  <div>
+                    <span className="font-medium text-ink">
+                      {it.quantity}x {it.variant?.product?.name || 'Món uống'}
+                    </span>
+                    <span className="text-ink-3 block">
+                      Size: {it.variant?.size} {it.variant?.topping && `· ${it.variant.topping}`}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="font-semibold text-ink tabular-nums">
+                      {Number(it.lineTotal).toLocaleString('vi-VN')}đ
+                    </span>
+                    {order.status === 'COMPLETED' && itemProdId && (
+                      <button
+                        type="button"
+                        onClick={() => openReviewModal(itemProdId)}
+                        className="text-[11px] font-medium text-amber-600 hover:text-amber-700 hover:underline flex items-center gap-0.5"
+                      >
+                        <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                        <span>Đánh giá</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <span className="font-semibold text-ink tabular-nums">
-                  {Number(it.lineTotal).toLocaleString('vi-VN')}đ
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Price breakdown */}
@@ -287,6 +391,17 @@ export default function OrderConfirmationPage() {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-line">
+          {(order.status === 'PENDING' || order.status === 'PAYMENT_FAILED') && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => router.push(`/checkout?orderId=${order.id}`)}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+            >
+              <CreditCard className="w-3.5 h-3.5 mr-1" />
+              <span>Thanh toán ngay ({Number(order.totalAfterDiscount).toLocaleString('vi-VN')}đ)</span>
+            </Button>
+          )}
           <Button variant="secondary" size="sm" onClick={() => router.push('/')}>
             <Home className="w-3.5 h-3.5" />
             <span>Về trang chủ</span>
@@ -333,6 +448,115 @@ export default function OrderConfirmationPage() {
               onClick={confirmCancelOrder}
             >
               Xác nhận hủy
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal Đánh giá món uống */}
+      <Modal
+        isOpen={reviewModalOpen}
+        onClose={() => setReviewModalOpen(false)}
+        title="Đánh giá món uống"
+        description="Chia sẻ cảm nhận của bạn về hương vị đồ uống tại BrewLite"
+      >
+        <div className="space-y-4 text-xs text-left">
+          {/* Chọn món uống nếu đơn có nhiều món */}
+          {order.items && order.items.length > 1 && (
+            <div className="space-y-1.5">
+              <label className="font-medium text-ink">Chọn món cần đánh giá:</label>
+              <select
+                value={selectedProductId}
+                onChange={(e) => setSelectedProductId(e.target.value)}
+                className="w-full px-3 py-2 border border-line rounded bg-surface text-ink text-xs focus:outline-none focus:ring-1 focus:ring-accent"
+              >
+                {order.items.map((it) => {
+                  const pId = it.variant?.product?.id || (it.variant as any)?.productId || '';
+                  return (
+                    <option key={it.id} value={pId}>
+                      {it.variant?.product?.name || 'Món uống'} ({it.variant?.size})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          )}
+
+          {/* Hiển thị tên món đang chọn */}
+          <div className="p-2.5 bg-surface-2 border border-line rounded flex items-center justify-between">
+            <span className="text-ink-3">Món đang đánh giá:</span>
+            <span className="font-semibold text-ink">
+              {order.items?.find((i) => (i.variant?.product?.id || (i.variant as any)?.productId) === selectedProductId)?.variant?.product?.name ||
+                order.items?.[0]?.variant?.product?.name ||
+                'Món uống'}
+            </span>
+          </div>
+
+          {/* Chọn số sao */}
+          <div className="space-y-1.5">
+            <label className="font-medium text-ink block">Mức độ hài lòng của bạn:</label>
+            <div className="flex items-center gap-1.5 py-1">
+              {[1, 2, 3, 4, 5].map((starVal) => {
+                const isActive = starVal <= reviewStars;
+                return (
+                  <button
+                    key={starVal}
+                    type="button"
+                    onClick={() => setReviewStars(starVal)}
+                    className="p-1 rounded hover:scale-110 transition-transform focus:outline-none"
+                    title={`${starVal} sao`}
+                  >
+                    <Star
+                      className={`w-7 h-7 transition-colors ${
+                        isActive ? 'fill-amber-400 text-amber-500' : 'text-line-strong fill-transparent'
+                      }`}
+                    />
+                  </button>
+                );
+              })}
+              <span className="ml-2 font-semibold text-amber-600 text-sm">
+                {reviewStars === 5
+                  ? 'Tuyệt vời (5/5)'
+                  : reviewStars === 4
+                  ? 'Rất ngon (4/5)'
+                  : reviewStars === 3
+                  ? 'Bình thường (3/5)'
+                  : reviewStars === 2
+                  ? 'Chưa hài lòng (2/5)'
+                  : 'Không ngon (1/5)'}
+              </span>
+            </div>
+          </div>
+
+          {/* Ô nhập nội dung */}
+          <div className="space-y-1.5">
+            <label className="font-medium text-ink block">Nhận xét chi tiết (tùy chọn):</label>
+            <textarea
+              rows={3}
+              value={reviewContent}
+              onChange={(e) => setReviewContent(e.target.value)}
+              placeholder="Ví dụ: Đồ uống đậm vị, lớp kem béo ngậy, giao hàng nhanh chóng..."
+              className="w-full px-3 py-2 border border-line rounded bg-surface text-ink text-xs focus:outline-none focus:ring-1 focus:ring-accent resize-none placeholder:text-ink-3"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-line">
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={reviewLoading}
+              onClick={() => setReviewModalOpen(false)}
+            >
+              Đóng
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              loading={reviewLoading}
+              onClick={handleSendReview}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              Gửi đánh giá
             </Button>
           </div>
         </div>

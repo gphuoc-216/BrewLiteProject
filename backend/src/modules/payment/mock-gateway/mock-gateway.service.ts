@@ -22,29 +22,39 @@ export class MockGatewayService {
    * 3. SUCCESS: Giao dịch thành công, sinh mã tham chiếu giao dịch
    */
   async processCharge(req: ChargeRequest) {
+    const methodName = req.method === 'CARD' ? 'Thẻ ngân hàng (CARD)' : 'Ví điện tử (WALLET)';
+    const amountNum = Number(req.amount) || 0;
+    const amountStr = amountNum.toLocaleString('vi-VN');
+
     // KỊCH BẢN 1: Giả lập lỗi Timeout (Chờ 3 giây rồi ngắt kết nối)
     if (req.simulateError === 'TIMEOUT') {
       await new Promise((resolve) => setTimeout(resolve, 3000));
-      throw new RequestTimeoutException('Cổng thanh toán phản hồi timeout (quá thời gian chờ)');
+      throw new RequestTimeoutException(`Cổng thanh toán phản hồi TIMEOUT (mạng quá 3000ms chờ trừ ${amountStr} VNĐ)`);
     }
 
     // KỊCH BẢN 2: Giả lập lỗi tài khoản không đủ số dư (Từ chối trừ tiền)
     if (req.simulateError === 'FAIL') {
       return {
         success: false,
+        gateway: 'Mock Payment Gateway (Mô phỏng MoMo / VNPay)',
+        status: 'REJECTED',
         errorCode: 'INSUFFICIENT_FUNDS',
-        message: 'Tài khoản ví/thẻ không đủ số dư để thanh toán đơn hàng',
+        message: `Giao dịch thất bại: Tài khoản ${methodName} không đủ số dư để trừ ${amountStr} VNĐ`,
       };
     }
 
     // KỊCH BẢN 3: Giao dịch thành công (Mặc định)
-    // Sinh mã tham chiếu giao dịch duy nhất có tiền tố BREW-MOCK-...
+    // Sinh mã tham chiếu giao dịch chuẩn ngân hàng BREW-PAY-YYYYMMDD-XXXXXX
+    const dateCode = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const randomSuffix = Math.floor(100000 + Math.random() * 900000);
     return {
       success: true,
-      transactionRef: `BREW-MOCK-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      amount: req.amount,
-      method: req.method,
-      timestamp: new Date().toISOString(),
+      gateway: 'Mock Payment Gateway (Mô phỏng MoMo / VNPay)',
+      status: 'APPROVED',
+      message: `Trừ tiền thành công ${amountStr} VNĐ qua ${methodName}`,
+      amount: amountNum,
+      method: req.method || 'WALLET',
+      transactionRef: `BREW-PAY-${dateCode}-${randomSuffix}`,
     };
   }
 }

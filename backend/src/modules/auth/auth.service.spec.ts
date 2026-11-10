@@ -27,6 +27,7 @@ describe('AuthService (Unit Tests)', () => {
 
     jwtService = {
       sign: jest.fn().mockReturnValue('mock_jwt_token'),
+      signAsync: jest.fn().mockResolvedValue('mock_jwt_token'),
       verify: jest.fn(),
     };
 

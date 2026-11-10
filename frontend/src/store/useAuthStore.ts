@@ -124,3 +124,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 }));
+
+// Ngay khi file được nạp trên Client Browser: khôi phục session ngay lập tức, không chờ tick sau
+if (typeof window !== 'undefined') {
+  try {
+    const u = getStoredUser();
+    const t = getStoredToken();
+    if (u || t) {
+      useAuthStore.setState({ user: u, token: t });
+    }
+  } catch {}
+}

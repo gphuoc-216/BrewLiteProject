@@ -30,6 +30,11 @@ function ProductCard({
   onOpenModal: (product: ProductItem) => void;
 }) {
   const [imgSrc, setImgSrc] = useState(product.imageUrl || FALLBACK_IMAGE);
+
+  useEffect(() => {
+    setImgSrc(product.imageUrl || FALLBACK_IMAGE);
+  }, [product.imageUrl]);
+
   const defaultVariant = product.variants?.[0];
   const minPrice = defaultVariant ? defaultVariant.price : product.minPrice || 0;
   const isOutOfStock = Boolean(product.isOutOfStock);
@@ -149,6 +154,15 @@ export default function HomePage() {
   const { user } = useAuthStore();
   const router = useRouter();
 
+  useEffect(() => {
+    try {
+      router.prefetch('/cart');
+      router.prefetch('/checkout');
+      router.prefetch('/orders/me');
+      router.prefetch('/login');
+    } catch {}
+  }, [router]);
+
   // Reset về trang 1 khi đổi danh mục hoặc tìm kiếm
   useEffect(() => {
     setCurrentPage(1);
@@ -267,6 +281,7 @@ export default function HomePage() {
       {/* Quick Select Size & Topping Modal */}
       {modalProduct && (
         <ProductQuickSelectModal
+          key={modalProduct.id}
           isOpen={!!modalProduct}
           onClose={() => setModalProduct(null)}
           product={modalProduct}

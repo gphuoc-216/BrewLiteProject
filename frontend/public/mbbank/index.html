@@ -1735,7 +1735,15 @@
                 <div style="font-size: 13px; opacity: 0.9; margin-top: 2px;">KHACH HANG BREWLITE</div>
                 <div style="font-size: 12.5px; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.2); display: flex; justify-content: space-between;">
                     <span style="opacity: 0.8;">Số dư khả dụng:</span>
-                    <span style="font-weight: 800; color: #fef08a;" id="userFormAvailableBalance">50.000.000 VND</span>
+                    <span style="font-weight: 800; color: #fef08a;" id="userFormAvailableBalance">---</span>
+                    <script>
+                        (function() {
+                            try {
+                                var b = localStorage.getItem('mb_user_balance');
+                                if (b) document.getElementById('userFormAvailableBalance').innerText = parseInt(b, 10).toLocaleString('vi-VN') + ' VND';
+                            } catch(e) {}
+                        })();
+                    </script>
                 </div>
             </div>
 
@@ -2405,8 +2413,8 @@
                     targetViewId = state.activeView;
                 }
 
-                // Tuyệt đối không tự động quay lại viewScanner khi F5/mở lại app
-                if (targetViewId === 'viewScanner') {
+                // Tuyệt đối không tự động quay lại viewScanner hoặc viewSuccess khi F5/mở lại app
+                if (targetViewId === 'viewScanner' || targetViewId === 'viewSuccess') {
                     targetViewId = 'viewHome';
                 }
 
@@ -3385,18 +3393,11 @@
             // 5. Chuyển sang màn hình Biên lai
             switchView('viewReceiptSuccess');
 
-            // 6. ĐỒNG BỘ THANH TOÁN TỰ ĐỘNG (LƯU LOCALSTORAGE, BROADCAST CHANNEL & WEBHOOK BACKEND)
-            const activeBookingCode = localStorage.getItem('brewlite_pending_order') || 'BREWLITE';
+            // 6. ĐỒNG BỘ THANH TOÁN TỰ ĐỘNG: Bắt buộc nội dung phải đúng chuẩn "BREWLITE <mã_đơn>"
             let finalInvoiceCode = '';
-            const mBill6 = (currentTargetMsg.toUpperCase().match(/BL\d{6}/) || currentTargetMsg.toUpperCase().match(/ORD-[A-Z0-9]+/));
-            if (mBill6) {
-                finalInvoiceCode = mBill6[0];
-            } else {
-                const billCodeMatch = (currentTargetMsg.toUpperCase().match(/BL\d+/) || currentTargetMsg.toUpperCase().match(/HD\d+/) || [''])[0];
-                finalInvoiceCode = billCodeMatch || activeBookingCode;
-                if (finalInvoiceCode.length === 10 && finalInvoiceCode.endsWith('6304')) {
-                    finalInvoiceCode = finalInvoiceCode.slice(0, 6);
-                }
+            const mExact = currentTargetMsg.trim().toUpperCase().replace(/\s+/g, ' ').match(/^BREWLITE\s+(BL\d{6}|ORD-[A-Z0-9]+)$/i);
+            if (mExact) {
+                finalInvoiceCode = mExact[1].toUpperCase();
             }
 
             const paymentPayload = {
@@ -3532,11 +3533,14 @@
                 return;
             }
 
-            // 2. Thử khôi phục trạng thái form nếu người dùng F5 trong lúc nhập liệu
-            const restored = (typeof restoreAppState === 'function') ? restoreAppState() : false;
+            // 2. NẾU CÓ THAM SỐ CHUYỂN KHOẢN (amount, memo, orderCode) TỪ CHECKOUT:
+            // Luôn luôn ưu tiên điền sẵn dữ liệu và mở thẳng Form chuyển khoản!
+            // Tuyệt đối không khôi phục bill đã thanh toán cũ!
+            if (amount || memo || orderCode) {
+                try {
+                    sessionStorage.removeItem('mb_app_state');
+                } catch (e) {}
 
-            // 3. Nếu chuyển qua từ checkout có query params điền sẵn
-            if (!restored && (amount || memo || orderCode)) {
                 const finalMemo = memo || (orderCode ? `BREWLITE ${orderCode}` : 'BREWLITE COFFEE');
                 selectBank(bank, 'Vietcombank (VCB)', 'Ngân hàng TMCP Ngoại thương Việt Nam');
                 const accInput = document.getElementById('destAccountInput');
@@ -3554,7 +3558,12 @@
                 if (typeof showToast === 'function') {
                     showToast(`Đã nhận diện: ${finalMemo} • ${Number(amount || 0).toLocaleString('vi-VN')}đ`);
                 }
-            } else if (!restored) {
+                return;
+            }
+
+            // 3. Nếu không có tham số URL: thử khôi phục trạng thái form nếu người dùng F5 trong lúc nhập liệu
+            const restored = (typeof restoreAppState === 'function') ? restoreAppState() : false;
+            if (!restored) {
                 // MẶC ĐỊNH TUYỆT ĐỐI: Luôn luôn vào Giao diện chính MBBank (Trang chủ) với số dư 50tr
                 navToHome();
                 renderAllBalanceElements();

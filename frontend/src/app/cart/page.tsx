@@ -144,6 +144,13 @@ export default function CartPage() {
   const pointsDiscount = (loyaltyPointsUsed || 0) * 100;
   const finalTotal = Math.max(0, subtotal - discountAmount - pointsDiscount);
 
+  useEffect(() => {
+    try {
+      router.prefetch('/checkout');
+      router.prefetch('/');
+    } catch {}
+  }, [router]);
+
   // Tính toán điều kiện áp dụng cho từng voucher theo tổng tiền hiện tại
   useEffect(() => {
     async function loadVouchers() {

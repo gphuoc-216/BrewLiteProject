@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -175,7 +175,12 @@ export class AdminController {
   }
 
   @Patch('ingredients/:id')
-  @ApiOperation({ summary: 'Cập nhật tồn kho/đơn vị nguyên liệu' })
+  @ApiOperation({ summary: 'Cập nhật tồn kho/đơn vị nguyên liệu (Hỗ trợ nhập UUID hoặc Tên nguyên liệu)' })
+  @ApiParam({
+    name: 'id',
+    description: 'Có thể nhập ID (UUID) HOẶC nhập trực tiếp Tên nguyên liệu (VD: Chanh, Cà phê, Bạc hà, Sữa)',
+    example: 'Chanh',
+  })
   updateIngredient(@Param('id') id: string, @Body() dto: any) {
     return this.adminService.updateIngredient(id, dto);
   }
