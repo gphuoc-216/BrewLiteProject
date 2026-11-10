@@ -237,12 +237,16 @@ export class AuthService {
     const jwtSecret = this.configService.get<string>('JWT_SECRET') || 'brewlite_super_secret_jwt_key_2026';
     const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET') || 'brewlite_refresh_secret_key_2026';
 
+    const signFn = typeof this.jwtService.signAsync === 'function'
+      ? this.jwtService.signAsync.bind(this.jwtService)
+      : async (p: any, o: any) => this.jwtService.sign(p, o);
+
     const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(payload, {
+      signFn(payload, {
         secret: jwtSecret,
         expiresIn: '7d',
       }),
-      this.jwtService.signAsync(payload, {
+      signFn(payload, {
         secret: refreshSecret,
         expiresIn: '30d',
       }),

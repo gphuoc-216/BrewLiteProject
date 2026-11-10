@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module';
+import { AppController } from './app.controller';
 import { AuthModule } from './modules/auth/auth.module';
 import { ProductsModule } from './modules/products/products.module';
 import { PromotionsModule } from './modules/promotions/promotions.module';
@@ -23,5 +24,6 @@ import { AdminModule } from './modules/admin/admin.module';
     ReviewsModule,
     AdminModule,
   ],
+  controllers: [AppController],
 })
 export class AppModule { }

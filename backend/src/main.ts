@@ -9,8 +9,10 @@ async function bootstrap() {
   const logger = new Logger('BrewLiteBootstrap');
   const app = await NestFactory.create(AppModule);
 
-  // 1. Cấu hình tiền tố toàn cục /api
-  app.setGlobalPrefix('api');
+  // 1. Cấu hình tiền tố toàn cục /api (loại trừ /health để hỗ trợ cả /health và /api/health)
+  app.setGlobalPrefix('api', {
+    exclude: ['health'],
+  });
 
   // 2. Cấu hình CORS
   app.enableCors({
