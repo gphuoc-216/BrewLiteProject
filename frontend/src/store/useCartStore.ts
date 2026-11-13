@@ -104,7 +104,10 @@ export const useCartStore = create<CartState>((set, get) => {
 
         if (existingIndex > -1) {
           newItems = [...state.items];
-          newItems[existingIndex].quantity += quantity;
+          newItems[existingIndex] = {
+            ...newItems[existingIndex],
+            quantity: newItems[existingIndex].quantity + quantity,
+          };
         } else {
           newItems = [...state.items, { ...item, id: lineId, quantity }];
         }

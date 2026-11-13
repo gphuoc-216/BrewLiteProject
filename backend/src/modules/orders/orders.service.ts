@@ -88,13 +88,14 @@ export class OrdersService {
     try {
       // Bước 1: Truy vấn danh sách biến thể sản phẩm từ Database để lấy đơn giá chính xác
       const variantIds = dto.items.map((i) => i.variantId);
+      const uniqueVariantIds = Array.from(new Set(variantIds));
       const variants = await this.prisma.productVariant.findMany({
-        where: { id: { in: variantIds } },
+        where: { id: { in: uniqueVariantIds } },
         include: { product: true },
       });
 
-      // Nếu số lượng biến thể tìm thấy không khớp với số món trong giỏ -> có món bị xóa hoặc ID sai
-      if (variants.length !== variantIds.length) {
+      // Nếu số lượng biến thể độc nhất tìm thấy không khớp -> có món bị xóa hoặc ID sai
+      if (variants.length !== uniqueVariantIds.length) {
         throw new BadRequestException('Một số sản phẩm/biến thể trong giỏ hàng không còn tồn tại');
       }
 

@@ -524,7 +524,13 @@ function CheckoutContent() {
             items: activeItems.map((i) => ({
               variantId: i.variantId,
               quantity: i.quantity,
-              toppings: i.topping && i.topping !== 'Tiêu chuẩn' ? i.topping.split(',').map((t: string) => t.trim()) : undefined,
+              toppings:
+                i.topping && i.topping !== 'Tiêu chuẩn'
+                  ? i.topping
+                      .split(/[·,]/)
+                      .map((t: string) => t.trim())
+                      .filter(Boolean)
+                  : undefined,
             })),
             promotionCode: isBuyNow
               ? (buyNowItem?.appliedVouchers?.length > 0 ? buyNowItem.appliedVouchers.join(',') : undefined)

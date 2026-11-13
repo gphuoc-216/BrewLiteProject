@@ -18,6 +18,7 @@ import {
   Sparkles,
   Plus,
   ArrowLeft,
+  Info,
 } from 'lucide-react';
 
 interface AvailableVoucher {
@@ -571,7 +572,7 @@ export default function CartPage() {
             </form>
 
             {/* Quick-Select Coffee Shop Vouchers (1-Click Tick) */}
-            <div className="pt-2 border-t border-line space-y-2">
+            <div className="pt-2 border-t border-line space-y-2.5">
               <div className="flex items-center justify-between text-xs font-semibold text-ink">
                 <span className="flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-accent" />
@@ -582,11 +583,26 @@ export default function CartPage() {
                 </span>
               </div>
 
-              <div className="space-y-2">
+              {/* Banner điều kiện áp dụng & cộng dồn nhiều voucher */}
+              <div className="p-2.5 bg-accent/5 border border-accent/20 rounded-lg text-[11px] text-ink-2 space-y-1">
+                <div className="font-semibold text-ink flex items-center gap-1.5 text-xs text-accent">
+                  <Info className="w-3.5 h-3.5 shrink-0" />
+                  <span>Quy định áp dụng & cộng dồn Voucher:</span>
+                </div>
+                <ul className="list-disc list-inside space-y-0.5 text-ink-3 pl-0.5">
+                  <li>Mỗi đơn được chọn <b>tối đa 1 mã Giảm giá đơn hàng</b> (chọn mã khác sẽ tự động thay thế).</li>
+                  <li>Được phép cộng dồn thêm <b>1 mã Giờ vàng (HAPPYHOUR)</b> nếu tổng đơn chưa về 0đ.</li>
+                  <li>Được kết hợp đồng thời cùng <b>Điểm thưởng Loyalty</b> thành viên.</li>
+                  <li>Chỉ áp dụng nhận tại quầy / mang đi (BrewLite không có phí ship).</li>
+                </ul>
+              </div>
+
+              <div className="space-y-2.5">
                 {vouchers.map((v) => {
                   const isApplied = promotions.some(
                     (p) => p.code.toUpperCase() === v.code.toUpperCase()
                   ) || promotion?.code?.toUpperCase() === v.code.toUpperCase();
+                  const isHappyHour = v.code.toUpperCase() === 'HAPPYHOUR';
 
                   return (
                     <div
@@ -598,45 +614,74 @@ export default function CartPage() {
                           handleToggleVoucher(v);
                         }
                       }}
-                      className={`p-2.5 rounded-lg border text-xs cursor-pointer transition-all flex items-center justify-between gap-2.5 ${
+                      className={`p-3 rounded-lg border text-xs cursor-pointer transition-all space-y-2 ${
                         isApplied
                           ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/30 ring-1 ring-emerald-500'
                           : v.isEligible
                           ? 'border-line hover:border-accent bg-surface hover:bg-surface-2/40'
-                          : 'border-line/60 bg-surface-2/30 opacity-60 cursor-not-allowed'
+                          : 'border-line/60 bg-surface-2/30 opacity-75'
                       }`}
                     >
-                      <div className="min-w-0 space-y-0.5">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
-                            isApplied ? 'bg-emerald-600 text-white' : 'bg-accent/15 text-accent'
-                          }`}>
-                            {v.code} {isApplied ? '✓' : ''}
-                          </span>
-                          <span className="font-semibold text-ink text-[11.5px] truncate">
-                            {v.name}
-                          </span>
+                      <div className="flex items-start justify-between gap-2.5">
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                              isApplied ? 'bg-emerald-600 text-white' : 'bg-accent/15 text-accent'
+                            }`}>
+                              {v.code} {isApplied ? '✓' : ''}
+                            </span>
+                            <span className="font-semibold text-ink text-xs">
+                              {v.name}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-ink-2 leading-relaxed">
+                            {v.description}
+                          </p>
                         </div>
-                        <p className="text-[11px] text-ink-3 leading-tight">
-                          {v.isEligible
-                            ? v.description
-                            : `Đơn từ ${v.minOrderValue.toLocaleString('vi-VN')}đ (còn thiếu ${(v.minOrderValue - subtotal).toLocaleString('vi-VN')}đ)`}
-                        </p>
+
+                        <button
+                          type="button"
+                          disabled={!v.isEligible && !isApplied}
+                          className={`px-3 py-1.5 text-[11px] font-semibold rounded shrink-0 transition-colors ${
+                            isApplied
+                              ? 'bg-emerald-600 text-white font-bold'
+                              : v.isEligible
+                              ? 'bg-accent text-on-accent hover:bg-accent-hover'
+                              : 'text-ink-3 bg-line/50 cursor-not-allowed'
+                          }`}
+                        >
+                          {isApplied ? 'Đã áp dụng ✓' : v.isEligible ? 'Áp dụng' : 'Chưa đủ'}
+                        </button>
                       </div>
 
-                      <button
-                        type="button"
-                        disabled={!v.isEligible && !isApplied}
-                        className={`px-2.5 py-1 text-[11px] font-semibold rounded shrink-0 transition-colors ${
-                          isApplied
-                            ? 'bg-emerald-600 text-white font-bold'
-                            : v.isEligible
-                            ? 'bg-accent text-on-accent hover:bg-accent-hover'
-                            : 'text-ink-3 bg-line/50'
-                        }`}
-                      >
-                        {isApplied ? 'Đã áp dụng ✓' : 'Chọn'}
-                      </button>
+                      {/* Chi tiết điều kiện áp dụng ở dưới */}
+                      <div className="pt-2 border-t border-line/50 text-[10.5px] space-y-1 text-ink-3">
+                        <div className="flex items-center justify-between flex-wrap gap-1">
+                          <span>📌 <b>Đơn tối thiểu:</b> {v.minOrderValue.toLocaleString('vi-VN')}đ</span>
+                          {v.maxDiscount && (
+                            <span>🎯 <b>Giảm tối đa:</b> {v.maxDiscount.toLocaleString('vi-VN')}đ</span>
+                          )}
+                          <span>
+                            ⚡ {isHappyHour ? (
+                              <b className="text-amber-600 dark:text-amber-400">Được phép cộng dồn</b>
+                            ) : (
+                              'Tối đa 1 mã đơn hàng'
+                            )}
+                          </span>
+                        </div>
+
+                        {!v.isEligible ? (
+                          <div className="text-rose-600 dark:text-rose-400 font-medium bg-rose-50/80 dark:bg-rose-950/30 p-1.5 rounded border border-rose-200 dark:border-rose-900/50 flex items-center gap-1">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                            <span>Chưa hợp lệ: Đơn còn thiếu {(v.minOrderValue - subtotal).toLocaleString('vi-VN')}đ để dùng mã này.</span>
+                          </div>
+                        ) : (
+                          <div className="text-emerald-700 dark:text-emerald-400 font-medium flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                            <span>Đủ điều kiện áp dụng cho đơn hàng hiện tại.</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })}

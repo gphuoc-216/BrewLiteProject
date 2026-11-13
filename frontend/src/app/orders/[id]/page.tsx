@@ -341,7 +341,12 @@ export default function OrderConfirmationPage() {
 
         {/* Order Items Table */}
         <div className="border-t border-line pt-4 space-y-3">
-          <h2 className="text-xs font-semibold text-ink">Chi tiết món đã đặt</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-semibold text-ink">Chi tiết hóa đơn món đã đặt</h2>
+            <span className="text-[11px] font-medium text-ink-3">
+              Tổng cộng: {(order.items || []).reduce((sum, it) => sum + (it.quantity || 1), 0)} ly
+            </span>
+          </div>
           <div className="divide-y divide-line border-y border-line text-xs">
             {order.items?.map((it: OrderItemRecord) => {
               const itemProdId = it.variant?.product?.id || (it.variant as any)?.productId;

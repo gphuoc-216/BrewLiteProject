@@ -11,6 +11,7 @@ export const TOPPING_CATALOG: ToppingItem[] = [
   { id: 'thach-dao', name: 'Thạch đào giòn sần sật', price: 8000, desc: 'Miếng đào ngâm giòn ngọt thanh mát' },
   { id: 'nha-dam', name: 'Nha đam thanh mát', price: 7000, desc: 'Hạt lựu nha đam giòn ngọt thanh nhiệt' },
   { id: 'hat-dac', name: 'Hạt đác rim đường phèn', price: 8000, desc: 'Dẻo quánh ngọt bùi thơm lừng' },
+  { id: 'hat-sen', name: 'Hạt sen ninh đường phèn', price: 10000, desc: 'Hạt sen bùi béo ninh mềm nở căng ngọt dịu chuẩn vị' },
   { id: 'khuc-bach', name: 'Khúc bạch phô mai', price: 9000, desc: 'Béo ngậy mềm mịn núng nính' },
   { id: 'cheese', name: 'Kem Cheese Macchiato', price: 10000, desc: 'Váng phô mai béo mặn sánh mịn' },
   { id: 'kem-tra-sua', name: 'Thêm kem trà sữa', price: 10000, desc: 'Đậm đà ngậy béo chuẩn vị' },

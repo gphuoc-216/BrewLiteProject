@@ -786,8 +786,8 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            {/* Quick-Select Voucher Chips */}
-            <div className="flex flex-wrap gap-1.5 pt-0.5">
+            {/* Quick-Select Voucher List with clear conditions */}
+            <div className="space-y-1.5 pt-0.5 max-h-56 overflow-y-auto pr-1">
               {SHOP_VOUCHERS.map((v) => {
                 const isSelected = selectedVoucherCodes.includes(v.code);
                 const isEligible = totalPrice >= v.minOrder;
@@ -795,23 +795,59 @@ export default function ProductDetailPage() {
                 const disabled = !isEligible || isMaxDiscount;
 
                 return (
-                  <button
+                  <div
                     key={v.code}
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => handleToggleVoucher(v)}
-                    className={`px-2 py-1 rounded text-[11px] font-medium border transition-all flex items-center gap-1 ${
+                    onClick={() => {
+                      if (!disabled || isSelected) handleToggleVoucher(v);
+                    }}
+                    className={`p-2 rounded border text-xs transition-all flex items-center justify-between gap-2 cursor-pointer ${
                       isSelected
-                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs font-semibold'
+                        ? 'bg-emerald-50/80 dark:bg-emerald-950/40 border-emerald-500 ring-1 ring-emerald-500'
                         : isEligible && !isMaxDiscount
                         ? 'bg-surface hover:bg-surface-2 text-ink border-line hover:border-accent'
-                        : 'bg-surface-2/40 text-ink-3 border-line/50 opacity-50 cursor-not-allowed'
+                        : 'bg-surface-2/40 text-ink-3 border-line/50 opacity-60 cursor-not-allowed'
                     }`}
-                    title={v.description}
                   >
-                    <span>{v.code} ({v.label})</span>
-                    {isSelected && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-                  </button>
+                    <div className="min-w-0 space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
+                            isSelected
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-accent/15 text-accent'
+                          }`}
+                        >
+                          {v.code}
+                        </span>
+                        <span className="font-semibold text-ink text-[11px] truncate">
+                          {v.label}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-ink-3">
+                        {isEligible ? (
+                          <span>Đơn từ {v.minOrder.toLocaleString('vi-VN')}đ · {v.isStackable ? '⚡ Cộng dồn' : 'Tối đa 1 mã'}</span>
+                        ) : (
+                          <span className="text-rose-600 dark:text-rose-400 font-medium">
+                            Chưa hợp lệ: Đơn từ {v.minOrder.toLocaleString('vi-VN')}đ (còn thiếu {(v.minOrder - totalPrice).toLocaleString('vi-VN')}đ)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={disabled && !isSelected}
+                      className={`px-2 py-1 text-[10.5px] font-semibold rounded shrink-0 transition-colors ${
+                        isSelected
+                          ? 'bg-emerald-600 text-white'
+                          : isEligible && !isMaxDiscount
+                          ? 'bg-accent text-on-accent hover:bg-accent-hover'
+                          : 'text-ink-3 bg-line/50'
+                      }`}
+                    >
+                      {isSelected ? 'Đã chọn ✓' : isEligible ? 'Chọn' : 'Chưa đủ'}
+                    </button>
+                  </div>
                 );
               })}
             </div>

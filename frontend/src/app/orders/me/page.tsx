@@ -248,17 +248,21 @@ export default function OrdersMePage() {
                         #{order.id.slice(0, 8).toUpperCase()}
                       </span>
                       <StatusBadge status={order.status} />
+                      <span className="text-[11px] font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded">
+                        {(order.items || []).reduce((sum, it) => sum + (it.quantity || 1), 0)} ly đồ uống
+                      </span>
                       <span className="text-[11px] text-ink-3 tabular-nums">
                         {new Date(order.createdAt).toLocaleString('vi-VN')}
                       </span>
                     </div>
 
                     <p className="text-xs text-ink-2 truncate">
-                      {order.items?.map((item: OrderItemRecord) => `${item.quantity}x ${item.variant?.product?.name || 'Món'}`).join(', ')}
+                      <b className="text-ink font-medium">Chi tiết món:</b>{' '}
+                      {order.items?.map((item: OrderItemRecord) => `${item.quantity}x ${item.variant?.product?.name || 'Món'}${item.variant?.size ? ` (${item.variant.size})` : ''}`).join(', ')}
                     </p>
 
                     <p className="text-xs font-semibold text-ink tabular-nums">
-                      Tổng: {Number(order.totalAfterDiscount).toLocaleString('vi-VN')}đ
+                      Tổng hóa đơn: {Number(order.totalAfterDiscount).toLocaleString('vi-VN')}đ
                     </p>
                   </div>
 
