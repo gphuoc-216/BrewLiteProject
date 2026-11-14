@@ -94,7 +94,7 @@ export const Navbar: React.FC = () => {
               </Link>
             )}
 
-            {mounted && (user?.role === 'STAFF' || user?.role === 'ADMIN') && (
+            {mounted && user?.role === 'STAFF' && (
               <Link
                 href="/staff"
                 className={`transition-colors py-1 ${
@@ -243,7 +243,7 @@ export const Navbar: React.FC = () => {
                 Trang cá nhân
               </Link>
             )}
-            {mounted && (user?.role === 'STAFF' || user?.role === 'ADMIN') && (
+            {mounted && user?.role === 'STAFF' && (
               <Link
                 href="/staff"
                 onClick={() => setMobileMenuOpen(false)}

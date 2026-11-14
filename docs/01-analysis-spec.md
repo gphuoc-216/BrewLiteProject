@@ -712,7 +712,7 @@ Toàn bộ API được triển khai theo chuẩn RESTful, tiền tố `/api`, x
 ### 8.4 Phân hệ Quầy Pha chế (Staff Barista)
 | Phương thức | Đường dẫn Endpoint | Quyền hạn | Mô tả chức năng | Mã phản hồi |
 |:---|:---|:---|:---|:---|
-| `GET` | `/api/staff/orders` | Staff/Admin | Danh sách đơn hàng trên bảng Kanban (hỗ trợ `?status=`) | `200 OK` |
+| `GET` | `/api/staff/orders` | Staff | Danh sách đơn hàng trên bảng Kanban (hỗ trợ `?status=`) | `200 OK` |
 | `POST` | `/api/staff/orders/:id/accept` | Staff | Barista nhận đơn: chuyển `PAID` → `PREPARING` | `200 OK` |
 | `POST` | `/api/staff/orders/:id/ready` | Staff | Pha xong đồ uống: chuyển `PREPARING` → `READY` | `200 OK` |
 | `POST` | `/api/staff/orders/:id/complete` | Staff | Giao khách: chuyển `READY` → `COMPLETED` | `200 OK` |

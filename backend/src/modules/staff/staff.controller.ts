@@ -10,7 +10,7 @@ import { OrderStatus, Role } from '@prisma/client';
 @ApiTags('Quầy Pha Chế (Staff / Barista)')
 @Controller('staff')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.STAFF, Role.ADMIN)
+@Roles(Role.STAFF)
 @ApiBearerAuth()
 export class StaffController {
   constructor(private readonly staffService: StaffService) {}

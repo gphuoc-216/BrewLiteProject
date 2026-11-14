@@ -9,7 +9,7 @@ import { ORDER_STATUS } from '@/lib/orderStatus';
 import { useRequireRole } from '@/hooks/useRequireRole';
 
 export default function StaffKanbanPage() {
-  const { ready } = useRequireRole(['STAFF', 'ADMIN']);
+  const { ready } = useRequireRole(['STAFF']);
 
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [loading, setLoading] = useState(true);
