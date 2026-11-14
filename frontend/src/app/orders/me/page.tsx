@@ -31,7 +31,7 @@ const PROGRESS_STEPS: OrderStatus[] = ['PAID', 'PREPARING', 'READY', 'COMPLETED'
 
 export default function OrdersMePage() {
   const router = useRouter();
-  const { ready } = useRequireRole(['CUSTOMER', 'STAFF', 'ADMIN']);
+  const { ready } = useRequireRole(['CUSTOMER']);
 
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [activeTab, setActiveTab] = useState<OrderTab>('ALL');

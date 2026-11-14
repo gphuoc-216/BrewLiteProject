@@ -443,7 +443,7 @@ class FallbackStore {
       fromStatus: prevStatus,
       toStatus: OrderStatus.CANCELLED,
       actorId,
-      note: 'Khách hàng/Quản trị viên hủy đơn. Đã cập nhật trạng thái hủy thành công.',
+      note: 'Khách hàng hủy đơn. Đã cập nhật trạng thái hủy thành công.',
       createdAt: new Date(),
     });
     return order;
@@ -465,12 +465,13 @@ class FallbackStore {
     if (!order) return null;
 
     if (params.simulateError === 'FAIL' || params.simulateError === 'TIMEOUT') {
+      const prevStatus = order.status;
       order.status = OrderStatus.PAYMENT_FAILED;
       order.updatedAt = new Date();
       order.statusHistories.push({
         id: `h-${Date.now()}`,
         orderId: order.id,
-        fromStatus: OrderStatus.PENDING,
+        fromStatus: prevStatus,
         toStatus: OrderStatus.PAYMENT_FAILED,
         actorId: params.actorId,
         note: `Thanh toán thất bại: Giao dịch bị từ chối (${params.simulateError})`,

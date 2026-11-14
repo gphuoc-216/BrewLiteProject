@@ -79,8 +79,6 @@ export class ReviewsService {
               OR: [
                 { id: actorId },
                 { customer: { id: actorId } },
-                { admin: { id: actorId } },
-                { staff: { id: actorId } },
               ],
             },
             include: { customer: true },
@@ -292,10 +290,10 @@ export class ReviewsService {
     });
   }
 
-  async deleteReview(reviewId: string, actorId: string, role: string) {
+  async deleteReview(reviewId: string, actorId: string, _role?: string) {
     const review = await this.prisma.review.findUnique({ where: { id: reviewId } });
     if (!review) throw new NotFoundException('Không tìm thấy đánh giá');
-    if (role !== 'ADMIN' && review.customerId !== actorId) {
+    if (review.customerId !== actorId) {
       const cust = await this.prisma.customer.findFirst({
         where: {
           OR: [{ id: actorId }, { accountId: actorId }],

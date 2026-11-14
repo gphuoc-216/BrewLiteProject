@@ -1,9 +1,48 @@
+import { fetchApi } from '@/lib/api';
+
 export interface ToppingOption {
   id: string;
   name: string;
   price: number;
   desc: string;
   imageUrl: string;
+}
+
+let cachedToppingsCatalog: ToppingOption[] | null = null;
+let cachedToppingsPromise: Promise<ToppingOption[]> | null = null;
+
+/**
+ * Truy vấn danh sách topping từ Backend (GET /products/toppings) kèm fallback an toàn về ALL_TOPPINGS.
+ */
+export async function fetchToppingsCatalog(): Promise<ToppingOption[]> {
+  if (cachedToppingsCatalog) return cachedToppingsCatalog;
+  if (!cachedToppingsPromise) {
+    cachedToppingsPromise = (async () => {
+      try {
+        const remote = await fetchApi<Array<{ id: string; name: string; price: number; desc?: string }>>(
+          '/products/toppings',
+        );
+        if (Array.isArray(remote) && remote.length > 0) {
+          cachedToppingsCatalog = ALL_TOPPINGS.map((localItem) => {
+            const match = remote.find((r) => r.id === localItem.id || r.name === localItem.name);
+            return match
+              ? {
+                  ...localItem,
+                  name: match.name || localItem.name,
+                  price: Number(match.price) || localItem.price,
+                  desc: match.desc || localItem.desc,
+                }
+              : localItem;
+          });
+          return cachedToppingsCatalog;
+        }
+      } catch {
+        // Fallback mượt về catalog local nếu backend chưa sẵn sàng
+      }
+      return ALL_TOPPINGS;
+    })();
+  }
+  return cachedToppingsPromise;
 }
 
 export const ALL_TOPPINGS: ToppingOption[] = [
@@ -97,12 +136,15 @@ export const ALL_TOPPINGS: ToppingOption[] = [
  * Phân phối Topping CHÍNH XÁC & ĐA DẠNG theo từng loại món thực tế
  * (Mô típ chuẩn các chuỗi cafe hiện đại: Highlands / Phúc Long / Katinat / Phê La / The Coffee House):
  */
-export function getToppingsForProduct(product: { category?: string; name?: string } | null): ToppingOption[] {
-  if (!product) return ALL_TOPPINGS.slice(0, 6);
+export function getToppingsForProduct(
+  product: { category?: string; name?: string } | null,
+  catalog: ToppingOption[] = ALL_TOPPINGS,
+): ToppingOption[] {
+  if (!product) return catalog.slice(0, 6);
   const name = (product.name || '').toLowerCase();
   const category = (product.category || '').toUpperCase();
 
-  const getTop = (id: string) => ALL_TOPPINGS.find((t) => t.id === id);
+  const getTop = (id: string) => catalog.find((t) => t.id === id);
 
   // 1. Trà Sen Vàng (Highlands style)
   if (name.includes('sen vàng') || name.includes('hạt sen')) {
@@ -216,5 +258,5 @@ export function getToppingsForProduct(product: { category?: string; name?: strin
     ].filter(Boolean);
   }
 
-  return ALL_TOPPINGS.slice(0, 6);
+  return catalog.slice(0, 6);
 }

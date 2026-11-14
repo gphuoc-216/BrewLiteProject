@@ -63,6 +63,16 @@ export interface OrderItemRecord {
       name: string;
       imageUrl: string;
     };
+    recipes?: Array<{
+      id: string;
+      quantityRequired: number;
+      ingredient?: {
+        id: string;
+        name: string;
+        unit: string;
+        stockQuantity?: number;
+      };
+    }>;
   };
 }
 

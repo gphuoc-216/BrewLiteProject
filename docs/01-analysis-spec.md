@@ -704,8 +704,8 @@ Toàn bộ API được triển khai theo chuẩn RESTful, tiền tố `/api`, x
 | `POST` | `/api/promotions/validate` | Customer | Kiểm tra mã giảm giá hợp lệ và tính mức tiền giảm | `200 OK` |
 | `POST` | `/api/orders` | Customer | Tạo đơn hàng mới từ giỏ hàng (trạng thái `PENDING`) | `201 Created` |
 | `GET` | `/api/orders/me` | Customer | Xem danh sách lịch sử đơn hàng cá nhân | `200 OK` |
-| `GET` | `/api/orders/:id` | Customer/Staff | Xem thông tin chi tiết một đơn hàng | `200 OK` |
-| `POST` | `/api/orders/:id/cancel` | Customer/Admin | Hủy đơn hàng hợp lệ (hoàn tồn kho và điểm thưởng) | `200 OK` |
+| `GET` | `/api/orders/:id` | Customer | Xem thông tin chi tiết một đơn hàng | `200 OK` |
+| `POST` | `/api/orders/:id/cancel` | Customer | Hủy đơn hàng hợp lệ (hoàn tồn kho và điểm thưởng) | `200 OK` |
 | `POST` | `/api/payments` | Customer | Thanh toán đơn hàng (Header bắt buộc `Idempotency-Key`) | `201 Created` |
 | `POST` | `/api/mock-gateway/charge` | Internal | Cổng thanh toán giả lập (cho phép tham số simulate error) | `200 OK` |
 
@@ -713,6 +713,7 @@ Toàn bộ API được triển khai theo chuẩn RESTful, tiền tố `/api`, x
 | Phương thức | Đường dẫn Endpoint | Quyền hạn | Mô tả chức năng | Mã phản hồi |
 |:---|:---|:---|:---|:---|
 | `GET` | `/api/staff/orders` | Staff | Danh sách đơn hàng trên bảng Kanban (hỗ trợ `?status=`) | `200 OK` |
+| `GET` | `/api/staff/orders/:id/recipes` | Staff | Xem công thức định lượng pha chế chi tiết theo đơn | `200 OK` |
 | `POST` | `/api/staff/orders/:id/accept` | Staff | Barista nhận đơn: chuyển `PAID` → `PREPARING` | `200 OK` |
 | `POST` | `/api/staff/orders/:id/ready` | Staff | Pha xong đồ uống: chuyển `PREPARING` → `READY` | `200 OK` |
 | `POST` | `/api/staff/orders/:id/complete` | Staff | Giao khách: chuyển `READY` → `COMPLETED` | `200 OK` |

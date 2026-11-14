@@ -1,447 +1,160 @@
-<mxfile host="app.diagrams.net" modified="2026-11-01T20:55:00.000Z" agent="BrewLite" version="24.7.5">
-  <diagram id="BrewLite-Activity-Diagram" name="Activity Diagram - Quy Trình End-to-End">
-    <mxGraphModel dx="1600" dy="2400" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="2650" math="0" shadow="0">
-      <root>
-        <mxCell id="0" />
-        <mxCell id="1" parent="0" />
-
-        <!-- ==================== TIÊU ĐỀ SƠ ĐỒ ==================== -->
-        <mxCell id="title_banner" value="SƠ ĐỒ HOẠT ĐỘNG (ACTIVITY DIAGRAM) - QUY TRÌNH ĐẶT CÀ PHÊ &amp; THANH TOÁN BREWLITE (END-TO-END)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0f172a;fontColor=#ffffff;fontStyle=1;fontSize=15;" vertex="1" parent="1">
-          <mxGeometry x="40" y="20" width="1500" height="45" as="geometry" />
-        </mxCell>
-
-        <!-- ==================== CÁC PHÂN LÀN (SWIMLANES) ==================== -->
-        <mxCell id="lane_customer" value="KHÁCH HÀNG (CUSTOMER / WEB APP)" style="swimlane;startSize=40;fillColor=#eff6ff;strokeColor=#3b82f6;fontColor=#1e40af;fontStyle=1;fontSize=13;align=center;" vertex="1" parent="1">
-          <mxGeometry x="40" y="80" width="360" height="2520" as="geometry" />
-        </mxCell>
-
-        <mxCell id="lane_backend" value="HỆ THỐNG BACKEND (NESTJS API &amp; POSTGRESQL)" style="swimlane;startSize=40;fillColor=#f8fafc;strokeColor=#64748b;fontColor=#334155;fontStyle=1;fontSize=13;align=center;" vertex="1" parent="1">
-          <mxGeometry x="400" y="80" width="440" height="2520" as="geometry" />
-        </mxCell>
-
-        <mxCell id="lane_gateway" value="CỔNG THANH TOÁN («SYSTEM» MOCK GATEWAY)" style="swimlane;startSize=40;fillColor=#fffbeb;strokeColor=#f59e0b;fontColor=#b45309;fontStyle=1;fontSize=13;align=center;" vertex="1" parent="1">
-          <mxGeometry x="840" y="80" width="340" height="2520" as="geometry" />
-        </mxCell>
-
-        <mxCell id="lane_barista" value="NHÂN VIÊN QUẦY (BARISTA / KANBAN)" style="swimlane;startSize=40;fillColor=#f0fdf4;strokeColor=#22c55e;fontColor=#15803d;fontStyle=1;fontSize=13;align=center;" vertex="1" parent="1">
-          <mxGeometry x="1180" y="80" width="360" height="2520" as="geometry" />
-        </mxCell>
-
-        <!-- ==================== GIAI ĐOẠN 1: MỞ APP & XEM MENU ==================== -->
-        <!-- Start Node -->
-        <mxCell id="start_node" value="" style="ellipse;fillColor=#000000;strokeColor=#000000;" vertex="1" parent="1">
-          <mxGeometry x="205" y="145" width="30" height="30" as="geometry" />
-        </mxCell>
-
-        <!-- Khách mở Web App -->
-        <mxCell id="act_open_app" value="1. Mở ứng dụng Web App&#xa;BrewLite trên trình duyệt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontColor=#1e3a8a;fontSize=12;fontStyle=0;" vertex="1" parent="1">
-          <mxGeometry x="135" y="205" width="170" height="50" as="geometry" />
-        </mxCell>
-
-        <!-- Backend nạp menu -->
-        <mxCell id="act_fetch_menu" value="2. Truy vấn danh mục &amp; thực đơn&#xa;(GET /api/products)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#475569;fontColor=#0f172a;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="525" y="205" width="190" height="50" as="geometry" />
-        </mxCell>
-
-        <!-- Khách xem menu -->
-        <mxCell id="act_view_menu" value="3. Xem danh sách đồ uống,&#xa;tìm kiếm &amp; lọc theo danh mục" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontColor=#1e3a8a;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="135" y="285" width="170" height="50" as="geometry" />
-        </mxCell>
-
-        <!-- ==================== GIAI ĐOẠN 2: CHỌN MÓN & GIỎ HÀNG ==================== -->
-        <!-- Chọn size và topping -->
-        <mxCell id="act_choose_variant" value="4. Chọn món, tùy chọn Size (S/M/L)&#xa;và thêm Topping theo ý thích" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontColor=#1e3a8a;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="135" y="365" width="170" height="50" as="geometry" />
-        </mxCell>
-
-        <!-- Thêm giỏ hàng -->
-        <mxCell id="act_add_cart" value="5. Thêm vào Giỏ hàng &amp;&#xa;kiểm tra số lượng, tạm tính" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontColor=#1e3a8a;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="135" y="445" width="170" height="50" as="geometry" />
-        </mxCell>
-
-        <!-- ==================== GIAI ĐOẠN 3: KIỂM TRA ĐĂNG NHẬP ==================== -->
-        <!-- Diamond check login -->
-        <mxCell id="dec_is_logged_in" value="Đã đăng nhập&#xa;tài khoản?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#d97706;fontColor=#92400e;fontSize=11;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="160" y="525" width="120" height="70" as="geometry" />
-        </mxCell>
-
-        <!-- Nhập login -->
-        <mxCell id="act_login_form" value="6a. Nhập thông tin đăng nhập&#xa;(POST /api/auth/login)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontColor=#1e3a8a;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="270" y="625" width="160" height="50" as="geometry" />
-        </mxCell>
-
-        <!-- Xác thực JWT -->
-        <mxCell id="act_auth_verify" value="6b. Xác thực tài khoản Bcrypt &amp;&#xa;cấp Access Token JWT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#475569;fontColor=#0f172a;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="525" y="625" width="190" height="50" as="geometry" />
-        </mxCell>
-
-        <!-- Merge Login -->
-        <mxCell id="merge_login" value="" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#d97706;" vertex="1" parent="1">
-          <mxGeometry x="205" y="705" width="30" height="30" as="geometry" />
-        </mxCell>
-
-        <!-- ==================== GIAI ĐOẠN 4: ĐẶT HÀNG & ÁP VOUCHER ==================== -->
-        <!-- Xác nhận đặt đơn -->
-        <mxCell id="act_submit_order" value="7. Nhập mã Voucher (nếu có)&#xa;&amp; Nhấn 'Xác nhận đặt hàng'" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontColor=#1e3a8a;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="135" y="765" width="170" height="50" as="geometry" />
-        </mxCell>
-
-        <!-- Backend tạo đơn PENDING -->
-        <mxCell id="act_create_pending" value="8. Tạo đơn hàng PENDING, kiểm tra&#xa;Voucher &amp; tính tổng tiền sau giảm&#xa;(POST /api/orders)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#475569;fontColor=#0f172a;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="515" y="760" width="210" height="60" as="geometry" />
-        </mxCell>
-
-        <!-- Khách chọn thanh toán -->
-        <mxCell id="act_click_pay" value="9. Chọn cổng thanh toán (Ví / QR)&#xa;&amp; Nhấn 'Xác nhận thanh toán'" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontColor=#1e3a8a;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="135" y="855" width="170" height="50" as="geometry" />
-        </mxCell>
-
-        <!-- ==================== GIAI ĐOẠN 5: THANH TOÁN & NHÁNH RẼ ==================== -->
-        <!-- Backend nhận payment -->
-        <mxCell id="act_process_payment" value="10. Tiếp nhận thanh toán kèm&#xa;Idempotency-Key chống click đúp&#xa;(POST /api/payments)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#475569;fontColor=#0f172a;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="515" y="850" width="210" height="60" as="geometry" />
-        </mxCell>
-
-        <!-- Kiểm tra kho Optimistic Lock -->
-        <mxCell id="act_check_stock" value="11. Tổng hợp công thức nguyên liệu &amp;&#xa;Kiểm tra tồn kho (Optimistic Locking)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#475569;fontColor=#0f172a;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="515" y="940" width="210" height="50" as="geometry" />
-        </mxCell>
-
-        <!-- NHÁNH RẼ 1: TỒN KHO NGUYÊN LIỆU -->
-        <mxCell id="dec_stock_available" value="Nguyên liệu&#xa;còn đủ trong kho?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#ef4444;fontColor=#991b1b;fontSize=11;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="550" y="1020" width="140" height="70" as="geometry" />
-        </mxCell>
-
-        <!-- Nhánh Hết hàng (Error 409) -->
-        <mxCell id="act_stock_conflict" value="[NHÁNH RẼ: HẾT HÀNG]&#xa;Ném HTTP 409 Conflict:&#xa;'Nguyên liệu không đủ tồn kho'&#xa;&amp; Rollback Transaction" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#ef4444;fontColor=#991b1b;fontSize=11;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="425" y="1120" width="180" height="65" as="geometry" />
-        </mxCell>
-
-        <!-- Khách nhận thông báo hết món -->
-        <mxCell id="act_show_out_of_stock" value="Hiển thị thông báo:&#xa;'Món đã hết nguyên liệu!'&#xa;(Cho phép chọn món khác hoặc hủy)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#ef4444;fontColor=#991b1b;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="135" y="1120" width="170" height="65" as="geometry" />
-        </mxCell>
-
-        <!-- End node do hết hàng -->
-        <mxCell id="end_node_stock" value="" style="ellipse;html=1;shape=endState;fillColor=#ef4444;strokeColor=#991b1b;" vertex="1" parent="1">
-          <mxGeometry x="205" y="1215" width="30" height="30" as="geometry" />
-        </mxCell>
-
-        <!-- Nhánh Đủ hàng: Gọi Cổng thanh toán -->
-        <mxCell id="act_call_gateway" value="Gửi yêu cầu thanh toán sang Gateway&#xa;(POST /api/mock-gateway/charge)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#d97706;fontColor=#92400e;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="905" y="1025" width="210" height="60" as="geometry" />
-        </mxCell>
-
-        <!-- Gateway xử lý trừ tiền -->
-        <mxCell id="act_gateway_process" value="12. Tiếp nhận giao dịch, mô phỏng&#xa;trừ tiền tài khoản / quét mã QR" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#d97706;fontColor=#92400e;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="905" y="1115" width="210" height="50" as="geometry" />
-        </mxCell>
-
-        <!-- NHÁNH RẼ 2: KẾT QUẢ THANH TOÁN -->
-        <mxCell id="dec_payment_success" value="Giao dịch thanh toán&#xa;thành công?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#ef4444;fontColor=#991b1b;fontSize=11;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="935" y="1195" width="150" height="70" as="geometry" />
-        </mxCell>
-
-        <!-- Nhánh Thanh toán Thất bại -->
-        <mxCell id="act_payment_failed" value="[NHÁNH RẼ: LỖI THANH TOÁN]&#xa;Gateway báo lỗi từ chối thẻ.&#xa;Backend chuyển trạng thái:&#xa;PENDING -> PAYMENT_FAILED&#xa;&amp; Ghi Audit Log" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#ef4444;fontColor=#991b1b;fontSize=11;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="910" y="1295" width="200" height="70" as="geometry" />
-        </mxCell>
-
-        <!-- Thông báo lỗi thanh toán -->
-        <mxCell id="act_show_pay_failed" value="Hiển thị thông báo thất bại:&#xa;'Thanh toán không thành công'&#xa;&amp; Cho phép thử lại bằng thẻ khác" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#ef4444;fontColor=#991b1b;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="135" y="1295" width="170" height="70" as="geometry" />
-        </mxCell>
-
-        <!-- End node do thanh toán fail hoặc hủy -->
-        <mxCell id="end_node_payment_fail" value="" style="ellipse;html=1;shape=endState;fillColor=#ef4444;strokeColor=#991b1b;" vertex="1" parent="1">
-          <mxGeometry x="205" y="1395" width="30" height="30" as="geometry" />
-        </mxCell>
-
-        <!-- Nhánh Thanh toán Thành công: Database ACID Transaction -->
-        <mxCell id="act_tx_success" value="13. Thực thi Database Transaction ACID:&#xa;• Đổi trạng thái: PENDING -> PAID&#xa;• Trừ kho nguyên liệu (version = version + 1)&#xa;• Tích điểm Loyalty (+1 điểm / 10.000đ)&#xa;• Ghi OrderStatusHistory" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontColor=#14532d;fontSize=12;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="500" y="1465" width="240" height="85" as="geometry" />
-        </mxCell>
-
-        <!-- Thông báo thanh toán thành công -->
-        <mxCell id="act_show_paid_order" value="14. Hiển thị màn hình đặt thành công&#xa;kèm Mã nhận đơn &amp; Tiến độ đơn" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontColor=#1e3a8a;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="135" y="1480" width="170" height="55" as="geometry" />
-        </mxCell>
-
-        <!-- ==================== GIAI ĐOẠN 6: BARISTA PHA CHẾ & BÀN GIAO ==================== -->
-        <!-- Đơn xuất hiện trên Kanban -->
-        <mxCell id="act_kanban_receive" value="15. Đơn hàng tự động hiển thị&#xa;ở cột PAID trên bảng Kanban&#xa;(GET /api/staff/orders)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontColor=#14532d;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="1265" y="1480" width="190" height="55" as="geometry" />
-        </mxCell>
-
-        <!-- Barista nhận đơn PREPARING -->
-        <mxCell id="act_accept_order" value="16. Barista bấm 'Tiếp nhận đơn'&#xa;Chuyển: PAID -> PREPARING&#xa;(POST /api/staff/orders/:id/accept)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontColor=#14532d;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="1265" y="1575" width="190" height="60" as="geometry" />
-        </mxCell>
-
-        <!-- Barista xem Recipe và pha chế -->
-        <mxCell id="act_make_drinks" value="17. Xem chi tiết công thức định lượng&#xa;(GET /api/staff/orders/:id/recipes)&#xa;&amp; Tiến hành pha chế đồ uống" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontColor=#14532d;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="1255" y="1670" width="210" height="60" as="geometry" />
-        </mxCell>
-
-        <!-- Pha xong READY -->
-        <mxCell id="act_mark_ready" value="18. Pha chế xong, Barista bấm:&#xa;Chuyển: PREPARING -> READY&#xa;(POST /api/staff/orders/:id/ready)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontColor=#14532d;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="1265" y="1765" width="190" height="60" as="geometry" />
-        </mxCell>
-
-        <!-- Khách nhận thông báo READY -->
-        <mxCell id="act_customer_ready_notify" value="19. Nhận thông báo: 'Đồ uống đã xong,&#xa;mời bạn tới quầy nhận món!'" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontColor=#1e3a8a;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="135" y="1770" width="170" height="50" as="geometry" />
-        </mxCell>
-
-        <!-- Khách đến quầy đọc mã -->
-        <mxCell id="act_show_code" value="20. Khách hàng đến quầy&#xa;xuất trình mã đơn hàng" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontColor=#1e3a8a;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="135" y="1855" width="170" height="50" as="geometry" />
-        </mxCell>
-
-        <!-- Barista đối chiếu & giao nước -->
-        <mxCell id="act_deliver_drinks" value="21. Barista đối chiếu mã đơn,&#xa;bàn giao đồ uống cho khách &amp; bấm:&#xa;READY -> COMPLETED&#xa;(POST /api/staff/orders/:id/complete)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontColor=#14532d;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="1255" y="1845" width="210" height="70" as="geometry" />
-        </mxCell>
-
-        <!-- Khách nhận đồ uống thành công -->
-        <mxCell id="act_receive_drink" value="22. Khách hàng nhận đồ uống,&#xa;thưởng thức và kết thúc quy trình" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontColor=#1e3a8a;fontSize=12;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="135" y="1955" width="170" height="50" as="geometry" />
-        </mxCell>
-
-        <!-- End Node Hoàn Tất -->
-        <mxCell id="end_node_success" value="" style="ellipse;html=1;shape=endState;fillColor=#22c55e;strokeColor=#15803d;" vertex="1" parent="1">
-          <mxGeometry x="205" y="2045" width="30" height="30" as="geometry" />
-        </mxCell>
-
-        <!-- Ghi chú kết thúc -->
-        <mxCell id="lbl_end_success" value="Hoàn thành đơn hàng" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=11;fontColor=#15803d;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="155" y="2080" width="130" height="25" as="geometry" />
-        </mxCell>
-
-        <!-- ==================== LUỒNG KẾT NỐI (EDGES / TRANSITIONS) ==================== -->
-        <!-- Start -> Open App -->
-        <mxCell id="e_start_open" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="start_node" target="act_open_app">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Open App -> Fetch Menu -->
-        <mxCell id="e_open_fetch" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_open_app" target="act_fetch_menu">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Fetch Menu -> View Menu -->
-        <mxCell id="e_fetch_view" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_fetch_menu" target="act_view_menu">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="620" y="270" />
-              <mxPoint x="220" y="270" />
-            </Array>
-          </mxGeometry>
-        </mxCell>
-
-        <!-- View Menu -> Choose Variant -->
-        <mxCell id="e_view_choose" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_view_menu" target="act_choose_variant">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Choose Variant -> Add Cart -->
-        <mxCell id="e_choose_cart" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_choose_variant" target="act_add_cart">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Add Cart -> Check Login -->
-        <mxCell id="e_cart_dec_login" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_add_cart" target="dec_is_logged_in">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Check Login [Chưa] -> Login Form -->
-        <mxCell id="e_login_no" value="[Chưa đăng nhập]" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#d97706;" edge="1" parent="1" source="dec_is_logged_in" target="act_login_form">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="350" y="560" />
-            </Array>
-          </mxGeometry>
-        </mxCell>
-
-        <!-- Login Form -> Auth Verify -->
-        <mxCell id="e_form_verify" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_login_form" target="act_auth_verify">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Auth Verify -> Merge Login -->
-        <mxCell id="e_verify_merge" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_auth_verify" target="merge_login">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="620" y="720" />
-            </Array>
-          </mxGeometry>
-        </mxCell>
-
-        <!-- Check Login [Đã] -> Merge Login -->
-        <mxCell id="e_login_yes" value="[Đã đăng nhập]" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#2563eb;" edge="1" parent="1" source="dec_is_logged_in" target="merge_login">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="140" y="600" as="sourcePoint" />
-            <Array as="points">
-              <mxPoint x="150" y="560" />
-              <mxPoint x="150" y="720" />
-            </Array>
-          </mxGeometry>
-        </mxCell>
-
-        <!-- Merge Login -> Submit Order -->
-        <mxCell id="e_merge_submit" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="merge_login" target="act_submit_order">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Submit Order -> Create Pending -->
-        <mxCell id="e_submit_create" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_submit_order" target="act_create_pending">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Create Pending -> Click Pay -->
-        <mxCell id="e_create_pay" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_create_pending" target="act_click_pay">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="620" y="835" />
-              <mxPoint x="220" y="835" />
-            </Array>
-          </mxGeometry>
-        </mxCell>
-
-        <!-- Click Pay -> Process Payment -->
-        <mxCell id="e_click_process" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_click_pay" target="act_process_payment">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Process Payment -> Check Stock -->
-        <mxCell id="e_proc_stock" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_process_payment" target="act_check_stock">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Check Stock -> Decision Stock -->
-        <mxCell id="e_stock_dec" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_check_stock" target="dec_stock_available">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Decision Stock [Không đủ] -> Stock Conflict -->
-        <mxCell id="e_stock_no" value="[Không đủ tồn kho / Hết hàng]" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#ef4444;fontStyle=1;" edge="1" parent="1" source="dec_stock_available" target="act_stock_conflict">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="515" y="1055" />
-            </Array>
-          </mxGeometry>
-        </mxCell>
-
-        <!-- Stock Conflict -> Show Out of Stock -->
-        <mxCell id="e_conflict_show" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_stock_conflict" target="act_show_out_of_stock">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Show Out of Stock -> End Stock -->
-        <mxCell id="e_show_end_stock" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_show_out_of_stock" target="end_node_stock">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Decision Stock [Đủ] -> Call Gateway -->
-        <mxCell id="e_stock_yes" value="[Đủ nguyên liệu]" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#16a34a;fontStyle=1;" edge="1" parent="1" source="dec_stock_available" target="act_call_gateway">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Call Gateway -> Gateway Process -->
-        <mxCell id="e_call_process" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_call_gateway" target="act_gateway_process">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Gateway Process -> Decision Payment Success -->
-        <mxCell id="e_gateway_dec" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_gateway_process" target="dec_payment_success">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Decision Payment [Thất bại] -> Payment Failed -->
-        <mxCell id="e_pay_failed" value="[Thất bại / Lỗi thẻ]" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#ef4444;fontStyle=1;" edge="1" parent="1" source="dec_payment_success" target="act_payment_failed">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Payment Failed -> Show Pay Failed -->
-        <mxCell id="e_failed_show" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_payment_failed" target="act_show_pay_failed">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="1010" y="1380" />
-              <mxPoint x="220" y="1380" />
-            </Array>
-          </mxGeometry>
-        </mxCell>
-
-        <!-- Show Pay Failed -> End Fail -->
-        <mxCell id="e_show_end_fail" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_show_pay_failed" target="end_node_payment_fail">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Decision Payment [Thành công] -> TX Success -->
-        <mxCell id="e_pay_success" value="[Thanh toán thành công]" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;fontSize=10;fontColor=#16a34a;fontStyle=1;" edge="1" parent="1" source="dec_payment_success" target="act_tx_success">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="870" y="1230" />
-              <mxPoint x="870" y="1510" />
-            </Array>
-          </mxGeometry>
-        </mxCell>
-
-        <!-- TX Success -> Show Paid Order -->
-        <mxCell id="e_tx_show_paid" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_tx_success" target="act_show_paid_order">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- TX Success -> Kanban Receive -->
-        <mxCell id="e_tx_kanban" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_tx_success" target="act_kanban_receive">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Kanban Receive -> Accept Order -->
-        <mxCell id="e_kanban_accept" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_kanban_receive" target="act_accept_order">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Accept Order -> Make Drinks -->
-        <mxCell id="e_accept_make" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_accept_order" target="act_make_drinks">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Make Drinks -> Mark Ready -->
-        <mxCell id="e_make_ready" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_make_drinks" target="act_mark_ready">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Mark Ready -> Notify Customer -->
-        <mxCell id="e_ready_notify" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_mark_ready" target="act_customer_ready_notify">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Notify Customer -> Show Code -->
-        <mxCell id="e_notify_show_code" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_customer_ready_notify" target="act_show_code">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Show Code -> Deliver Drinks -->
-        <mxCell id="e_code_deliver" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_show_code" target="act_deliver_drinks">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- Deliver Drinks -> Receive Drink -->
-        <mxCell id="e_deliver_receive" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_deliver_drinks" target="act_receive_drink">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="1360" y="1980" />
-            </Array>
-          </mxGeometry>
-        </mxCell>
-
-        <!-- Receive Drink -> End Success -->
-        <mxCell id="e_receive_end" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="act_receive_drink" target="end_node_success">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-      </root>
-    </mxGraphModel>
-  </diagram>
-</mxfile>
+<mxfile host="app.diagrams.net"><diagram id="brewlite" name="BrewLite Activity"><mxGraphModel dx="1479" dy="1831" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1479" pageHeight="3110" math="0" shadow="0"><root><mxCell id="0" /><mxCell id="1" parent="0" />
+<mxCell id="c11" value="Khách hàng (Customer)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;strokeWidth=1.8;fontSize=15;fontStyle=1;verticalAlign=top;align=center;spacingTop=4;" vertex="1" parent="1"><mxGeometry x="20" y="20" width="427" height="3050" as="geometry" /></mxCell>
+<mxCell id="c12" style="endArrow=none;html=1;strokeWidth=1;rounded=0;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="20" y="52" as="sourcePoint" /><mxPoint x="446" y="52" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c13" value="Hệ thống Backend" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;strokeWidth=1.8;fontSize=15;fontStyle=1;verticalAlign=top;align=center;spacingTop=4;" vertex="1" parent="1"><mxGeometry x="447" y="20" width="283" height="3050" as="geometry" /></mxCell>
+<mxCell id="c14" style="endArrow=none;html=1;strokeWidth=1;rounded=0;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="447" y="52" as="sourcePoint" /><mxPoint x="730" y="52" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c15" value="Cổng thanh toán" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;strokeWidth=1.8;fontSize=15;fontStyle=1;verticalAlign=top;align=center;spacingTop=4;" vertex="1" parent="1"><mxGeometry x="730" y="20" width="301" height="3050" as="geometry" /></mxCell>
+<mxCell id="c16" style="endArrow=none;html=1;strokeWidth=1;rounded=0;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="730" y="52" as="sourcePoint" /><mxPoint x="1031" y="52" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c17" value="Nhân viên quầy (Barista)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;strokeWidth=1.8;fontSize=15;fontStyle=1;verticalAlign=top;align=center;spacingTop=4;" vertex="1" parent="1"><mxGeometry x="1031" y="20" width="428" height="3050" as="geometry" /></mxCell>
+<mxCell id="c18" style="endArrow=none;html=1;strokeWidth=1;rounded=0;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="1031" y="52" as="sourcePoint" /><mxPoint x="1459" y="52" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c19" value="" style="ellipse;html=1;fillColor=#000000;" vertex="1" parent="1"><mxGeometry x="309" y="60" width="22" height="22" as="geometry" /></mxCell>
+<mxCell id="c20" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="320" y="82" as="sourcePoint" /><mxPoint x="320" y="100" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c21" value="1. Mở Web App BrewLite" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="220" y="100" width="200" height="42" as="geometry" /></mxCell>
+<mxCell id="c22" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="420" y="121" as="sourcePoint" /><mxPoint x="473" y="121" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c23" value="2. Truy vấn Menu, chi tiết,&lt;br&gt;Topping: GET /products,&lt;br&gt;GET /products/:id,&lt;br&gt;GET /products/toppings" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="473" y="100" width="230" height="128" as="geometry" /></mxCell>
+<mxCell id="c24" value="3. Xem thực đơn, tìm kiếm,&lt;br&gt;lọc danh mục, xem chi tiết&lt;br&gt;món (có cờ hết hàng&lt;br&gt;theo từng size)" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="220" y="158" width="200" height="86" as="geometry" /></mxCell>
+<mxCell id="c25" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="473" y="201" as="sourcePoint" /><mxPoint x="420" y="201" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c26" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="320" y="244" as="sourcePoint" /><mxPoint x="320" y="268" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c27" value="4. Chọn món, Size &amp;&lt;br&gt;Topping" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="220" y="268" width="200" height="52" as="geometry" /></mxCell>
+<mxCell id="c28" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="320" y="320" as="sourcePoint" /><mxPoint x="320" y="346" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c29" value="5. Thêm vào Giỏ hàng" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="220" y="346" width="200" height="42" as="geometry" /></mxCell>
+<mxCell id="c30" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="320" y="388" as="sourcePoint" /><mxPoint x="320" y="413" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c31" value="Đã đăng nhập?" style="rhombus;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=13;strokeWidth=1.3;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="225" y="413" width="190" height="58" as="geometry" /></mxCell>
+<mxCell id="c32" value="Đã" style="text;html=1;align=center;verticalAlign=middle;fontSize=15;" vertex="1" parent="1"><mxGeometry x="185" y="418" width="38" height="20" as="geometry" /></mxCell>
+<mxCell id="c33" style="endArrow=none;html=1;rounded=0;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="225" y="442" as="sourcePoint" /><mxPoint x="320" y="678" as="targetPoint" /><Array as="points"><mxPoint x="185" y="442" /><mxPoint x="185" y="678" /></Array></mxGeometry></mxCell>
+<mxCell id="c34" value="Chưa" style="text;html=1;align=center;verticalAlign=middle;fontSize=15;" vertex="1" parent="1"><mxGeometry x="326" y="473" width="48" height="20" as="geometry" /></mxCell>
+<mxCell id="c35" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="320" y="471" as="sourcePoint" /><mxPoint x="320" y="500" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c36" value="6a. Đăng nhập (username,&lt;br&gt;mật khẩu) hoặc Đăng ký" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="220" y="500" width="200" height="56" as="geometry" /></mxCell>
+<mxCell id="c37" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="420" y="528" as="sourcePoint" /><mxPoint x="473" y="528" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c38" value="6b. Xác thực / tạo tài khoản&lt;br&gt;&amp; cấp Access + Refresh JWT" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="473" y="500" width="230" height="56" as="geometry" /></mxCell>
+<mxCell id="c39" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="588" y="556" as="sourcePoint" /><mxPoint x="588" y="586" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c40" value="Thông tin hợp lệ?" style="rhombus;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=13;strokeWidth=1.3;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="483" y="586" width="210" height="60" as="geometry" /></mxCell>
+<mxCell id="c41" value="Không" style="text;html=1;align=center;verticalAlign=middle;fontSize=15;" vertex="1" parent="1"><mxGeometry x="365" y="592" width="70" height="20" as="geometry" /></mxCell>
+<mxCell id="c42" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="483" y="616" as="sourcePoint" /><mxPoint x="320" y="556" as="targetPoint" /><Array as="points"><mxPoint x="320" y="616" /></Array></mxGeometry></mxCell>
+<mxCell id="c43" value="Hợp lệ" style="text;html=1;align=center;verticalAlign=middle;fontSize=15;" vertex="1" parent="1"><mxGeometry x="594" y="648" width="60" height="20" as="geometry" /></mxCell>
+<mxCell id="c44" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="588" y="646" as="sourcePoint" /><mxPoint x="320" y="710" as="targetPoint" /><Array as="points"><mxPoint x="588" y="678" /><mxPoint x="320" y="678" /></Array></mxGeometry></mxCell>
+<mxCell id="c47" value="7. Xem voucher khả dụng,&lt;br&gt;nhập Voucher / điểm&lt;br&gt;thưởng &amp; nhấn Đặt hàng" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="220" y="710" width="200" height="76" as="geometry" /></mxCell>
+<mxCell id="c48" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="420" y="748" as="sourcePoint" /><mxPoint x="588" y="826" as="targetPoint" /><Array as="points"><mxPoint x="588" y="748" /></Array></mxGeometry></mxCell>
+<mxCell id="c49" value="Giỏ hàng &amp; món hợp lệ?&lt;br&gt;(POST /orders)" style="rhombus;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=13;strokeWidth=1.3;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="463" y="826" width="250" height="68" as="geometry" /></mxCell>
+<mxCell id="c50" value="Không hợp lệ" style="text;html=1;align=center;verticalAlign=middle;fontSize=15;" vertex="1" parent="1"><mxGeometry x="280" y="836" width="110" height="20" as="geometry" /></mxCell>
+<mxCell id="c51" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="463" y="860" as="sourcePoint" /><mxPoint x="210" y="860" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c52" value="Hiển thị lỗi: giỏ hàng&lt;br&gt;rỗng / món không còn&lt;br&gt;tồn tại" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="50" y="826" width="160" height="68" as="geometry" /></mxCell>
+<mxCell id="c53" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="130" y="894" as="sourcePoint" /><mxPoint x="130" y="918" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c54" value="" style="ellipse;html=1;fillColor=none;" vertex="1" parent="1"><mxGeometry x="119" y="918" width="22" height="22" as="geometry" /></mxCell>
+<mxCell id="c55" value="" style="ellipse;html=1;fillColor=#000000;" vertex="1" parent="1"><mxGeometry x="123" y="922" width="14" height="14" as="geometry" /></mxCell>
+<mxCell id="c56" value="Hợp lệ" style="text;html=1;align=center;verticalAlign=middle;fontSize=15;" vertex="1" parent="1"><mxGeometry x="594" y="896" width="60" height="20" as="geometry" /></mxCell>
+<mxCell id="c57" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="588" y="894" as="sourcePoint" /><mxPoint x="588" y="922" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c58" value="8. Validate voucher (bỏ qua mã&lt;br&gt;sai), trừ điểm đã dùng, tạo&lt;br&gt;đơn PENDING (POST /orders)&lt;br&gt;+ ghi audit log" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="473" y="922" width="230" height="86" as="geometry" /></mxCell>
+<mxCell id="c59" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="473" y="990" as="sourcePoint" /><mxPoint x="420" y="990" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c60" value="9. Chọn Ví / Thẻ &amp;&lt;br&gt;Nhấn Thanh toán" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="220" y="972" width="200" height="76" as="geometry" /></mxCell>
+<mxCell id="c61" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="420" y="1035" as="sourcePoint" /><mxPoint x="473" y="1035" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c62" value="10. POST /payments:&lt;br&gt;nhận yêu cầu &amp; kiểm tra&lt;br&gt;Idempotency-Key" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="473" y="1022" width="230" height="68" as="geometry" /></mxCell>
+<mxCell id="c63" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="588" y="1090" as="sourcePoint" /><mxPoint x="588" y="1118" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c64" value="Key đã được dùng?" style="rhombus;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=13;strokeWidth=1.3;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="493" y="1118" width="190" height="58" as="geometry" /></mxCell>
+<mxCell id="c65" value="Đã dùng" style="text;html=1;align=center;verticalAlign=middle;fontSize=15;" vertex="1" parent="1"><mxGeometry x="594" y="1182" width="62" height="20" as="geometry" /></mxCell>
+<mxCell id="c66" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="588" y="1176" as="sourcePoint" /><mxPoint x="588" y="1208" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c67" value="Cùng đơn &amp;&lt;br&gt;phương thức?" style="rhombus;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=13;strokeWidth=1.3;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="480" y="1208" width="216" height="66" as="geometry" /></mxCell>
+<mxCell id="c68" value="Đúng" style="text;html=1;align=center;verticalAlign=middle;fontSize=15;" vertex="1" parent="1"><mxGeometry x="405" y="1216" width="40" height="20" as="geometry" /></mxCell>
+<mxCell id="c69" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="480" y="1241" as="sourcePoint" /><mxPoint x="385" y="1241" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c70" value="Hiển thị lại kết quả&lt;br&gt;đã thanh toán (tránh&lt;br&gt;trừ tiền 2 lần)" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="205" y="1204" width="180" height="68" as="geometry" /></mxCell>
+<mxCell id="c71" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="295" y="1272" as="sourcePoint" /><mxPoint x="295" y="1290" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c72" value="" style="ellipse;html=1;fillColor=none;" vertex="1" parent="1"><mxGeometry x="284" y="1290" width="22" height="22" as="geometry" /></mxCell>
+<mxCell id="c73" value="" style="ellipse;html=1;fillColor=#000000;" vertex="1" parent="1"><mxGeometry x="288" y="1294" width="14" height="14" as="geometry" /></mxCell>
+<mxCell id="c74" value="Không khớp" style="text;html=1;align=center;verticalAlign=middle;fontSize=14;" vertex="1" parent="1"><mxGeometry x="492" y="1292" width="90" height="20" as="geometry" /></mxCell>
+<mxCell id="c75" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="588" y="1274" as="sourcePoint" /><mxPoint x="130" y="1382" as="targetPoint" /><Array as="points"><mxPoint x="588" y="1336" /><mxPoint x="130" y="1336" /></Array></mxGeometry></mxCell>
+<mxCell id="c76" value="Chưa" style="text;html=1;align=center;verticalAlign=middle;fontSize=14;" vertex="1" parent="1"><mxGeometry x="682" y="1124" width="40" height="20" as="geometry" /></mxCell>
+<mxCell id="c77" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="683" y="1147" as="sourcePoint" /><mxPoint x="716" y="1396" as="targetPoint" /><Array as="points"><mxPoint x="723" y="1147" /><mxPoint x="723" y="1396" /></Array></mxGeometry></mxCell>
+<mxCell id="c78" value="Đúng chủ đơn &amp;&lt;br&gt;PENDING / PAYMENT_FAILED?" style="rhombus;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=11;strokeWidth=1.3;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="460" y="1360" width="256" height="72" as="geometry" /></mxCell>
+<mxCell id="c79" value="Không hợp lệ" style="text;html=1;align=center;verticalAlign=middle;fontSize=15;" vertex="1" parent="1"><mxGeometry x="330" y="1372" width="110" height="20" as="geometry" /></mxCell>
+<mxCell id="c80" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="460" y="1396" as="sourcePoint" /><mxPoint x="144" y="1396" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c81" value="" style="rhombus;whiteSpace=wrap;html=1;strokeWidth=1.3;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="116" y="1382" width="28" height="28" as="geometry" /></mxCell>
+<mxCell id="c82" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="130" y="1410" as="sourcePoint" /><mxPoint x="130" y="1436" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c83" value="Hiển thị thông báo lỗi&lt;br&gt;(trùng khóa giao dịch /&lt;br&gt;đơn không hợp lệ)" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=13;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="46" y="1436" width="168" height="74" as="geometry" /></mxCell>
+<mxCell id="c84" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="130" y="1510" as="sourcePoint" /><mxPoint x="130" y="1532" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c85" value="" style="ellipse;html=1;fillColor=none;" vertex="1" parent="1"><mxGeometry x="119" y="1532" width="22" height="22" as="geometry" /></mxCell>
+<mxCell id="c86" value="" style="ellipse;html=1;fillColor=#000000;" vertex="1" parent="1"><mxGeometry x="123" y="1536" width="14" height="14" as="geometry" /></mxCell>
+<mxCell id="c87" value="Hợp lệ" style="text;html=1;align=center;verticalAlign=middle;fontSize=15;" vertex="1" parent="1"><mxGeometry x="594" y="1434" width="60" height="20" as="geometry" /></mxCell>
+<mxCell id="c88" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="588" y="1432" as="sourcePoint" /><mxPoint x="588" y="1462" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c89" value="11. Mở transaction, trừ kho&lt;br&gt;(Optimistic Locking: version,&lt;br&gt;retry tối đa 3 lần)" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="473" y="1462" width="230" height="66" as="geometry" /></mxCell>
+<mxCell id="c90" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="588" y="1528" as="sourcePoint" /><mxPoint x="588" y="1554" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c91" value="Đủ nguyên liệu &amp;&lt;br&gt;không xung đột?" style="rhombus;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=13;strokeWidth=1.3;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="470" y="1554" width="236" height="74" as="geometry" /></mxCell>
+<mxCell id="c92" value="Không đủ" style="text;html=1;align=center;verticalAlign=middle;fontSize=15;" vertex="1" parent="1"><mxGeometry x="512" y="1630" width="72" height="20" as="geometry" /></mxCell>
+<mxCell id="c93" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="588" y="1628" as="sourcePoint" /><mxPoint x="588" y="1660" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c94" value="Báo xung đột tồn kho &amp;&lt;br&gt;Rollback" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="488" y="1660" width="200" height="50" as="geometry" /></mxCell>
+<mxCell id="c95" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="488" y="1685" as="sourcePoint" /><mxPoint x="210" y="1685" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c96" value="Hiển thị: Hết nguyên&lt;br&gt;liệu / xung đột!" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="50" y="1660" width="160" height="50" as="geometry" /></mxCell>
+<mxCell id="c97" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="130" y="1710" as="sourcePoint" /><mxPoint x="130" y="1732" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c98" value="" style="ellipse;html=1;fillColor=none;" vertex="1" parent="1"><mxGeometry x="119" y="1732" width="22" height="22" as="geometry" /></mxCell>
+<mxCell id="c99" value="" style="ellipse;html=1;fillColor=#000000;" vertex="1" parent="1"><mxGeometry x="123" y="1736" width="14" height="14" as="geometry" /></mxCell>
+<mxCell id="c100" value="Đủ" style="text;html=1;align=center;verticalAlign=middle;fontSize=15;" vertex="1" parent="1"><mxGeometry x="733" y="1567" width="28" height="20" as="geometry" /></mxCell>
+<mxCell id="c101" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="706" y="1591" as="sourcePoint" /><mxPoint x="765" y="1591" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c102" value="12. Cổng thanh toán xử lý&lt;br&gt;trừ tiền (giả lập:&lt;br&gt;OK / FAIL / TIMEOUT)" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="765" y="1554" width="230" height="74" as="geometry" /></mxCell>
+<mxCell id="c103" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="880" y="1628" as="sourcePoint" /><mxPoint x="880" y="1664" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c104" value="Thanh toán thành công?" style="rhombus;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=13;strokeWidth=1.3;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="762" y="1664" width="236" height="68" as="geometry" /></mxCell>
+<mxCell id="c105" value="Thất bại" style="text;html=1;align=center;verticalAlign=middle;fontSize=15;" vertex="1" parent="1"><mxGeometry x="815" y="1736" width="62" height="20" as="geometry" /></mxCell>
+<mxCell id="c106" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="880" y="1732" as="sourcePoint" /><mxPoint x="880" y="1782" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c107" value="Báo thất bại /&lt;br&gt;TIMEOUT" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="800" y="1782" width="160" height="48" as="geometry" /></mxCell>
+<mxCell id="c108" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="800" y="1806" as="sourcePoint" /><mxPoint x="703" y="1806" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c109" value="Rollback kho, cập nhật&lt;br&gt;PAYMENT_FAILED &amp; audit log" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="473" y="1776" width="230" height="60" as="geometry" /></mxCell>
+<mxCell id="c110" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="473" y="1806" as="sourcePoint" /><mxPoint x="210" y="1806" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c111" value="Hiển thị: Thanh toán&lt;br&gt;thất bại!" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="50" y="1782" width="160" height="48" as="geometry" /></mxCell>
+<mxCell id="c112" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="130" y="1830" as="sourcePoint" /><mxPoint x="130" y="1862" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c113" value="Thành công" style="text;html=1;align=center;verticalAlign=middle;fontSize=14;" vertex="1" parent="1"><mxGeometry x="924" y="1726" width="86" height="22" as="geometry" /></mxCell>
+<mxCell id="c114" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="998" y="1698" as="sourcePoint" /><mxPoint x="703" y="2152" as="targetPoint" /><Array as="points"><mxPoint x="1014" y="1698" /><mxPoint x="1014" y="2152" /></Array></mxGeometry></mxCell>
+<mxCell id="c115" value="Thử lại hay hủy?" style="rhombus;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=13;strokeWidth=1.3;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="46" y="1862" width="168" height="62" as="geometry" /></mxCell>
+<mxCell id="c116" value="Thử lại" style="text;html=1;align=center;verticalAlign=middle;fontSize=14;" vertex="1" parent="1"><mxGeometry x="30" y="1856" width="54" height="20" as="geometry" /></mxCell>
+<mxCell id="c117" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="46" y="1893" as="sourcePoint" /><mxPoint x="220" y="1010" as="targetPoint" /><Array as="points"><mxPoint x="25" y="1893" /><mxPoint x="25" y="1010" /></Array></mxGeometry></mxCell>
+<mxCell id="c118" value="Hủy" style="text;html=1;align=center;verticalAlign=middle;fontSize=15;" vertex="1" parent="1"><mxGeometry x="136" y="1926" width="40" height="20" as="geometry" /></mxCell>
+<mxCell id="c119" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="130" y="1924" as="sourcePoint" /><mxPoint x="130" y="1954" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c120" value="Hủy đơn chưa thanh toán&lt;br&gt;(POST /orders/:id/cancel)" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=13;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="46" y="1954" width="168" height="66" as="geometry" /></mxCell>
+<mxCell id="c121" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="214" y="1987" as="sourcePoint" /><mxPoint x="473" y="1987" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c122" value="Kiểm tra chủ đơn &amp;&lt;br&gt;trạng thái PENDING /&lt;br&gt;PAYMENT_FAILED → CANCELLED&lt;br&gt;+ ghi audit log" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=13;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="473" y="1949" width="230" height="76" as="geometry" /></mxCell>
+<mxCell id="c123" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="588" y="2025" as="sourcePoint" /><mxPoint x="588" y="2050" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c124" value="" style="ellipse;html=1;fillColor=none;" vertex="1" parent="1"><mxGeometry x="577" y="2050" width="22" height="22" as="geometry" /></mxCell>
+<mxCell id="c125" value="" style="ellipse;html=1;fillColor=#000000;" vertex="1" parent="1"><mxGeometry x="581" y="2054" width="14" height="14" as="geometry" /></mxCell>
+<mxCell id="c126" value="13. Commit ACID: tạo Payment,&lt;br&gt;đơn → PAID, voucher +1,&lt;br&gt;cộng điểm (1đ/10.000đ),&lt;br&gt;ghi audit log" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="473" y="2108" width="230" height="88" as="geometry" /></mxCell>
+<mxCell id="c127" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="473" y="2152" as="sourcePoint" /><mxPoint x="420" y="2152" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c128" value="14. Màn hình Đặt thành&lt;br&gt;công &amp; Mã đơn (PAID)" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="220" y="2114" width="200" height="76" as="geometry" /></mxCell>
+<mxCell id="c129" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="320" y="2190" as="sourcePoint" /><mxPoint x="320" y="2220" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c130" value="Hủy đơn trước&lt;br&gt;pha chế?" style="rhombus;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=13;strokeWidth=1.3;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="224" y="2220" width="192" height="68" as="geometry" /></mxCell>
+<mxCell id="c131" value="Không" style="text;html=1;align=center;verticalAlign=middle;fontSize=15;" vertex="1" parent="1"><mxGeometry x="456" y="2230" width="50" height="20" as="geometry" /></mxCell>
+<mxCell id="c132" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="416" y="2254" as="sourcePoint" /><mxPoint x="1060" y="2254" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c133" value="Hủy" style="text;html=1;align=center;verticalAlign=middle;fontSize=15;" vertex="1" parent="1"><mxGeometry x="326" y="2292" width="40" height="20" as="geometry" /></mxCell>
+<mxCell id="c134" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="320" y="2288" as="sourcePoint" /><mxPoint x="320" y="2318" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c135" value="Hủy đơn&lt;br&gt;(POST /orders/:id/cancel)" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="220" y="2318" width="200" height="56" as="geometry" /></mxCell>
+<mxCell id="c136" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="420" y="2346" as="sourcePoint" /><mxPoint x="588" y="2390" as="targetPoint" /><Array as="points"><mxPoint x="588" y="2346" /></Array></mxGeometry></mxCell>
+<mxCell id="c137" value="Kiểm tra chủ đơn &amp;&lt;br&gt;State Machine:&lt;br&gt;đơn còn PAID?" style="rhombus;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=13;strokeWidth=1.3;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="460" y="2390" width="256" height="82" as="geometry" /></mxCell>
+<mxCell id="c138" value="Đang PAID" style="text;html=1;align=center;verticalAlign=middle;fontSize=14;" vertex="1" parent="1"><mxGeometry x="594" y="2476" width="82" height="20" as="geometry" /></mxCell>
+<mxCell id="c139" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="588" y="2472" as="sourcePoint" /><mxPoint x="588" y="2506" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c140" value="Hoàn kho nguyên liệu,&lt;br&gt;thu hồi điểm đã tích,&lt;br&gt;hoàn lượt voucher →&lt;br&gt;CANCELLED + audit log" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=13;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="473" y="2506" width="230" height="86" as="geometry" /></mxCell>
+<mxCell id="c141" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="588" y="2592" as="sourcePoint" /><mxPoint x="588" y="2612" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c142" value="" style="ellipse;html=1;fillColor=none;" vertex="1" parent="1"><mxGeometry x="577" y="2612" width="22" height="22" as="geometry" /></mxCell>
+<mxCell id="c143" value="" style="ellipse;html=1;fillColor=#000000;" vertex="1" parent="1"><mxGeometry x="581" y="2616" width="14" height="14" as="geometry" /></mxCell>
+<mxCell id="c144" value="Đã PREPARING+" style="text;html=1;align=center;verticalAlign=middle;fontSize=14;" vertex="1" parent="1"><mxGeometry x="276" y="2406" width="125" height="20" as="geometry" /></mxCell>
+<mxCell id="c145" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="460" y="2431" as="sourcePoint" /><mxPoint x="220" y="2431" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c146" value="Hiển thị thông báo:&lt;br&gt;Đơn đang pha,&lt;br&gt;không thể hủy" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="50" y="2401" width="170" height="64" as="geometry" /></mxCell>
+<mxCell id="c147" value="Chờ pha chế xong (polling 2s)" style="text;html=1;align=center;verticalAlign=middle;fontSize=14;" vertex="1" parent="1"><mxGeometry x="765" y="2642" width="230" height="20" as="geometry" /></mxCell>
+<mxCell id="c148" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="135" y="2465" as="sourcePoint" /><mxPoint x="1343" y="2666" as="targetPoint" /><Array as="points"><mxPoint x="135" y="2666" /></Array></mxGeometry></mxCell>
+<mxCell id="c149" value="15. Nhận đơn PAID&lt;br&gt;(Kanban FIFO)" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="1060" y="2226" width="170" height="56" as="geometry" /></mxCell>
+<mxCell id="c150" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="1230" y="2254" as="sourcePoint" /><mxPoint x="1270" y="2254" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c151" value="16. Bấm Tiếp nhận:&lt;br&gt;PAID → PREPARING" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="1270" y="2226" width="175" height="56" as="geometry" /></mxCell>
+<mxCell id="c152" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="1357" y="2282" as="sourcePoint" /><mxPoint x="1357" y="2318" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c153" value="17. Xem Recipes &amp;&lt;br&gt;Pha chế" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="1270" y="2318" width="175" height="56" as="geometry" /></mxCell>
+<mxCell id="c154" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="1357" y="2374" as="sourcePoint" /><mxPoint x="1357" y="2652" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c155" value="" style="rhombus;whiteSpace=wrap;html=1;strokeWidth=1.3;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="1343" y="2652" width="28" height="28" as="geometry" /></mxCell>
+<mxCell id="c156" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="1357" y="2680" as="sourcePoint" /><mxPoint x="1357" y="2704" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c157" value="18. Pha xong:&lt;br&gt;PREPARING → READY" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="1270" y="2704" width="175" height="56" as="geometry" /></mxCell>
+<mxCell id="c158" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="1270" y="2732" as="sourcePoint" /><mxPoint x="420" y="2732" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c159" value="19. Thông báo: &quot;Đồ uống&lt;br&gt;sẵn sàng!&quot;" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="220" y="2704" width="200" height="56" as="geometry" /></mxCell>
+<mxCell id="c160" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="320" y="2760" as="sourcePoint" /><mxPoint x="320" y="2788" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c161" value="20. Đến quầy xuất trình&lt;br&gt;mã" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="220" y="2788" width="200" height="56" as="geometry" /></mxCell>
+<mxCell id="c162" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="420" y="2816" as="sourcePoint" /><mxPoint x="1060" y="2816" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c163" value="21. Đối chiếu mã, giao&lt;br&gt;nước &amp; bấm Hoàn tất:&lt;br&gt;READY → COMPLETED" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="1060" y="2788" width="240" height="124" as="geometry" /></mxCell>
+<mxCell id="c164" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="1060" y="2896" as="sourcePoint" /><mxPoint x="420" y="2896" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c165" value="22. Nhận đồ uống &amp;&lt;br&gt;Thưởng thức" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="220" y="2868" width="200" height="56" as="geometry" /></mxCell>
+<mxCell id="c166" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="320" y="2924" as="sourcePoint" /><mxPoint x="320" y="2946" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c167" value="23. (Tùy chọn) Đánh giá&lt;br&gt;món (POST /reviews)" style="rounded=1;absoluteArcSize=1;arcSize=14;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;spacingLeft=6;spacingRight=6;fontSize=14;strokeWidth=1.2;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1"><mxGeometry x="220" y="2946" width="200" height="56" as="geometry" /></mxCell>
+<mxCell id="c168" style="endArrow=classic;html=1;rounded=0;endSize=7;strokeWidth=1.2;strokeColor=#000000;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="320" y="3002" as="sourcePoint" /><mxPoint x="320" y="3024" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="c169" value="" style="ellipse;html=1;fillColor=none;" vertex="1" parent="1"><mxGeometry x="309" y="3024" width="22" height="22" as="geometry" /></mxCell>
+<mxCell id="c170" value="" style="ellipse;html=1;fillColor=#000000;" vertex="1" parent="1"><mxGeometry x="313" y="3028" width="14" height="14" as="geometry" /></mxCell>
+</root></mxGraphModel></diagram></mxfile>

@@ -31,7 +31,7 @@ export class CreateOrderDto {
   @IsString()
   promotionCode?: string;
 
-  @ApiPropertyOptional({ description: 'Số điểm thưởng muốn sử dụng để trừ tiền (1 điểm = 1.000 VNĐ)', example: 10 })
+  @ApiPropertyOptional({ description: 'Số điểm thưởng muốn sử dụng để trừ tiền (1 điểm = 100 VNĐ)', example: 10 })
   @IsOptional()
   @IsNumber()
   loyaltyPointsToUse?: number;

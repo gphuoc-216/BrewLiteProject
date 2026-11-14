@@ -4,7 +4,10 @@ import { ApiTags, ApiOperation, ApiResponse, ApiHeader, ApiBearerAuth, ApiBody }
 import { PaymentService } from './payment.service';
 import { ProcessPaymentDto } from './dto/process-payment.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Role } from '@prisma/client';
 
 /**
  * Controller phụ trách các API thanh toán đơn hàng (Task 8 & 10)
@@ -22,7 +25,8 @@ export class PaymentController {
    * Yêu cầu Idempotency: Bắt buộc truyền Header 'Idempotency-Key' (UUID) để chống việc trừ tiền 2 lần khi click đúp.
    */
   @Post()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.CUSTOMER)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Thực hiện thanh toán đơn hàng không tiền mặt (Idempotent)' })
   @ApiHeader({

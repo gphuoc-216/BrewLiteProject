@@ -3,7 +3,10 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Role } from '@prisma/client';
 
 /**
  * =========================================================================================
@@ -20,7 +23,8 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
  */
 @ApiTags('Đơn hàng (Orders)')
 @Controller('orders')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.CUSTOMER)
 @ApiBearerAuth()
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}

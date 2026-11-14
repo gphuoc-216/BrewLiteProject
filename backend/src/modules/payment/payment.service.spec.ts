@@ -1,5 +1,11 @@
 import { PaymentService } from './payment.service';
-import { BadRequestException, UnprocessableEntityException, ConflictException } from '@nestjs/common';
+import {
+  BadRequestException,
+  UnprocessableEntityException,
+  ConflictException,
+  ForbiddenException,
+  RequestTimeoutException,
+} from '@nestjs/common';
 import { PaymentMethod, OrderStatus } from '@prisma/client';
 
 /**
@@ -291,6 +297,162 @@ describe('PaymentService (Thanh Toán Idempotent & Tồn Kho Đồng Thời - Ta
       expect(mockPrisma.customer.update).toHaveBeenCalledWith({
         where: { id: 'cust-1' },
         data: { loyaltyPoints: { increment: 5 } },
+      });
+    });
+  });
+
+  describe('Phân quyền thanh toán theo Use Case (RBAC Customer-only)', () => {
+    it('chặn ADMIN và STAFF thanh toán đơn hàng với ForbiddenException (403)', async () => {
+      await expect(
+        service.processPayment({ orderId: 'ord-1', method: PaymentMethod.WALLET }, 'KEY-ADMIN-01', {
+          profileId: 'adm-1',
+          role: 'ADMIN',
+        }),
+      ).rejects.toThrow(ForbiddenException);
+
+      await expect(
+        service.processPayment({ orderId: 'ord-1', method: PaymentMethod.WALLET }, 'KEY-STAFF-01', {
+          profileId: 'stf-1',
+          role: 'STAFF',
+        }),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockPrisma.payment.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('chặn CUSTOMER thanh toán đơn hàng của khách hàng khác với ForbiddenException (403)', async () => {
+      mockPrisma.payment.findUnique.mockResolvedValue(null);
+      mockPrisma.order.findUnique.mockResolvedValue({
+        id: 'ord-other',
+        customerId: 'cust-owner',
+        status: OrderStatus.PENDING,
+        items: [],
+      });
+
+      await expect(
+        service.processPayment({ orderId: 'ord-other', method: PaymentMethod.WALLET }, 'KEY-OTHER-01', {
+          profileId: 'cust-attacker',
+          customerId: 'cust-attacker',
+          role: 'CUSTOMER',
+        }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('chặn CUSTOMER tái sử dụng Idempotency-Key thuộc về đơn của khách khác với ForbiddenException (403)', async () => {
+      mockPrisma.payment.findUnique.mockResolvedValue({
+        id: 'pay-other',
+        idempotencyKey: 'KEY-STEAL',
+        orderId: 'ord-owner',
+        method: PaymentMethod.WALLET,
+        order: { id: 'ord-owner', customerId: 'cust-owner', status: OrderStatus.PAID },
+      });
+
+      await expect(
+        service.processPayment({ orderId: 'ord-owner', method: PaymentMethod.WALLET }, 'KEY-STEAL', {
+          profileId: 'cust-attacker',
+          customerId: 'cust-attacker',
+          role: 'CUSTOMER',
+        }),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Xử lý thất bại cổng thanh toán & rollback kho (Steps 11-12)', () => {
+    const buildPendingOrder = (id: string) => ({
+      id,
+      customerId: 'cust-1',
+      status: OrderStatus.PENDING,
+      totalAfterDiscount: 45000,
+      items: [
+        {
+          quantity: 1,
+          variant: {
+            recipes: [
+              {
+                ingredientId: 'ing-coffee',
+                quantityRequired: 20,
+                ingredient: { id: 'ing-coffee', name: 'Cà phê hạt Robusta' },
+              },
+            ],
+          },
+        },
+      ],
+    });
+
+    it('khi cổng thanh toán từ chối (FAIL): rollback tx kho và ghi PAYMENT_FAILED + audit log ở transaction riêng', async () => {
+      mockPrisma.payment.findUnique.mockResolvedValue(null);
+      mockPrisma.order.findUnique.mockResolvedValue(buildPendingOrder('ord-fail'));
+      mockPrisma.ingredient.findUnique.mockResolvedValue({
+        id: 'ing-coffee',
+        name: 'Cà phê hạt Robusta',
+        stockQuantity: 100,
+        version: 1,
+      });
+      mockPrisma.ingredient.updateMany.mockResolvedValue({ count: 1 });
+      mockGateway.processCharge.mockResolvedValue({
+        success: false,
+        message: 'Tài khoản ví không đủ số dư',
+      });
+
+      await expect(
+        service.processPayment(
+          { orderId: 'ord-fail', method: PaymentMethod.WALLET, simulateError: 'FAIL' },
+          'KEY-FAIL-01',
+          { profileId: 'cust-1', customerId: 'cust-1', role: 'CUSTOMER' },
+        ),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(mockPrisma.ingredient.updateMany).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(2);
+      expect(mockPrisma.order.update).toHaveBeenCalledWith({
+        where: { id: 'ord-fail' },
+        data: { status: OrderStatus.PAYMENT_FAILED },
+      });
+      expect(mockPrisma.orderStatusHistory.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          orderId: 'ord-fail',
+          fromStatus: OrderStatus.PENDING,
+          toStatus: OrderStatus.PAYMENT_FAILED,
+        }),
+      });
+    });
+
+    it('khi cổng thanh toán TIMEOUT: ném RequestTimeoutException (408) và vẫn ghi PAYMENT_FAILED + audit log (không rơi vào fallbackStore)', async () => {
+      mockPrisma.payment.findUnique.mockResolvedValue(null);
+      mockPrisma.order.findUnique.mockResolvedValue(buildPendingOrder('ord-timeout'));
+      mockPrisma.ingredient.findUnique.mockResolvedValue({
+        id: 'ing-coffee',
+        name: 'Cà phê hạt Robusta',
+        stockQuantity: 100,
+        version: 1,
+      });
+      mockPrisma.ingredient.updateMany.mockResolvedValue({ count: 1 });
+      mockGateway.processCharge.mockRejectedValue(
+        new RequestTimeoutException('Cổng thanh toán phản hồi TIMEOUT'),
+      );
+
+      await expect(
+        service.processPayment(
+          { orderId: 'ord-timeout', method: PaymentMethod.CARD, simulateError: 'TIMEOUT' },
+          'KEY-TIMEOUT-01',
+          { profileId: 'cust-1', customerId: 'cust-1', role: 'CUSTOMER' },
+        ),
+      ).rejects.toThrow(RequestTimeoutException);
+
+      expect(mockPrisma.ingredient.updateMany).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(2);
+      expect(mockPrisma.order.update).toHaveBeenCalledWith({
+        where: { id: 'ord-timeout' },
+        data: { status: OrderStatus.PAYMENT_FAILED },
+      });
+      expect(mockPrisma.orderStatusHistory.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          orderId: 'ord-timeout',
+          fromStatus: OrderStatus.PENDING,
+          toStatus: OrderStatus.PAYMENT_FAILED,
+        }),
       });
     });
   });

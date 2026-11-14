@@ -15,7 +15,7 @@ import {
   calcDiscountForVoucherList,
   toggleSmartVoucherSelection,
 } from '@/lib/vouchers';
-import { ALL_TOPPINGS, getToppingsForProduct, ToppingOption } from '@/lib/toppings';
+import { ALL_TOPPINGS, getToppingsForProduct, fetchToppingsCatalog, ToppingOption } from '@/lib/toppings';
 export { ALL_TOPPINGS };
 export type { ToppingOption };
 
@@ -79,6 +79,17 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
   const [voucherError, setVoucherError] = useState<string | null>(null);
 
   const [isVouchersOpen, setIsVouchersOpen] = useState(false);
+  const [toppingsCatalog, setToppingsCatalog] = useState<ToppingOption[]>(ALL_TOPPINGS);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchToppingsCatalog().then((list) => {
+      if (!cancelled) setToppingsCatalog(list);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const toggleTopping = (toppingName: string) => {
     setSelectedToppings((prev) =>
@@ -141,14 +152,14 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
   const isSelectedVariantOutOfStock = Boolean(selectedVariant?.isOutOfStock) || Boolean(product?.isOutOfStock);
 
   // Phân phối Topping chính xác theo từng món thực tế
-  const toppingsForCategory = getToppingsForProduct(product);
+  const toppingsForCategory = getToppingsForProduct(product, toppingsCatalog);
 
   // Giá gốc theo size đã chọn
   const baseSizePrice = Number(baseVariant?.price || product.minPrice || 0);
 
   // Tổng tiền các topping đang được tick chọn
   const extraToppingsPrice = selectedToppings.reduce((sum, name) => {
-    const opt = ALL_TOPPINGS.find((o) => o.name === name);
+    const opt = toppingsCatalog.find((o) => o.name === name);
     return sum + (opt ? opt.price : 0);
   }, 0);
 
@@ -201,6 +212,7 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
 
   const handleConfirm = (isBuyNow = false) => {
     if (!selectedVariant || isSelectedVariantOutOfStock) return;
+    if (user && user.role !== 'CUSTOMER') return;
 
     const cartPayload = {
       id: `${selectedVariant.id}:${toppingLabel}`,
@@ -293,6 +305,10 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
           >
             Tạm hết nguyên liệu pha chế
           </Button>
+        </div>
+      ) : user && user.role !== 'CUSTOMER' ? (
+        <div className="p-2.5 rounded bg-surface-2 border border-line text-ink-2 text-xs text-center">
+          Chế độ xem thực đơn (chỉ tài khoản Khách hàng mới có thể đặt món).
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-2.5">
@@ -564,8 +580,10 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
           </div>
         </div>
 
-        {/* Collapsible Voucher / Discount Code Section */}
-        <div className="rounded-xl border border-line bg-surface overflow-hidden">
+        {(!user || user.role === 'CUSTOMER') && (
+          <>
+            {/* Collapsible Voucher / Discount Code Section */}
+            <div className="rounded-xl border border-line bg-surface overflow-hidden">
           <button
             type="button"
             onClick={() => setIsVouchersOpen(!isVouchersOpen)}
@@ -742,7 +760,7 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
             ) : (
               <div className="text-[11px] text-ink-3 p-2 bg-surface/60 rounded-md border border-line/60">
                 {availablePoints === 0
-                  ? 'Bạn chưa có điểm tích lũy. Tích lũy 5% giá trị mỗi đơn khi thanh toán thành công!'
+                  ? 'Bạn chưa có điểm tích lũy. Tích lũy +1 điểm cho mỗi 10.000đ thanh toán thành công (1 điểm = 100đ)!'
                   : 'Đơn hàng đã được giảm tối đa hoặc không cần dùng thêm điểm thưởng.'}
               </div>
             )
@@ -758,6 +776,8 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
             </div>
           )}
         </div>
+          </>
+        )}
       </div>
     </Modal>
   );

@@ -51,24 +51,14 @@ export class OrdersService {
         where: {
           OR: [
             { id: customerId },
-            { admin: { id: customerId } },
-            { staff: { id: customerId } },
+            { customer: { id: customerId } },
           ],
         },
-        include: { customer: true, admin: true, staff: true },
+        include: { customer: true },
       });
 
-      if (acc) {
-        if (acc.customer) return acc.customer.id;
-        const newCust = await this.prisma.customer.create({
-          data: {
-            accountId: acc.id,
-            fullName: acc.admin?.fullName || acc.staff?.fullName || acc.username,
-            email: acc.admin?.email || acc.staff?.email || `${acc.username}@brewlite.vn`,
-            loyaltyPoints: 0,
-          },
-        });
-        return newCust.id;
+      if (acc?.customer) {
+        return acc.customer.id;
       }
     } catch {
       // ignore
@@ -288,6 +278,12 @@ export class OrdersService {
    * - Trả về toàn bộ chi tiết: công thức pha chế, nguyên liệu, lịch sử chuyển trạng thái (Audit Log).
    */
   async getOrderById(orderId: string, user: any) {
+    if (!user || user.role !== 'CUSTOMER') {
+      throw new ForbiddenException('Chỉ khách hàng (Customer) mới có quyền xem chi tiết đơn hàng cá nhân');
+    }
+
+    const actorCustomerId = user.customerId || user.profileId;
+
     try {
       const order = await this.prisma.order.findUnique({
         where: { id: orderId },
@@ -306,6 +302,7 @@ export class OrdersService {
           },
           payments: true,
           promotion: true,
+          reviews: true,
           statusHistories: {
             orderBy: { createdAt: 'asc' },
           },
@@ -315,7 +312,7 @@ export class OrdersService {
       });
 
       if (order) {
-        if (user.role === 'CUSTOMER' && order.customerId !== user.profileId) {
+        if (!actorCustomerId || order.customerId !== actorCustomerId) {
           throw new ForbiddenException('Bạn không có quyền xem đơn hàng của người khác');
         }
         return order;
@@ -330,7 +327,7 @@ export class OrdersService {
       throw new NotFoundException('Không tìm thấy thông tin đơn hàng');
     }
 
-    if (user.role === 'CUSTOMER' && fallbackOrder.customerId !== user.profileId) {
+    if (!actorCustomerId || fallbackOrder.customerId !== actorCustomerId) {
       throw new ForbiddenException('Bạn không có quyền xem đơn hàng của người khác');
     }
 
@@ -342,7 +339,7 @@ export class OrdersService {
    * PHƯƠNG THỨC: HỦY ĐƠN HÀNG (CANCEL ORDER - TASK 9 & 10 BE)
    * =======================================================================================
    * @param orderId Mã đơn hàng cần hủy
-   * @param user Người thực hiện yêu cầu hủy (Khách hàng hoặc Quản trị viên/Nhân viên)
+   * @param user Khách hàng chủ đơn hàng thực hiện yêu cầu hủy
    * 
    * Quy trình xử lý hủy đơn:
    * 1. Kiểm tra đơn hàng có tồn tại không và kiểm tra quyền sở hữu.
@@ -358,6 +355,12 @@ export class OrdersService {
    *    c) Ghi bản ghi Audit Log vào `orderStatusHistory` ghi rõ ai hủy và ghi chú hoàn kho.
    */
   async cancelOrder(orderId: string, user: any) {
+    if (user.role !== 'CUSTOMER') {
+      throw new ForbiddenException('Chỉ khách hàng (Customer) chủ đơn hàng mới có quyền hủy đơn hàng');
+    }
+
+    const actorCustomerId = user.customerId || user.profileId;
+
     try {
       const order = await this.prisma.order.findUnique({
         where: { id: orderId },
@@ -376,7 +379,7 @@ export class OrdersService {
 
       if (order) {
         // Kiểm tra quyền: Khách hàng chỉ được hủy đơn của chính mình
-        if (user.role === 'CUSTOMER' && order.customerId !== user.profileId) {
+        if (!actorCustomerId || order.customerId !== actorCustomerId) {
           throw new ForbiddenException('Bạn không thể hủy đơn hàng của người khác');
         }
 
@@ -452,8 +455,8 @@ export class OrdersService {
               orderId,
               fromStatus: order.status,
               toStatus: OrderStatus.CANCELLED,
-              actorId: user.profileId || user.accountId,
-              note: `Khách hàng/Quản trị viên hủy đơn. ${order.status === OrderStatus.PAID ? 'Đã hoàn kho nguyên liệu, điểm thưởng và voucher thành công.' : ''}`,
+              actorId: actorCustomerId || user.accountId,
+              note: `Khách hàng hủy đơn. ${order.status === OrderStatus.PAID ? 'Đã hoàn kho nguyên liệu, điểm thưởng và voucher thành công.' : ''}`,
             },
           });
 
@@ -472,7 +475,7 @@ export class OrdersService {
       throw new NotFoundException('Không tìm thấy đơn hàng cần hủy');
     }
 
-    if (user.role === 'CUSTOMER' && fallbackOrder.customerId !== user.profileId) {
+    if (!actorCustomerId || fallbackOrder.customerId !== actorCustomerId) {
       throw new ForbiddenException('Bạn không thể hủy đơn hàng của người khác');
     }
 

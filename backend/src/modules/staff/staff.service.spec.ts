@@ -117,4 +117,44 @@ describe('StaffService (Unit Tests)', () => {
       await expect(service.completeOrder('order-1', 'staff-1')).rejects.toThrow(ConflictException);
     });
   });
+
+  describe('getOrderRecipes (UC-26)', () => {
+    it('trả về công thức pha chế kèm định lượng nguyên liệu của đơn hàng', async () => {
+      const mockOrderWithRecipes = {
+        id: 'order-recipe-1',
+        items: [
+          {
+            id: 'item-1',
+            quantity: 2,
+            variant: {
+              size: 'M',
+              product: { id: 'prod-1', name: 'Cà phê Sữa Đá' },
+              recipes: [
+                {
+                  id: 'rec-1',
+                  quantityRequired: 20,
+                  ingredient: { id: 'ing-1', name: 'Cà phê Robusta', unit: 'g' },
+                },
+              ],
+            },
+          },
+        ],
+      };
+      prisma.order.findUnique.mockResolvedValue(mockOrderWithRecipes);
+
+      const res = await service.getOrderRecipes('order-recipe-1');
+      expect(res.items[0].variant.recipes[0].quantityRequired).toBe(20);
+      expect(prisma.order.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'order-recipe-1' },
+        }),
+      );
+    });
+
+    it('ném NotFoundException nếu đơn hàng không tồn tại', async () => {
+      prisma.order.findUnique.mockResolvedValue(null);
+
+      await expect(service.getOrderRecipes('missing-order')).rejects.toThrow(NotFoundException);
+    });
+  });
 });

@@ -227,6 +227,13 @@ export default function HomePage() {
     },
     quantity: number
   ) => {
+    if (user && user.role !== 'CUSTOMER') {
+      setToast({
+        message: 'Tài khoản Nhân viên / Quản trị viên chỉ ở chế độ xem thực đơn.',
+        type: 'info',
+      });
+      return;
+    }
     addItem(item, quantity);
     setToast({
       message: `Đã thêm ${quantity} ly ${item.productName} (Size ${item.size} - ${item.topping}) vào giỏ hàng.`,
@@ -247,6 +254,14 @@ export default function HomePage() {
     },
     quantity: number
   ) => {
+    if (user && user.role !== 'CUSTOMER') {
+      setModalProduct(null);
+      setToast({
+        message: 'Tài khoản Nhân viên / Quản trị viên không thực hiện chức năng đặt hàng.',
+        type: 'info',
+      });
+      return;
+    }
     // Mua ngay: Thêm món vào giỏ hàng ngay lập tức
     addItem(item, quantity);
     setModalProduct(null);

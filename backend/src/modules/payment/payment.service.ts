@@ -1,9 +1,13 @@
 import {
   Injectable,
+  Logger,
+  HttpException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   UnprocessableEntityException,
   NotFoundException,
+  RequestTimeoutException,
 } from '@nestjs/common';
 import { IsNotEmpty, IsString, IsEnum, IsOptional } from 'class-validator';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -57,8 +61,19 @@ class _DeprecatedProcessPaymentDto {
  *    - Tích lũy điểm thưởng thành viên: +1 điểm cho mỗi 10.000 VNĐ thanh toán.
  *    - Ghi lại nhật ký bất biến vào bảng OrderStatusHistory để đối soát và chấm điểm.
  */
+class GatewayRejectedError extends Error {
+  constructor(
+    public readonly clientException: HttpException,
+    public readonly failureReason: string,
+  ) {
+    super(failureReason);
+  }
+}
+
 @Injectable()
 export class PaymentService {
+  private readonly logger = new Logger(PaymentService.name);
+
   constructor(
     private prisma: PrismaService,
     private mockGateway: MockGatewayService,
@@ -87,6 +102,12 @@ export class PaymentService {
    *   Bước 5: Cơ chế dự phòng Fallback Store (nếu CSDL PostgreSQL mất kết nối).
    */
   async processPayment(dto: ProcessPaymentDto, idempotencyKey: string, user: any) {
+    if (!user || user.role !== 'CUSTOMER') {
+      throw new ForbiddenException('Chỉ khách hàng (Customer) mới có quyền thực hiện thanh toán đơn hàng');
+    }
+
+    const actorCustomerId = user.customerId || user.profileId;
+
     // -------------------------------------------------------------------------------------
     // BƯỚC 1: KIỂM TRA KHÓA CHỐNG TRÙNG LẶP IDEMPOTENCY-KEY (TASK 10.2 ĐỀ BÀI)
     // -------------------------------------------------------------------------------------
@@ -104,6 +125,12 @@ export class PaymentService {
 
       // 1.2 Nếu khóa ĐÃ TỒN TẠI trong hệ thống:
       if (existingPayment) {
+        if (
+          existingPayment.order?.customerId &&
+          (!actorCustomerId || existingPayment.order.customerId !== actorCustomerId)
+        ) {
+          throw new ForbiddenException('Bạn không thể truy cập giao dịch thanh toán của khách hàng khác');
+        }
         if (existingPayment.orderId === dto.orderId) {
           // 🛡️ CHỐNG GIAN LẬN TRÁO ĐỔI PAYLOAD:
           // Nếu cùng Idempotency-Key nhưng lại cố tình tráo đổi phương thức thanh toán (ví dụ: đã trả WALLET lại đòi đổi CARD)
@@ -196,8 +223,8 @@ export class PaymentService {
       }
 
       // 2.3 Phân quyền (RBAC): Khách hàng chỉ được phép thanh toán đơn hàng do chính mình tạo ra
-      if (user.role === 'CUSTOMER' && order.customerId !== user.profileId) {
-        throw new BadRequestException('Bạn không thể thanh toán đơn hàng của khách hàng khác');
+      if (!actorCustomerId || order.customerId !== actorCustomerId) {
+        throw new ForbiddenException('Bạn không thể thanh toán đơn hàng của khách hàng khác');
       }
 
       // 2.4 CHỐNG THANH TOÁN TRÙNG & GIAN LẬN: Nếu đơn hàng ĐÃ ĐƯỢC THANH TOÁN (PAID) trước đó
@@ -249,42 +276,14 @@ export class PaymentService {
         }
       }
 
-      // Kịch bản demo lỗi thanh toán (nếu có simulateError): xử lý trước transaction để đơn còn retry được
-      if (dto.simulateError) {
-        const failedCharge = await this.mockGateway.processCharge({
-          amount: Number(order.totalAfterDiscount),
-          method: dto.method,
-          simulateError: dto.simulateError,
-        });
-
-        if (!failedCharge.success) {
-          await this.prisma.$transaction(async (tx) => {
-            await tx.order.update({
-              where: { id: order.id },
-              data: { status: OrderStatus.PAYMENT_FAILED },
-            });
-
-            await tx.orderStatusHistory.create({
-              data: {
-                orderId: order.id,
-                fromStatus: order.status,
-                toStatus: OrderStatus.PAYMENT_FAILED,
-                actorId: user.profileId,
-                note: `Thanh toán thất bại: ${failedCharge.message}`,
-              },
-            });
-          });
-
-          throw new BadRequestException(`Cổng thanh toán từ chối: ${failedCharge.message}`);
-        }
-      }
-
       // -----------------------------------------------------------------------------------
       // BƯỚC 4: DATABASE TRANSACTION - BẢO ĐẢM NGUYÊN TỐ ACID (TẤT CẢ HOẶC KHÔNG GÌ CẢ)
       // -----------------------------------------------------------------------------------
-      // Nếu bất kỳ thao tác nào bên dưới gặp lỗi (ví dụ hết kho hoặc thanh toán lỗi),
-      // toàn bộ thay đổi sẽ được TỰ ĐỘNG ROLLBACK, đảm bảo dữ liệu không bao giờ bị sai lệch.
-      return await this.prisma.$transaction(async (tx) => {
+      // Chạy Bước 11 (khấu trừ kho OCC) trước Bước 12 (gọi cổng thanh toán). Nếu OCC lỗi hoặc
+      // cổng thanh toán từ chối/timeout, toàn bộ trừ kho được ROLLBACK tự động; sau đó ghi nhận
+      // PAYMENT_FAILED + audit log ở transaction độc lập bên ngoài để khách còn Retry hoặc Cancel.
+      try {
+        return await this.prisma.$transaction(async (tx) => {
         // 🔒 CHỐNG RACE CONDITION / MUA CÙNG LÚC (CONCURRENCY CHECK TRONG TRANSACTION):
         // Nếu 2 tab hoặc 2 request cùng bấm thanh toán ở cùng 1 tích tắc,
         // request thứ 2 khi vào Transaction sẽ phát hiện đơn đã PAID và lập tức bị chặn an toàn!
@@ -364,33 +363,32 @@ export class PaymentService {
         // .................................................................................
         // 4.2 GỌI CỔNG THANH TOÁN GIẢ LẬP (MOCK GATEWAY)
         // .................................................................................
-        if (!dto.simulateError) {
-          const chargeResult = await this.mockGateway.processCharge({
+        // Gọi cổng thanh toán cho cả luồng thường và luồng simulateError (FAIL / TIMEOUT)
+        // sau khi OCC đã giữ chỗ nguyên liệu thành công ở bước 4.1.
+        let chargeResult: { success: boolean; message: string; transactionRef?: string };
+        try {
+          chargeResult = await this.mockGateway.processCharge({
             amount: Number(order.totalAfterDiscount),
             method: dto.method,
+            simulateError: dto.simulateError,
           });
+        } catch (gatewayErr: any) {
+          const reason = gatewayErr?.message || 'Cổng thanh toán không phản hồi (Timeout)';
+          const clientEx =
+            gatewayErr instanceof HttpException
+              ? gatewayErr
+              : new RequestTimeoutException(`Cổng thanh toán timeout: ${reason}`);
+          throw new GatewayRejectedError(clientEx, reason);
+        }
 
-          // Nếu cổng thanh toán từ chối (ví dụ ví hết tiền hoặc thẻ lỗi):
-          if (!chargeResult.success) {
-            // Đổi đơn sang PAYMENT_FAILED và ghi log
-            await tx.order.update({
-              where: { id: order.id },
-              data: { status: OrderStatus.PAYMENT_FAILED },
-            });
-
-            await tx.orderStatusHistory.create({
-              data: {
-                orderId: order.id,
-                fromStatus: order.status,
-                toStatus: OrderStatus.PAYMENT_FAILED,
-                actorId: user.profileId,
-                note: `Thanh toán thất bại: ${chargeResult.message}`,
-              },
-            });
-
-            // Ném lỗi để TỰ ĐỘNG ROLLBACK toàn bộ việc trừ kho nguyên liệu đã làm ở bước 4.1
-            throw new BadRequestException(`Cổng thanh toán từ chối: ${chargeResult.message}`);
-          }
+        // Nếu cổng thanh toán từ chối (ví dụ ví hết tiền, thẻ lỗi hoặc simulateError = FAIL):
+        // Ném GatewayRejectedError để TỰ ĐỘNG ROLLBACK việc trừ kho ở bước 4.1,
+        // sau đó catch bên ngoài transaction sẽ ghi nhận PAYMENT_FAILED + audit log.
+        if (!chargeResult.success) {
+          throw new GatewayRejectedError(
+            new BadRequestException(`Cổng thanh toán từ chối: ${chargeResult.message}`),
+            chargeResult.message,
+          );
         }
 
         // .................................................................................
@@ -465,19 +463,21 @@ export class PaymentService {
           order: updatedOrder,
           earnedPoints,
         };
-      });
+        });
+      } catch (txErr: any) {
+        if (txErr instanceof GatewayRejectedError) {
+          await this.recordPaymentFailure(order.id, order.status, user.profileId, txErr.failureReason);
+          throw txErr.clientException;
+        }
+        throw txErr;
+      }
     } catch (err: any) {
-      // Nếu là các lỗi nghiệp vụ đã chủ động ném (400, 404, 409, 422) -> Bắn thẳng ra Client
-      if (
-        err instanceof BadRequestException ||
-        err instanceof UnprocessableEntityException ||
-        err instanceof NotFoundException ||
-        err instanceof ConflictException ||
-        err?.status === 409
-      ) {
+      // Nếu là các lỗi nghiệp vụ đã chủ động ném (400, 403, 404, 408, 409, 422...) -> Bắn thẳng ra Client
+      if (err instanceof HttpException || err?.status === 409) {
         throw err;
       }
       // Nếu là lỗi mất kết nối CSDL PostgreSQL -> Tự động chuyển sang chế độ Fallback bên dưới
+      this.logger.warn(`PostgreSQL không khả dụng khi thanh toán, chuyển sang Fallback Store: ${err?.message || err}`);
     }
 
     // -------------------------------------------------------------------------------------
@@ -486,6 +486,12 @@ export class PaymentService {
     // Giúp ứng dụng vẫn demo mượt mà nếu máy chấm thi không bật Docker hoặc mất mạng CSDL
     const existing = fallbackStore.findPaymentByIdempotencyKey(idempotencyKey.trim());
     if (existing) {
+      if (
+        existing.order?.customerId &&
+        (!actorCustomerId || existing.order.customerId !== actorCustomerId)
+      ) {
+        throw new ForbiddenException('Bạn không thể truy cập giao dịch thanh toán của khách hàng khác');
+      }
       if (existing.orderId === dto.orderId) {
         if (existing.method && existing.method !== dto.method) {
           const methodLabel = existing.method === 'WALLET' ? 'Ví điện tử' : 'Thẻ ngân hàng';
@@ -520,8 +526,8 @@ export class PaymentService {
       }
     }
 
-    if (user.role === 'CUSTOMER' && order.customerId !== user.profileId) {
-      throw new BadRequestException('Bạn không thể thanh toán đơn hàng của khách hàng khác');
+    if (!actorCustomerId || order.customerId !== actorCustomerId) {
+      throw new ForbiddenException('Bạn không thể thanh toán đơn hàng của khách hàng khác');
     }
 
     if (order.status === OrderStatus.PAID) {
@@ -541,6 +547,9 @@ export class PaymentService {
     });
 
     if (!payResult || !payResult.success) {
+      if (dto.simulateError === 'TIMEOUT') {
+        throw new RequestTimeoutException(`Cổng thanh toán timeout: Mô phỏng lỗi giao dịch (${dto.simulateError})`);
+      }
       throw new BadRequestException(`Cổng thanh toán từ chối: Mô phỏng lỗi giao dịch (${dto.simulateError})`);
     }
 
@@ -553,6 +562,34 @@ export class PaymentService {
       order: payResult.order,
       earnedPoints: payResult.earnedPoints,
     };
+  }
+
+  private async recordPaymentFailure(
+    orderId: string,
+    fromStatus: OrderStatus,
+    actorId: string,
+    reason: string,
+  ) {
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.order.update({
+          where: { id: orderId },
+          data: { status: OrderStatus.PAYMENT_FAILED },
+        });
+
+        await tx.orderStatusHistory.create({
+          data: {
+            orderId,
+            fromStatus,
+            toStatus: OrderStatus.PAYMENT_FAILED,
+            actorId,
+            note: `Thanh toán thất bại: ${reason}`,
+          },
+        });
+      });
+    } catch (auditErr: any) {
+      this.logger.warn(`Không thể ghi nhận PAYMENT_FAILED cho đơn ${orderId}: ${auditErr?.message || auditErr}`);
+    }
   }
 
   // =======================================================================================

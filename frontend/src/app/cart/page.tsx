@@ -354,10 +354,26 @@ export default function CartPage() {
   const handleProceedToCheckout = () => {
     if (!user) {
       router.push('/login?redirect=/checkout');
-    } else {
+    } else if (user.role === 'CUSTOMER') {
       router.push('/checkout');
     }
   };
+
+  if (user && user.role !== 'CUSTOMER') {
+    const workspacePath = user.role === 'STAFF' ? '/staff' : '/admin';
+    const workspaceLabel = user.role === 'STAFF' ? 'Về Quầy Barista' : 'Về Trang Quản trị';
+    return (
+      <div className="py-12">
+        <EmptyState
+          icon={ShoppingBag}
+          title="Giỏ hàng chỉ dành cho Khách hàng"
+          description="Tài khoản Nhân viên / Quản trị viên không sử dụng chức năng đặt hàng và thanh toán của Khách hàng."
+          actionLabel={workspaceLabel}
+          onAction={() => router.push(workspacePath)}
+        />
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return (
@@ -700,7 +716,7 @@ export default function CartPage() {
                     Khả dụng: <b className="text-amber-600 dark:text-amber-400 font-mono">{availablePoints} điểm</b> ({Number(availablePoints * 100).toLocaleString('vi-VN')}đ)
                   </span>
                 ) : (
-                  <span className="text-[10.5px] text-ink-3">Tích lũy 5% mỗi đơn</span>
+                  <span className="text-[10.5px] text-ink-3">+1 điểm / 10.000đ</span>
                 )}
               </div>
 
@@ -736,7 +752,7 @@ export default function CartPage() {
                 ) : (
                   <div className="text-[11px] text-ink-3 p-1.5 bg-surface/60 rounded border border-line/60">
                     {availablePoints === 0
-                      ? 'Bạn chưa có điểm tích lũy. Tích lũy 5% giá trị mỗi đơn khi thanh toán thành công!'
+                      ? 'Bạn chưa có điểm tích lũy. Tích lũy +1 điểm cho mỗi 10.000đ thanh toán thành công (1 điểm = 100đ)!'
                       : 'Đơn hàng đã được giảm tối đa hoặc không cần dùng thêm điểm thưởng.'}
                   </div>
                 )

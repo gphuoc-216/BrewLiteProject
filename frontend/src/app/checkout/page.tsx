@@ -42,7 +42,7 @@ function CheckoutContent() {
   const searchParams = useSearchParams();
   const retryOrderId = searchParams.get('orderId');
   const isBuyNow = searchParams.get('buyNow') === '1';
-  const { ready, user } = useRequireRole(['CUSTOMER', 'STAFF', 'ADMIN']);
+  const { ready, user } = useRequireRole(['CUSTOMER']);
   const { items, promotion, promotions, loyaltyPointsUsed, getSubtotal, getFinalTotal, clearCart } = useCartStore();
   const { fetchProfile, updateLoyaltyPoints } = useAuthStore();
 
@@ -627,8 +627,8 @@ function CheckoutContent() {
           clearCart();
         }
 
-        // Tích lũy điểm thưởng cho đơn hàng (5%)
-        const earnedPoints = Math.floor((finalTotal * 0.05) / 1000);
+        // Tích lũy điểm thưởng cho đơn hàng (+1 điểm / 10.000đ)
+        const earnedPoints = Math.floor(finalTotal / 10000);
         if (earnedPoints > 0) {
           updateLoyaltyPoints(earnedPoints);
         }

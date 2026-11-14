@@ -17,7 +17,7 @@ import {
   calcDiscountForVoucherList,
   toggleSmartVoucherSelection,
 } from '@/lib/vouchers';
-import { ALL_TOPPINGS, getToppingsForProduct } from '@/lib/toppings';
+import { ALL_TOPPINGS, getToppingsForProduct, fetchToppingsCatalog } from '@/lib/toppings';
 
 interface ProductDetail {
   id: string;
@@ -74,11 +74,10 @@ export default function ProductDetailPage() {
   const [usePoints, setUsePoints] = useState(false);
   const [manualVoucherCode, setManualVoucherCode] = useState('');
   const [voucherError, setVoucherError] = useState<string | null>(null);
+  const [toppingsCatalog, setToppingsCatalog] = useState(ALL_TOPPINGS);
 
   const checkIsReviewOwner = (rev: { id: string; customerId?: string; customer?: { fullName: string } }) => {
-    if (!user) return false;
-    // Quyền Quản trị viên (ADMIN) được phép quản lý mọi đánh giá
-    if (user.role === 'ADMIN') return true;
+    if (!user || user.role !== 'CUSTOMER') return false;
 
     // So khớp chính xác theo ID người dùng (Customer ID hoặc Account ID)
     if (rev.customerId) {
@@ -117,6 +116,14 @@ export default function ProductDetailPage() {
       if (typeof window !== 'undefined') {
         router.push('/login?redirect=' + encodeURIComponent(window.location.pathname));
       }
+      return;
+    }
+
+    if (user.role !== 'CUSTOMER') {
+      setToast({
+        message: 'Chỉ tài khoản Khách hàng mới có quyền gửi đánh giá sản phẩm.',
+        type: 'info',
+      });
       return;
     }
 
@@ -349,6 +356,9 @@ export default function ProductDetailPage() {
     }
 
     loadProduct();
+    fetchToppingsCatalog().then((list) => {
+      if (!isCancelled) setToppingsCatalog(list);
+    });
 
     return () => {
       isCancelled = true;
@@ -419,12 +429,12 @@ export default function ProductDetailPage() {
   const isSelectedVariantOutOfStock = Boolean(selectedVariant?.isOutOfStock) || Boolean(product?.isOutOfStock);
 
   // Phân phối Topping chính xác theo từng món thực tế (Trà đào/vải -> thạch đào/nha đam; Trà sữa -> trân châu/khúc bạch; Cà phê -> espresso/cheese)
-  const toppingsForCategory = getToppingsForProduct(product);
+  const toppingsForCategory = getToppingsForProduct(product, toppingsCatalog);
 
   // Tính giá theo mô típ Grab/Shopee: Giá Size gốc + tổng tiền các topping tick chọn
   const baseSizePrice = Number(baseVariant?.price || 0);
   const extraToppingsPrice = selectedToppings.reduce((sum, name) => {
-    const opt = ALL_TOPPINGS.find((o) => o.name === name);
+    const opt = toppingsCatalog.find((o) => o.name === name);
     return sum + (opt ? opt.price : 0);
   }, 0);
   // Đơn giá 1 ly = Giá size gốc + tiền các topping (TĂNG GIẢM NGAY LẬP TỨC khi tick chọn)
@@ -475,6 +485,13 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = (isBuyNow = false) => {
     if (!selectedVariant || isSelectedVariantOutOfStock) return;
+    if (user && user.role !== 'CUSTOMER') {
+      setToast({
+        message: 'Tài khoản Nhân viên / Quản trị viên chỉ ở chế độ xem thực đơn.',
+        type: 'info',
+      });
+      return;
+    }
 
     const lineItem = {
       id: `${selectedVariant.id}:${toppingLabel}`,
@@ -748,8 +765,10 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
-          {/* Mã Giảm Giá / Voucher */}
-          <div className="space-y-2 pt-3 border-t border-line text-xs">
+          {(!user || user.role === 'CUSTOMER') && (
+            <>
+              {/* Mã Giảm Giá / Voucher */}
+              <div className="space-y-2 pt-3 border-t border-line text-xs">
             <div className="flex items-center justify-between">
               <span className="font-semibold text-ink flex items-center gap-1.5">
                 <Ticket className="w-3.5 h-3.5 text-accent" />
@@ -899,7 +918,7 @@ export default function ProductDetailPage() {
               ) : (
                 <div className="text-[11px] text-ink-3 p-1.5 bg-surface/60 rounded border border-line/60">
                   {availablePoints === 0
-                    ? 'Bạn chưa có điểm tích lũy. Tích lũy 5% giá trị mỗi đơn khi thanh toán thành công!'
+                    ? 'Bạn chưa có điểm tích lũy. Tích lũy +1 điểm cho mỗi 10.000đ thanh toán thành công (1 điểm = 100đ)!'
                     : 'Đơn hàng đã được giảm tối đa hoặc không cần dùng thêm điểm thưởng.'}
                 </div>
               )
@@ -915,6 +934,8 @@ export default function ProductDetailPage() {
               </div>
             )}
           </div>
+            </>
+          )}
 
           {/* Quantity & CTA */}
           <div className="space-y-3 pt-4 border-t border-line">
@@ -976,36 +997,42 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                variant="secondary"
-                size="lg"
-                disabled={isSelectedVariantOutOfStock}
-                onClick={() => handleAddToCart(false)}
-                className={`w-full text-sm font-semibold flex items-center justify-center gap-2 ${
-                  isSelectedVariantOutOfStock
-                    ? 'opacity-50 cursor-not-allowed border-line'
-                    : 'border-line-strong hover:border-ink bg-surface text-ink'
-                }`}
-              >
-                <ShoppingBag className="w-4 h-4" />
-                <span>{isSelectedVariantOutOfStock ? 'Tạm hết hàng' : 'Thêm vào giỏ'}</span>
-              </Button>
+            {user && user.role !== 'CUSTOMER' ? (
+              <div className="p-3 rounded bg-surface-2 border border-line text-xs text-ink-2 text-center">
+                Chế độ xem thực đơn (chức năng đặt hàng &amp; thanh toán chỉ dành cho Khách hàng).
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  disabled={isSelectedVariantOutOfStock}
+                  onClick={() => handleAddToCart(false)}
+                  className={`w-full text-sm font-semibold flex items-center justify-center gap-2 ${
+                    isSelectedVariantOutOfStock
+                      ? 'opacity-50 cursor-not-allowed border-line'
+                      : 'border-line-strong hover:border-ink bg-surface text-ink'
+                  }`}
+                >
+                  <ShoppingBag className="w-4 h-4" />
+                  <span>{isSelectedVariantOutOfStock ? 'Tạm hết hàng' : 'Thêm vào giỏ'}</span>
+                </Button>
 
-              <Button
-                variant="primary"
-                size="lg"
-                disabled={isSelectedVariantOutOfStock}
-                onClick={() => handleAddToCart(true)}
-                className={`w-full text-sm font-semibold flex items-center justify-center gap-2 ${
-                  isSelectedVariantOutOfStock
-                    ? 'opacity-50 cursor-not-allowed bg-slate-300 dark:bg-slate-700 text-slate-500'
-                    : 'shadow-sm bg-accent hover:bg-accent-hover text-on-accent'
-                }`}
-              >
-                <span>{isSelectedVariantOutOfStock ? 'Tạm hết hàng' : 'Mua ngay'}</span>
-              </Button>
-            </div>
+                <Button
+                  variant="primary"
+                  size="lg"
+                  disabled={isSelectedVariantOutOfStock}
+                  onClick={() => handleAddToCart(true)}
+                  className={`w-full text-sm font-semibold flex items-center justify-center gap-2 ${
+                    isSelectedVariantOutOfStock
+                      ? 'opacity-50 cursor-not-allowed bg-slate-300 dark:bg-slate-700 text-slate-500'
+                      : 'shadow-sm bg-accent hover:bg-accent-hover text-on-accent'
+                  }`}
+                >
+                  <span>{isSelectedVariantOutOfStock ? 'Tạm hết hàng' : 'Mua ngay'}</span>
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1035,7 +1062,7 @@ export default function ProductDetailPage() {
                   <Pencil className="w-3.5 h-3.5 text-amber-600" />
                   <span>Sửa đánh giá của bạn</span>
                 </button>
-              ) : (
+              ) : (!user || user.role === 'CUSTOMER') ? (
                 <button
                   type="button"
                   onClick={handleOpenReviewModal}
@@ -1044,7 +1071,7 @@ export default function ProductDetailPage() {
                   <Star className="w-3.5 h-3.5 text-amber-600 fill-amber-500" />
                   <span>Viết đánh giá món này</span>
                 </button>
-              )}
+              ) : null}
             </div>
           );
         })()}
@@ -1123,13 +1150,15 @@ export default function ProductDetailPage() {
                 Hãy đặt mua và thưởng thức để trở thành người đầu tiên chia sẻ cảm nhận nhé!
               </p>
             </div>
-            <button
-              type="button"
-              onClick={handleOpenReviewModal}
-              className="text-xs text-accent font-semibold hover:underline"
-            >
-              Gửi đánh giá đầu tiên →
-            </button>
+            {(!user || user.role === 'CUSTOMER') && (
+              <button
+                type="button"
+                onClick={handleOpenReviewModal}
+                className="text-xs text-accent font-semibold hover:underline"
+              >
+                Gửi đánh giá đầu tiên →
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -1202,7 +1231,7 @@ export default function ProductDetailPage() {
           {reviewToDelete && (
             <div className="p-3 bg-surface-2 rounded-lg border border-line space-y-1">
               <span className="text-[11px] text-ink-3 block">Nội dung đánh giá sẽ xóa:</span>
-              <p className="text-ink font-medium italic">"{reviewToDelete.content}"</p>
+              <p className="text-ink font-medium italic">&ldquo;{reviewToDelete.content}&rdquo;</p>
             </div>
           )}
 

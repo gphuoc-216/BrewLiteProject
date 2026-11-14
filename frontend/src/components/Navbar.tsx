@@ -124,19 +124,21 @@ export const Navbar: React.FC = () => {
 
         {/* Right Section: Cart + Account + Mobile Toggle */}
         <div className="flex items-center gap-3">
-          {/* Cart Icon */}
-          <Link
-            href="/cart"
-            className="relative p-2 text-espresso-muted hover:text-white rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-            aria-label={`Giỏ hàng, có ${totalItems} món`}
-          >
-            <ShoppingBag className="w-5 h-5" strokeWidth={1.75} />
-            {totalItems > 0 && (
-              <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-accent text-on-accent text-[10px] font-semibold flex items-center justify-center tabular-nums">
-                {totalItems}
-              </span>
-            )}
-          </Link>
+          {/* Cart Icon - Chỉ hiển thị cho Guest và Customer (theo đúng sơ đồ Use Case) */}
+          {(!mounted || !user || user.role === 'CUSTOMER') && (
+            <Link
+              href="/cart"
+              className="relative p-2 text-espresso-muted hover:text-white rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              aria-label={`Giỏ hàng, có ${totalItems} món`}
+            >
+              <ShoppingBag className="w-5 h-5" strokeWidth={1.75} />
+              {totalItems > 0 && (
+                <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-accent text-on-accent text-[10px] font-semibold flex items-center justify-center tabular-nums">
+                  {totalItems}
+                </span>
+              )}
+            </Link>
+          )}
 
           {/* Account status */}
           {!mounted || (hasAuthSession && !user) ? (

@@ -7,14 +7,19 @@ import { fetchApi, getErrorMessage } from '../../../lib/api';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { StatusBadge, Button, Card, EmptyState, Skeleton, Modal, Toast } from '../../../components/ui';
 import { Check, ArrowLeft, Award, AlertTriangle, Home, CreditCard, RefreshCw, Star } from 'lucide-react';
-import { OrderRecord, OrderItemRecord, OrderStatus } from '@/types';
+import { OrderRecord, OrderItemRecord, OrderStatus, ReviewRecord } from '@/types';
 import { ORDER_STATUS } from '@/lib/orderStatus';
 import { useRequireRole } from '@/hooks/useRequireRole';
+
+const getItemProductId = (item?: OrderItemRecord): string =>
+  item?.variant?.product?.id ||
+  (item?.variant as { productId?: string } | undefined)?.productId ||
+  '';
 
 export default function OrderConfirmationPage() {
   const params = useParams();
   const router = useRouter();
-  const { ready } = useRequireRole(['CUSTOMER', 'STAFF', 'ADMIN']);
+  const { ready } = useRequireRole(['CUSTOMER']);
   const { fetchProfile } = useAuthStore();
 
   const [order, setOrder] = useState<OrderRecord | null>(null);
@@ -26,50 +31,83 @@ export default function OrderConfirmationPage() {
   // Quản lý Đánh giá món uống (Review)
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string>('');
+  const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
   const [reviewStars, setReviewStars] = useState(5);
   const [reviewContent, setReviewContent] = useState('');
   const [reviewLoading, setReviewLoading] = useState(false);
-  const [hasReviewed, setHasReviewed] = useState(false);
+  const [submittedReviews, setSubmittedReviews] = useState<Record<string, ReviewRecord>>({});
+
+  const getReviewForProduct = (productId: string): ReviewRecord | undefined => {
+    if (!productId) return undefined;
+    if (submittedReviews[productId]) return submittedReviews[productId];
+    return order?.reviews?.find(
+      (r) => r.productId === productId && (!order.customerId || r.customerId === order.customerId),
+    );
+  };
+
+  const syncReviewFormForProduct = (productId: string) => {
+    setSelectedProductId(productId);
+    const existing = getReviewForProduct(productId);
+    setEditingReviewId(existing?.id || null);
+    setReviewStars(existing?.stars || 5);
+    setReviewContent(existing?.content || '');
+  };
 
   const openReviewModal = (productId?: string) => {
-    if (productId) {
-      setSelectedProductId(productId);
-    } else if (order?.items && order.items.length > 0) {
-      const firstProdId = order.items[0]?.variant?.product?.id || (order.items[0]?.variant as any)?.productId || '';
-      setSelectedProductId(firstProdId);
-    }
-    setReviewStars(5);
-    setReviewContent('');
+    const itemProductIds = Array.from(
+      new Set((order?.items || []).map(getItemProductId).filter(Boolean)),
+    );
+    const unreviewedProductId = itemProductIds.find((pid) => !getReviewForProduct(pid));
+    const targetProductId = productId || unreviewedProductId || itemProductIds[0] || '';
+    syncReviewFormForProduct(targetProductId);
     setReviewModalOpen(true);
   };
 
   const handleSendReview = async () => {
     if (!order) return;
-    const finalProductId =
-      selectedProductId ||
-      order.items?.[0]?.variant?.product?.id ||
-      (order.items?.[0]?.variant as any)?.productId ||
-      '';
+    const finalProductId = selectedProductId || getItemProductId(order.items?.[0]);
 
     if (!finalProductId) {
       setToastMsg({ message: 'Vui lòng chọn món uống cần đánh giá.', type: 'danger' });
       return;
     }
 
+    const contentToSave = reviewContent.trim() || 'Đồ uống rất ngon và vừa miệng!';
+    const existingReviewId = editingReviewId || getReviewForProduct(finalProductId)?.id || null;
+
     try {
       setReviewLoading(true);
-      await fetchApi('/reviews', {
-        method: 'POST',
-        body: JSON.stringify({
-          orderId: order.id,
-          productId: finalProductId,
-          stars: reviewStars,
-          content: reviewContent.trim() || 'Đồ uống rất ngon và vừa miệng!',
-        }),
-      });
-      setToastMsg({ message: 'Cảm ơn bạn! Đánh giá món uống đã được gửi thành công.', type: 'success' });
-      setHasReviewed(true);
+      let savedReview: ReviewRecord;
+      if (existingReviewId) {
+        savedReview = await fetchApi<ReviewRecord>(`/reviews/${existingReviewId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            stars: reviewStars,
+            content: contentToSave,
+          }),
+        });
+        setToastMsg({ message: 'Cập nhật đánh giá món uống thành công!', type: 'success' });
+      } else {
+        savedReview = await fetchApi<ReviewRecord>('/reviews', {
+          method: 'POST',
+          body: JSON.stringify({
+            orderId: order.id,
+            productId: finalProductId,
+            stars: reviewStars,
+            content: contentToSave,
+          }),
+        });
+        setToastMsg({ message: 'Cảm ơn bạn! Đánh giá món uống đã được gửi thành công.', type: 'success' });
+      }
+
+      if (savedReview?.id) {
+        setSubmittedReviews((prev) => ({
+          ...prev,
+          [finalProductId]: savedReview,
+        }));
+      }
       setReviewModalOpen(false);
+      await fetchOrder();
     } catch (err: unknown) {
       setToastMsg({ message: getErrorMessage(err), type: 'danger' });
     } finally {
@@ -184,6 +222,13 @@ export default function OrderConfirmationPage() {
   const isSpecialStatus = ['PENDING', 'PAYMENT_FAILED', 'CANCELLED'].includes(order.status);
   const earnedPoints = Math.floor((Number(order.totalAfterDiscount) || 0) / 10000);
   const canCancel = order.status === 'PENDING' || order.status === 'PAID' || order.status === 'PAYMENT_FAILED';
+  const uniqueOrderProductIds = Array.from(
+    new Set((order.items || []).map(getItemProductId).filter(Boolean)),
+  );
+  const hasAnyReviewed = uniqueOrderProductIds.some((pid) => Boolean(getReviewForProduct(pid)));
+  const allReviewed =
+    uniqueOrderProductIds.length > 0 &&
+    uniqueOrderProductIds.every((pid) => Boolean(getReviewForProduct(pid)));
 
   return (
     <div className="max-w-xl mx-auto space-y-6">
@@ -318,10 +363,14 @@ export default function OrderConfirmationPage() {
               </div>
               <div>
                 <p className="text-xs font-semibold text-ink">
-                  {hasReviewed ? 'Cảm ơn bạn đã gửi đánh giá!' : 'Bạn thấy hương vị đồ uống thế nào?'}
+                  {allReviewed
+                    ? 'Cảm ơn bạn đã gửi đánh giá!'
+                    : hasAnyReviewed
+                    ? 'Bạn vẫn còn món chưa đánh giá!'
+                    : 'Bạn thấy hương vị đồ uống thế nào?'}
                 </p>
                 <p className="text-[11px] text-ink-3">
-                  {hasReviewed
+                  {allReviewed
                     ? 'Bạn có thể chỉnh sửa lại số sao hoặc bổ sung thêm nhận xét.'
                     : 'Đánh giá số sao và chia sẻ trải nghiệm để BrewLite phục vụ tốt hơn.'}
                 </p>
@@ -334,7 +383,7 @@ export default function OrderConfirmationPage() {
               className="bg-amber-600 hover:bg-amber-700 text-white shrink-0 self-start sm:self-auto shadow-sm"
             >
               <Star className="w-3.5 h-3.5 mr-1 fill-white" />
-              <span>{hasReviewed ? 'Đánh giá lại' : '⭐ Đánh giá món uống'}</span>
+              <span>{allReviewed ? 'Chỉnh sửa đánh giá' : '⭐ Đánh giá món uống'}</span>
             </Button>
           </div>
         )}
@@ -349,7 +398,8 @@ export default function OrderConfirmationPage() {
           </div>
           <div className="divide-y divide-line border-y border-line text-xs">
             {order.items?.map((it: OrderItemRecord) => {
-              const itemProdId = it.variant?.product?.id || (it.variant as any)?.productId;
+              const itemProdId = getItemProductId(it);
+              const existingItemReview = itemProdId ? getReviewForProduct(itemProdId) : undefined;
               return (
                 <div key={it.id} className="py-2.5 flex items-center justify-between">
                   <div>
@@ -371,7 +421,7 @@ export default function OrderConfirmationPage() {
                         className="text-[11px] font-medium text-amber-600 hover:text-amber-700 hover:underline flex items-center gap-0.5"
                       >
                         <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
-                        <span>Đánh giá</span>
+                        <span>{existingItemReview ? 'Sửa đánh giá' : 'Đánh giá'}</span>
                       </button>
                     )}
                   </div>
@@ -433,7 +483,7 @@ export default function OrderConfirmationPage() {
           <div className="p-3 bg-warning-soft border border-warning/30 rounded text-warning flex items-start gap-2.5">
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" strokeWidth={1.75} />
             <p className="text-ink-2 leading-relaxed">
-              Đơn ở trạng thái PENDING hoặc PAID có thể hủy theo sơ đồ trạng thái. Nếu đã thanh toán,
+              Đơn ở trạng thái PENDING, PAYMENT_FAILED hoặc PAID có thể hủy theo sơ đồ trạng thái. Nếu đã thanh toán,
               hệ thống sẽ hoàn tồn kho và điểm thưởng tương ứng.
             </p>
           </div>
@@ -462,24 +512,26 @@ export default function OrderConfirmationPage() {
       <Modal
         isOpen={reviewModalOpen}
         onClose={() => setReviewModalOpen(false)}
-        title="Đánh giá món uống"
+        title={editingReviewId ? 'Chỉnh sửa đánh giá món uống' : 'Đánh giá món uống'}
         description="Chia sẻ cảm nhận của bạn về hương vị đồ uống tại BrewLite"
       >
         <div className="space-y-4 text-xs text-left">
           {/* Chọn món uống nếu đơn có nhiều món */}
-          {order.items && order.items.length > 1 && (
+          {uniqueOrderProductIds.length > 1 && (
             <div className="space-y-1.5">
               <label className="font-medium text-ink">Chọn món cần đánh giá:</label>
               <select
                 value={selectedProductId}
-                onChange={(e) => setSelectedProductId(e.target.value)}
+                onChange={(e) => syncReviewFormForProduct(e.target.value)}
                 className="w-full px-3 py-2 border border-line rounded bg-surface text-ink text-xs focus:outline-none focus:ring-1 focus:ring-accent"
               >
-                {order.items.map((it) => {
-                  const pId = it.variant?.product?.id || (it.variant as any)?.productId || '';
+                {uniqueOrderProductIds.map((pId) => {
+                  const matchedItem = order.items?.find((it) => getItemProductId(it) === pId);
+                  const reviewedMark = getReviewForProduct(pId) ? ' (Đã đánh giá)' : '';
                   return (
-                    <option key={it.id} value={pId}>
-                      {it.variant?.product?.name || 'Món uống'} ({it.variant?.size})
+                    <option key={pId} value={pId}>
+                      {matchedItem?.variant?.product?.name || 'Món uống'}
+                      {reviewedMark}
                     </option>
                   );
                 })}
@@ -491,7 +543,7 @@ export default function OrderConfirmationPage() {
           <div className="p-2.5 bg-surface-2 border border-line rounded flex items-center justify-between">
             <span className="text-ink-3">Món đang đánh giá:</span>
             <span className="font-semibold text-ink">
-              {order.items?.find((i) => (i.variant?.product?.id || (i.variant as any)?.productId) === selectedProductId)?.variant?.product?.name ||
+              {order.items?.find((i) => getItemProductId(i) === selectedProductId)?.variant?.product?.name ||
                 order.items?.[0]?.variant?.product?.name ||
                 'Món uống'}
             </span>
@@ -561,7 +613,7 @@ export default function OrderConfirmationPage() {
               onClick={handleSendReview}
               className="bg-amber-600 hover:bg-amber-700 text-white"
             >
-              Gửi đánh giá
+              {editingReviewId ? 'Cập nhật đánh giá' : 'Gửi đánh giá'}
             </Button>
           </div>
         </div>
