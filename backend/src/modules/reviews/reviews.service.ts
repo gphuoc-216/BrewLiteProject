@@ -147,7 +147,7 @@ export class ReviewsService {
           );
         }
 
-        // 4. Chặn đánh giá trùng lặp cho cùng 1 sản phẩm bởi 1 khách hàng
+        // 4. Chặn đánh giá trùng lặp hoặc đã từng đánh giá rồi xóa (mỗi khách chỉ đánh giá món 1 lần duy nhất)
         const existingReview = await this.prisma.review.findFirst({
           where: {
             customerId: finalCustId,
@@ -156,6 +156,11 @@ export class ReviewsService {
         });
 
         if (existingReview) {
+          if (existingReview.status === ('DELETED' as any)) {
+            throw new ConflictException(
+              'Bạn đã từng xóa đánh giá cho món này. Theo quy định, mỗi khách hàng chỉ được đánh giá món một lần duy nhất và không thể viết lại sau khi đã xóa!',
+            );
+          }
           throw new ConflictException(
             'Bạn đã đánh giá món đồ uống này rồi. Bạn chỉ có thể sửa hoặc xóa đánh giá hiện có!',
           );
@@ -198,7 +203,7 @@ export class ReviewsService {
       throw new BadRequestException('Số sao đánh giá phải từ 1 đến 5 sao');
     }
     const review = await this.prisma.review.findUnique({ where: { id: reviewId } });
-    if (!review) throw new NotFoundException('Không tìm thấy đánh giá');
+    if (!review || review.status === ('DELETED' as any)) throw new NotFoundException('Không tìm thấy đánh giá hoặc đánh giá đã bị xóa');
 
     if (review.customerId !== actorId) {
       const cust = await this.prisma.customer.findFirst({
@@ -238,7 +243,90 @@ export class ReviewsService {
       }
     }
 
-    await this.prisma.review.delete({ where: { id: reviewId } });
+    // Soft-delete đánh giá sang trạng thái DELETED để lưu vết không cho phép đánh giá lại món này
+    await this.prisma.review.update({
+      where: { id: reviewId },
+      data: { status: ('DELETED' as any) },
+    });
     return { message: 'Đã xóa đánh giá thành công', reviewId };
   }
+
+  async checkEligibility(actorId: string, productId: string) {
+    let finalCustId = '';
+    const directCustomer = await this.prisma.customer.findUnique({ where: { id: actorId } });
+    if (directCustomer) {
+      finalCustId = directCustomer.id;
+    } else {
+      const account = await this.prisma.account.findFirst({
+        where: { OR: [{ id: actorId }, { customer: { id: actorId } }] },
+        include: { customer: true },
+      });
+      if (account?.customer) {
+        finalCustId = account.customer.id;
+      }
+    }
+
+    if (!finalCustId) {
+      return { canReview: false, reason: 'NOT_CUSTOMER', message: 'Bạn cần đăng nhập bằng tài khoản khách hàng để đánh giá.' };
+    }
+
+    // 1. Kiểm tra xem đã từng đánh giá món này chưa (bao gồm cả VISIBLE và DELETED)
+    const existing = await this.prisma.review.findFirst({
+      where: {
+        customerId: finalCustId,
+        productId,
+      },
+    });
+
+    if (existing) {
+      if (existing.status === ('DELETED' as any)) {
+        return {
+          canReview: false,
+          hasReviewed: true,
+          hasDeleted: true,
+          reason: 'ALREADY_DELETED',
+          message: 'Bạn đã từng xóa đánh giá cho món này. Theo quy định, bạn không thể đánh giá lại món đã xóa!',
+        };
+      }
+      return {
+        canReview: false,
+        hasReviewed: true,
+        hasDeleted: false,
+        reviewId: existing.id,
+        reason: 'ALREADY_REVIEWED',
+        message: 'Bạn đã đánh giá món này rồi. Bạn chỉ có thể sửa hoặc xóa đánh giá hiện có.',
+      };
+    }
+
+    // 2. Kiểm tra xem khách hàng đã từng có đơn hàng COMPLETED chứa món đồ uống này chưa
+    const completedOrder = await this.prisma.order.findFirst({
+      where: {
+        customerId: finalCustId,
+        status: OrderStatus.COMPLETED,
+        items: {
+          some: {
+            variant: { productId },
+          },
+        },
+      },
+      include: { items: { include: { variant: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!completedOrder) {
+      return {
+        canReview: false,
+        hasPurchased: false,
+        reason: 'NOT_PURCHASED_OR_COMPLETED',
+        message: 'Bạn chỉ có thể đánh giá sau khi đã mua và nhận hoàn tất (COMPLETED) món đồ uống này!',
+      };
+    }
+
+    return {
+      canReview: true,
+      orderId: completedOrder.id,
+      message: 'Bạn đủ điều kiện để viết đánh giá cho món này!',
+    };
+  }
+
 }

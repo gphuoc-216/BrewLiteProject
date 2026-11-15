@@ -1,4 +1,4 @@
-import { Controller, Post, Patch, Delete, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ReviewsService, CreateReviewDto, UpdateReviewDto } from './reviews.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -14,6 +14,13 @@ import { Role } from '@prisma/client';
 @ApiBearerAuth()
 export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
+
+  @Get('eligibility/:productId')
+  @ApiOperation({ summary: 'Kiểm tra quyền đánh giá của khách hàng (chỉ khi có đơn COMPLETED và chưa từng đánh giá/xóa)' })
+  checkEligibility(@CurrentUser() user: any, @Param('productId') productId: string) {
+    const actorId = user.customerId || user.profileId || '';
+    return this.reviewsService.checkEligibility(actorId, productId);
+  }
 
   @Post()
   @ApiOperation({ summary: 'Gửi đánh giá món đã mua (Kiểm tra KiemTraDaMua)' })

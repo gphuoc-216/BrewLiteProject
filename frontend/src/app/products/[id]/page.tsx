@@ -69,6 +69,14 @@ export default function ProductDetailPage() {
   const [eligibleOrderId, setEligibleOrderId] = useState<string | null>(null);
   const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
   const [reviewToDelete, setReviewToDelete] = useState<{ id: string; content: string } | null>(null);
+  const [reviewEligibility, setReviewEligibility] = useState<{
+    canReview: boolean;
+    hasReviewed?: boolean;
+    hasDeleted?: boolean;
+    orderId?: string;
+    message?: string;
+    loading: boolean;
+  }>({ canReview: false, loading: true });
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
   const [selectedVoucherCodes, setSelectedVoucherCodes] = useState<string[]>([]);
   const [usePoints, setUsePoints] = useState(false);
@@ -134,33 +142,32 @@ export default function ProductDetailPage() {
       return;
     }
 
-    try {
-      setEditingReviewId(null);
-      setReviewStars(5);
-      setReviewContent('');
-      setReviewError(null);
-      let orderIdToUse: string | null = null;
-      try {
-        const myOrders = await fetchApi<any[]>('/orders/me');
-        if (Array.isArray(myOrders) && myOrders.length > 0) {
-          const matchingOrder = myOrders.find((o) =>
-            ['PAID', 'PREPARING', 'READY', 'COMPLETED'].includes(o.status) &&
-            o.items?.some((item: any) => item.variant?.productId === product?.id || item.variant?.product?.id === product?.id)
-          );
-          if (matchingOrder) {
-            orderIdToUse = matchingOrder.id;
-          } else {
-            const anyPaid = myOrders.find((o) => ['PAID', 'PREPARING', 'READY', 'COMPLETED'].includes(o.status));
-            if (anyPaid) orderIdToUse = anyPaid.id;
-          }
-        }
-      } catch {}
-
-      setEligibleOrderId(orderIdToUse);
-      setReviewModalOpen(true);
-    } catch {
-      setReviewModalOpen(true);
+    // Kiểm tra xem đã từng xóa đánh giá chưa
+    if (reviewEligibility.hasDeleted) {
+      setToast({
+        message: 'Bạn đã từng xóa đánh giá cho món này. Theo quy định, không thể viết lại sau khi đã xóa!',
+        type: 'danger',
+      });
+      return;
     }
+
+    // Kiểm tra quyền từ backend
+    if (!reviewEligibility.canReview) {
+      setToast({
+        message: reviewEligibility.message || 'Bạn chỉ có thể đánh giá sau khi đã mua và nhận hoàn tất (COMPLETED) món đồ uống này!',
+        type: 'danger',
+      });
+      return;
+    }
+
+    setEditingReviewId(null);
+    setReviewStars(5);
+    setReviewContent('');
+    setReviewError(null);
+    if (reviewEligibility.orderId) {
+      setEligibleOrderId(reviewEligibility.orderId);
+    }
+    setReviewModalOpen(true);
   };
 
   const handleSubmitReview = async (e: React.FormEvent) => {
@@ -271,7 +278,14 @@ export default function ProductDetailPage() {
         };
       });
 
-      setToast({ message: '🗑️ Đã xóa đánh giá của bạn thành công.', type: 'info' });
+      setReviewEligibility({
+        canReview: false,
+        hasReviewed: true,
+        hasDeleted: true,
+        loading: false,
+        message: 'Bạn đã từng xóa đánh giá cho món này. Theo quy định, không thể viết lại sau khi đã xóa!',
+      });
+      setToast({ message: '🗑️ Đã xóa đánh giá thành công. (Quy định: Món đã xóa đánh giá sẽ không thể viết lại)', type: 'info' });
       setReviewToDelete(null);
 
       // Đồng bộ từ database
@@ -359,6 +373,38 @@ export default function ProductDetailPage() {
     fetchToppingsCatalog().then((list) => {
       if (!isCancelled) setToppingsCatalog(list);
     });
+
+        if (targetId) {
+      setReviewEligibility((prev) => ({ ...prev, loading: true }));
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') || localStorage.getItem('customerToken') : null;
+      if (!token) {
+        setReviewEligibility({ canReview: false, loading: false });
+      } else {
+        fetchApi<{ canReview: boolean; hasReviewed?: boolean; hasDeleted?: boolean; orderId?: string; message?: string }>(
+          `/reviews/eligibility/${targetId}`
+        )
+          .then((res) => {
+            if (!isCancelled && res) {
+              setReviewEligibility({
+                canReview: !!res.canReview,
+                hasReviewed: !!res.hasReviewed,
+                hasDeleted: !!res.hasDeleted,
+                orderId: res.orderId,
+                message: res.message,
+                loading: false,
+              });
+              if (res.orderId) setEligibleOrderId(res.orderId);
+            }
+          })
+          .catch(() => {
+            if (!isCancelled) {
+              setReviewEligibility({ canReview: false, loading: false });
+            }
+          });
+      }
+    } else {
+      setReviewEligibility({ canReview: false, loading: false });
+    }
 
     return () => {
       isCancelled = true;
@@ -1062,11 +1108,11 @@ export default function ProductDetailPage() {
                   <Pencil className="w-3.5 h-3.5 text-amber-600" />
                   <span>Sửa đánh giá của bạn</span>
                 </button>
-              ) : (!user || user.role === 'CUSTOMER') ? (
+              ) : reviewEligibility.canReview ? (
                 <button
                   type="button"
                   onClick={handleOpenReviewModal}
-                  className="px-3.5 py-1.5 border border-line-strong/60 bg-surface text-ink hover:bg-surface-2 text-xs font-medium rounded shadow-xs transition-colors flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  className="px-3.5 py-1.5 border border-amber-600/60 bg-amber-50 text-amber-900 hover:bg-amber-100 text-xs font-medium rounded shadow-xs transition-colors flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 >
                   <Star className="w-3.5 h-3.5 text-amber-600 fill-amber-500" />
                   <span>Viết đánh giá món này</span>
