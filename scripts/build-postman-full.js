@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const basePath = 'C:/Users/Lenovo/Desktop/tong hop/Assigment1';
+const basePath = path.resolve(__dirname, '..');
 const p7CollectionPath = path.join(basePath, 'docs/BrewLite_P7_Core_Business_Collection.postman_collection.json');
 const outputPath = path.join(basePath, 'docs/BrewLite_Full_API_Collection.postman_collection.json');
 

@@ -38,7 +38,7 @@ describe('PromotionsService (Khuyến Mãi & Giảm Giá - Task 10)', () => {
   it('tính toán giảm giá cố định (FIXED) và không vượt quá tổng tiền đơn', async () => {
     mockPrisma.promotion.findUnique.mockResolvedValue({
       id: 'promo-2',
-      code: 'GIAM20K',
+      code: 'TEST20K',
       name: 'Giảm 20K',
       discountType: PromotionType.FIXED,
       discountValue: 20000,
@@ -50,7 +50,7 @@ describe('PromotionsService (Khuyến Mãi & Giảm Giá - Task 10)', () => {
     });
 
     // Đơn 15.000đ nhưng mã giảm 20.000đ -> Giảm tối đa 15.000đ, tổng tiền còn 0đ
-    const result = await service.validatePromotion('GIAM20K', 15000);
+    const result = await service.validatePromotion('TEST20K', 15000);
     expect(result.discountAmount).toBe(15000);
     expect(result.finalTotal).toBe(0);
   });

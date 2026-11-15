@@ -478,7 +478,7 @@ export default function AdminDashboardPage() {
       });
 
       setToastMsg({
-        message: `Đã lưu món "$"{newProductName.trim()}" kèm công thức thành công vào thực đơn!`,
+        message: `Đã lưu món "${newProductName.trim()}" kèm công thức thành công vào thực đơn!`,
         type: 'success',
       });
 

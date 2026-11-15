@@ -175,51 +175,49 @@ export class ProductsService {
         this.prisma.product.count({ where }),
       ]);
 
-      if (items && items.length > 0) {
-        const formattedItems = items.map((p) => {
-          const totalStars = p.reviews.reduce((acc, r) => acc + r.stars, 0);
-          const avgRating = p.reviews.length > 0 ? Number((totalStars / p.reviews.length).toFixed(1)) : null;
-          const minPrice = p.variants.length > 0 ? p.variants[0].price : 0;
+      const formattedItems = (items || []).map((p) => {
+        const totalStars = p.reviews.reduce((acc, r) => acc + r.stars, 0);
+        const avgRating = p.reviews.length > 0 ? Number((totalStars / p.reviews.length).toFixed(1)) : null;
+        const minPrice = p.variants.length > 0 ? p.variants[0].price : 0;
 
-          const formattedVariants = p.variants.map((v: any) => {
-            const isOutOfStock = v.recipes && v.recipes.length > 0
-              ? v.recipes.some((r: any) => Number(r.ingredient?.stockQuantity ?? 0) < Number(r.quantityRequired ?? 0))
-              : false;
-            return {
-              id: v.id,
-              size: v.size,
-              price: v.price,
-              topping: v.topping,
-              isOutOfStock,
-            };
-          });
-
-          const isProductOutOfStock = formattedVariants.length > 0 && formattedVariants.every((v) => v.isOutOfStock);
-
+        const formattedVariants = p.variants.map((v: any) => {
+          const isOutOfStock = v.recipes && v.recipes.length > 0
+            ? v.recipes.some((r: any) => Number(r.ingredient?.stockQuantity ?? 0) < Number(r.quantityRequired ?? 0))
+            : false;
           return {
-            id: p.id,
-            name: p.name,
-            category: p.category,
-            imageUrl: p.imageUrl,
-            description: p.description,
-            minPrice,
-            rating: avgRating,
-            reviewCount: p.reviews.length,
-            isOutOfStock: isProductOutOfStock,
-            variants: formattedVariants,
+            id: v.id,
+            size: v.size,
+            price: v.price,
+            topping: v.topping,
+            isOutOfStock,
           };
         });
 
+        const isProductOutOfStock = formattedVariants.length > 0 && formattedVariants.every((v) => v.isOutOfStock);
+
         return {
-          items: formattedItems,
-          meta: {
-            page,
-            limit,
-            totalItems: total,
-            totalPages: Math.ceil(total / limit),
-          },
+          id: p.id,
+          name: p.name,
+          category: p.category,
+          imageUrl: p.imageUrl,
+          description: p.description,
+          minPrice,
+          rating: avgRating,
+          reviewCount: p.reviews.length,
+          isOutOfStock: isProductOutOfStock,
+          variants: formattedVariants,
         };
-      }
+      });
+
+      return {
+        items: formattedItems,
+        meta: {
+          page,
+          limit,
+          totalItems: total,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
     } catch (e) {
       // Prisma error / DB offline -> Fallback to sample data
     }

@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Headers, Param, UseGuards, Res, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Body, Headers, Param, Query, Req, UseGuards, Res, HttpStatus } from '@nestjs/common';
 import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiHeader, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { PaymentService } from './payment.service';
@@ -64,8 +64,9 @@ export class PaymentController {
    */
   @Post('mbbank-sync')
   @ApiOperation({ summary: 'Webhook/Sync biến động số dư từ ứng dụng MBBank trên điện thoại' })
-  syncMbPayment(@Body() dto: any) {
-    return this.paymentService.syncMbPayment(dto);
+  syncMbPayment(@Body() dto: any, @Req() req: any) {
+    const secret = req?.headers?.['x-mbbank-secret'];
+    return this.paymentService.syncMbPayment(dto, typeof secret === 'string' ? secret : undefined);
   }
 
   /**
@@ -74,8 +75,9 @@ export class PaymentController {
    */
   @Get('mbbank-check/:orderCode')
   @ApiOperation({ summary: 'Kiểm tra trạng thái thanh toán MBBank cho mã đơn hàng' })
-  checkMbPayment(@Param('orderCode') orderCode: string) {
-    return this.paymentService.checkMbPayment(orderCode);
+  checkMbPayment(@Param('orderCode') orderCode: string, @Query('expectedAmount') expectedAmount?: string) {
+    const parsedExpected = expectedAmount ? Number(expectedAmount) : undefined;
+    return this.paymentService.checkMbPayment(orderCode, parsedExpected);
   }
 
   /**

@@ -156,7 +156,7 @@ export class ReviewsService {
         });
 
         if (existingReview) {
-          if (existingReview.status === ('DELETED' as any)) {
+          if (existingReview.status === ReviewStatus.DELETED) {
             throw new ConflictException(
               'Bạn đã từng xóa đánh giá cho món này. Theo quy định, mỗi khách hàng chỉ được đánh giá món một lần duy nhất và không thể viết lại sau khi đã xóa!',
             );
@@ -203,7 +203,7 @@ export class ReviewsService {
       throw new BadRequestException('Số sao đánh giá phải từ 1 đến 5 sao');
     }
     const review = await this.prisma.review.findUnique({ where: { id: reviewId } });
-    if (!review || review.status === ('DELETED' as any)) throw new NotFoundException('Không tìm thấy đánh giá hoặc đánh giá đã bị xóa');
+    if (!review || review.status === ReviewStatus.DELETED) throw new NotFoundException('Không tìm thấy đánh giá hoặc đánh giá đã bị xóa');
 
     if (review.customerId !== actorId) {
       const cust = await this.prisma.customer.findFirst({
@@ -246,7 +246,7 @@ export class ReviewsService {
     // Soft-delete đánh giá sang trạng thái DELETED để lưu vết không cho phép đánh giá lại món này
     await this.prisma.review.update({
       where: { id: reviewId },
-      data: { status: ('DELETED' as any) },
+      data: { status: ReviewStatus.DELETED },
     });
     return { message: 'Đã xóa đánh giá thành công', reviewId };
   }
@@ -279,7 +279,7 @@ export class ReviewsService {
     });
 
     if (existing) {
-      if (existing.status === ('DELETED' as any)) {
+      if (existing.status === ReviewStatus.DELETED) {
         return {
           canReview: false,
           hasReviewed: true,

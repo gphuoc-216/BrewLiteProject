@@ -12,12 +12,20 @@ async function main() {
   const delOrderItems = await prisma.orderItem.deleteMany();
   const delOrders = await prisma.order.deleteMany();
 
-  // 2. Reset điểm thưởng khách hàng về 0
+  // 2. Khôi phục điểm thưởng mặc định cho tài khoản seed (customer1: 120, customer2: 45), các tài khoản khác về 0
   await prisma.customer.updateMany({
     data: { loyaltyPoints: 0 },
   });
+  await prisma.customer.updateMany({
+    where: { account: { username: 'customer1' } },
+    data: { loyaltyPoints: 120 },
+  });
+  await prisma.customer.updateMany({
+    where: { account: { username: 'customer2' } },
+    data: { loyaltyPoints: 45 },
+  });
 
-  // 3. Khôi phục tồn kho nguyên liệu dồi dào & version = 1
+  // 3. Khôi phục tồn kho nguyên liệu dồi dào & version = 1 (khớp chính xác tên, không cắt prefix)
   const standardStock: { [key: string]: { qty: number; unit: string } } = {
     'Cà phê hạt Robusta': { qty: 50000, unit: 'g' },
     'Cà phê hạt Arabica': { qty: 30000, unit: 'g' },
@@ -34,7 +42,7 @@ async function main() {
 
   for (const [name, info] of Object.entries(standardStock)) {
     await prisma.ingredient.updateMany({
-      where: { name: { contains: name.slice(0, 8) } },
+      where: { name },
       data: { stockQuantity: info.qty, version: 1 },
     });
   }

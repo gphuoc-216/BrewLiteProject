@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { assertTransition } from '../orders/order-state-machine';
 import { OrderStatus } from '@prisma/client';
@@ -131,9 +131,20 @@ export class StaffService {
       throw err;
     }
 
-    // ⚡ Bước 2: Thực hiện chuyển đổi nguyên tố trong Transaction
     return this.prisma.$transaction(async (tx) => {
       const validStaffId = await this.resolveStaffId(staffId);
+      if (typeof tx.order.updateMany === 'function') {
+        const res = await tx.order.updateMany({
+          where: { id: orderId, status: OrderStatus.PAID },
+          data: {
+            status: OrderStatus.PREPARING,
+            ...(validStaffId ? { staffId: validStaffId } : {}),
+          },
+        });
+        if (res.count === 0) {
+          throw new ConflictException('Đơn hàng đã được Barista khác tiếp nhận hoặc trạng thái đã thay đổi');
+        }
+      }
       const updated = await tx.order.update({
         where: { id: orderId },
         data: {
@@ -189,8 +200,16 @@ export class StaffService {
       throw err;
     }
 
-    // ⚡ Bước 2: Cập nhật CSDL trong Transaction
     return this.prisma.$transaction(async (tx) => {
+      if (typeof tx.order.updateMany === 'function') {
+        const res = await tx.order.updateMany({
+          where: { id: orderId, status: OrderStatus.PREPARING },
+          data: { status: OrderStatus.READY },
+        });
+        if (res.count === 0) {
+          throw new ConflictException('Trạng thái đơn hàng đã thay đổi trước đó');
+        }
+      }
       const updated = await tx.order.update({
         where: { id: orderId },
         data: { status: OrderStatus.READY },
@@ -245,8 +264,16 @@ export class StaffService {
       throw err;
     }
 
-    // ⚡ Bước 2: Hoàn tất đơn hàng trong Transaction
     return this.prisma.$transaction(async (tx) => {
+      if (typeof tx.order.updateMany === 'function') {
+        const res = await tx.order.updateMany({
+          where: { id: orderId, status: OrderStatus.READY },
+          data: { status: OrderStatus.COMPLETED },
+        });
+        if (res.count === 0) {
+          throw new ConflictException('Trạng thái đơn hàng đã thay đổi trước đó');
+        }
+      }
       const updated = await tx.order.update({
         where: { id: orderId },
         data: { status: OrderStatus.COMPLETED },

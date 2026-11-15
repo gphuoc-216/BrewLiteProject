@@ -101,6 +101,38 @@ export function getErrorMessage(err: unknown): string {
   return 'Đã có lỗi xảy ra. Vui lòng thử lại sau.';
 }
 
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessTokenOnce(baseUrl: string, refreshToken: string): Promise<string | null> {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      try {
+        const refreshResponse = await fetch(`${baseUrl}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        });
+        const refreshJson = await refreshResponse.json();
+        const tokenData = refreshJson?.data || refreshJson;
+
+        if (refreshResponse.ok && tokenData?.accessToken) {
+          localStorage.setItem('brewlite_token', tokenData.accessToken);
+          if (tokenData.refreshToken) {
+            localStorage.setItem('brewlite_refresh_token', tokenData.refreshToken);
+          }
+          return String(tokenData.accessToken);
+        }
+        return null;
+      } catch {
+        return null;
+      } finally {
+        refreshPromise = null;
+      }
+    })();
+  }
+  return refreshPromise;
+}
+
 export async function fetchApi<T = unknown>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('brewlite_token') : null;
   const optionHeaders = (options.headers as Record<string, string> | undefined) || {};
@@ -128,30 +160,15 @@ export async function fetchApi<T = unknown>(endpoint: string, options: RequestIn
   if (response.status === 401 && typeof window !== 'undefined' && retryable) {
     const refreshToken = localStorage.getItem('brewlite_refresh_token');
     if (refreshToken) {
-      try {
-        const refreshResponse = await fetch(`${baseUrl}/auth/refresh`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken }),
+      const newAccessToken = await refreshAccessTokenOnce(baseUrl, refreshToken);
+      if (newAccessToken) {
+        return fetchApi<T>(endpoint, {
+          ...options,
+          headers: {
+            ...optionHeaders,
+            'X-Retry-After-Refresh': '1',
+          },
         });
-        const refreshJson = await refreshResponse.json();
-        const tokenData = refreshJson?.data || refreshJson;
-
-        if (refreshResponse.ok && tokenData?.accessToken) {
-          localStorage.setItem('brewlite_token', tokenData.accessToken);
-          if (tokenData.refreshToken) {
-            localStorage.setItem('brewlite_refresh_token', tokenData.refreshToken);
-          }
-          return fetchApi<T>(endpoint, {
-            ...options,
-            headers: {
-              ...optionHeaders,
-              'X-Retry-After-Refresh': '1',
-            },
-          });
-        }
-      } catch {
-        // Nếu refresh lỗi, tiếp tục đăng xuất ở bên dưới.
       }
     }
 

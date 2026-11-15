@@ -535,6 +535,14 @@ async function main() {
           { variantId: createdVariants[4].id, quantity: 1, lineTotal: 45000 },
         ],
       },
+      payments: {
+        create: {
+          idempotencyKey: 'seed-payment-order-3',
+          amount: 45000,
+          status: PaymentStatus.SUCCESS,
+          method: PaymentMethod.WALLET,
+        },
+      },
       statusHistories: {
         create: [
           { fromStatus: OrderStatus.PENDING, toStatus: OrderStatus.PAID },

@@ -64,7 +64,13 @@ export function useRequireRole(allowedRoles: Role[]) {
         }
       }
     } catch {
-      // Bỏ qua lỗi decode nếu là mock token dev
+      if (!hasRedirectedRef.current) {
+        hasRedirectedRef.current = true;
+        setReady(false);
+        logout();
+        router.replace(`/login?redirect=${encodeURIComponent(pathname || '/')}`);
+      }
+      return;
     }
 
     // 4. Đồng bộ ngược lại Zustand store nếu state đang trống

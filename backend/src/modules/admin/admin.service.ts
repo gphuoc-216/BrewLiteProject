@@ -449,8 +449,12 @@ export class AdminService {
       throw new NotFoundException(`Không tìm thấy nguyên liệu có mã hoặc tên chứa '${cleanId}'`);
     }
 
-    if (dto.stockQuantity !== undefined && (typeof dto.stockQuantity !== 'number' || dto.stockQuantity < 0)) {
-      throw new BadRequestException('Số lượng tồn kho phải là số hợp lệ và không được là số âm!');
+    if (dto.stockQuantity !== undefined) {
+      const coercedQty = Number(dto.stockQuantity);
+      if (!Number.isFinite(coercedQty) || coercedQty < 0) {
+        throw new BadRequestException('Số lượng tồn kho phải là số hợp lệ và không được là số âm!');
+      }
+      dto.stockQuantity = coercedQty;
     }
     const safeData: any = {};
     if (dto.name !== undefined) safeData.name = dto.name;
@@ -498,12 +502,20 @@ export class AdminService {
 
     let totalAmount = 0;
     const itemsData = dto.items.map((i) => {
-      const lineTotal = i.quantity * i.unitPrice;
+      const quantity = Number(i.quantity);
+      const unitPrice = Number(i.unitPrice);
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        throw new BadRequestException('Số lượng nhập kho phải lớn hơn 0');
+      }
+      if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+        throw new BadRequestException('Đơn giá nhập kho không được là số âm');
+      }
+      const lineTotal = quantity * unitPrice;
       totalAmount += lineTotal;
       return {
         ingredientId: i.ingredientId,
-        quantity: i.quantity,
-        unitPrice: i.unitPrice,
+        quantity,
+        unitPrice,
         lineTotal,
       };
     });
@@ -561,7 +573,7 @@ export class AdminService {
 
   // 6. Thống kê & Báo cáo
   async getOverview() {
-    const [totalRevenueResult, totalOrders, totalCustomers, totalProducts, lowStockIngredients] = await Promise.all([
+    const [totalRevenueResult, totalOrders, totalCustomers, totalProducts, allIngredients] = await Promise.all([
       this.prisma.order.aggregate({
         where: { status: { in: [OrderStatus.PAID, OrderStatus.PREPARING, OrderStatus.READY, OrderStatus.COMPLETED] } },
         _sum: { totalAfterDiscount: true },
@@ -569,8 +581,14 @@ export class AdminService {
       this.prisma.order.count(),
       this.prisma.customer.count(),
       this.prisma.product.count({ where: { isActive: true } }),
-      this.prisma.ingredient.count({ where: { stockQuantity: { lte: 2000 } } }),
+      this.prisma.ingredient.findMany({ select: { stockQuantity: true, unit: true } }),
     ]);
+
+    const lowStockIngredients = allIngredients.filter((ing) => {
+      const unit = (ing.unit || '').trim().toLowerCase();
+      const threshold = unit === 'quả' || unit === 'trái' || unit === 'hộp' || unit === 'chai' ? 10 : 2000;
+      return Number(ing.stockQuantity) <= threshold;
+    }).length;
 
     return {
       totalRevenue: Number(totalRevenueResult._sum.totalAfterDiscount || 0),

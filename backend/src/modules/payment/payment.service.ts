@@ -197,28 +197,7 @@ export class PaymentService {
       });
 
       if (!order) {
-        const pendingOrder = await this.prisma.order.findFirst({
-          where: { customerId: user.profileId, status: OrderStatus.PENDING },
-          orderBy: { createdAt: 'desc' },
-          include: {
-            items: {
-              include: {
-                variant: {
-                  include: {
-                    recipes: {
-                      include: { ingredient: true },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        });
-        if (pendingOrder) {
-          order = pendingOrder;
-        } else {
-          throw new NotFoundException(`Không tìm thấy đơn hàng với mã: ${orderToPayId}`);
-        }
+        throw new NotFoundException(`Không tìm thấy đơn hàng với mã: ${orderToPayId}`);
       }
 
       // 2.3 Phân quyền (RBAC): Khách hàng chỉ được phép thanh toán đơn hàng do chính mình tạo ra
@@ -423,6 +402,14 @@ export class PaymentService {
             },
           });
         }
+        if ((order as any).secondaryPromotionId) {
+          await tx.promotion.update({
+            where: { id: (order as any).secondaryPromotionId },
+            data: {
+              usedCount: { increment: 1 },
+            },
+          });
+        }
 
         // .................................................................................
         // 4.6 TÍCH LŨY ĐIỂM THƯỞNG THÀNH VIÊN (LOYALTY POINTS - TASK 10.4)
@@ -474,6 +461,26 @@ export class PaymentService {
       // Nếu là các lỗi nghiệp vụ đã chủ động ném (400, 403, 404, 408, 409, 422...) -> Bắn thẳng ra Client
       if (err instanceof HttpException || err?.status === 409) {
         throw err;
+      }
+      if (err?.code === 'P2002') {
+        const racedPayment = await this.prisma.payment.findUnique({
+          where: { idempotencyKey: idempotencyKey.trim() },
+          include: { order: true },
+        });
+        if (racedPayment) {
+          if (racedPayment.orderId !== dto.orderId || (racedPayment.method && racedPayment.method !== dto.method)) {
+            throw new UnprocessableEntityException(
+              'Phiên giao dịch đã được sử dụng cho đơn hàng hoặc phương thức khác. Vui lòng thử lại.',
+            );
+          }
+          return {
+            cached: true,
+            replayed: true,
+            message: 'Giao dịch đã được xử lý trước đó (Idempotent replay)',
+            payment: racedPayment,
+            order: racedPayment.order,
+          };
+        }
       }
       this.logger.error(`Lỗi giao dịch thanh toán: ${err?.message || err}`);
       throw err;
@@ -529,11 +536,20 @@ export class PaymentService {
    * Webhook: Nhận thông báo tiền về khi điện thoại người dùng bấm chuyển khoản thành công.
    * Tự động trích xuất mã đơn hàng (ví dụ BL810243 hoặc ORD-XXX) từ chuỗi nội dung chuyển khoản.
    */
-  async syncMbPayment(data: any) {
+  async syncMbPayment(data: any, secretHeader?: string) {
+    const expectedSecret = process.env.MBBANK_SYNC_SECRET;
+    if (expectedSecret && secretHeader !== expectedSecret) {
+      throw new ForbiddenException('Chữ ký xác thực MBBank Sync không hợp lệ');
+    }
+
+    const parsedAmount = Number(data?.amount);
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      throw new BadRequestException('Số tiền chuyển khoản MBBank phải lớn hơn 0');
+    }
+
     const content = String(data?.content || '').toUpperCase().trim().replace(/\s+/g, ' ');
     const rawCode = String(data?.invoice_code || '').toUpperCase().trim();
 
-    // Thuật toán kiểm tra chính xác nội dung: Bắt buộc đúng cấu trúc "BREWLITE <mã_đơn>"
     let orderCode = '';
     const matchExact = content.match(/^BREWLITE\s+(BL\d{6}|ORD-[A-Z0-9]+)$/i);
     if (matchExact) {
@@ -544,7 +560,7 @@ export class PaymentService {
 
     const paymentRecord = {
       orderCode,
-      amount: Number(data?.amount) || 0,
+      amount: parsedAmount,
       content: data?.content || '',
       sender: String(data?.sender || '0589822346'),
       senderName: String(data?.sender_name || data?.senderName || 'NGUYEN HOANG ANH'),
@@ -577,7 +593,7 @@ export class PaymentService {
    * API Polling: Màn hình Checkout (Frontend) định kỳ gọi hàm này mỗi 1 giây để hỏi:
    * "Đơn hàng này tiền đã vào tài khoản ngân hàng chưa?"
    */
-  async checkMbPayment(orderCode: string) {
+  async checkMbPayment(orderCode: string, expectedAmount?: number) {
     const code = String(orderCode || '').toUpperCase().trim();
     if (!code) return { paid: false };
 
@@ -597,10 +613,13 @@ export class PaymentService {
       }
     }
 
-    // Nếu tìm thấy và thời gian phát sinh chưa quá 10 phút -> Giao dịch thành công!
+    // Nếu tìm thấy và thời gian phát sinh chưa quá 10 phút -> đối soát số tiền nếu có expectedAmount
     if (payment && Date.now() - payment.time < 600000) {
-      return { 
-        paid: true, 
+      if (expectedAmount && Number.isFinite(expectedAmount) && expectedAmount > 0 && Number(payment.amount) < expectedAmount) {
+        return { paid: false, reason: 'UNDERPAID', receivedAmount: payment.amount, expectedAmount };
+      }
+      return {
+        paid: true,
         payment,
         _debugKeys: Array.from(PaymentService.mbPayments.keys()),
       };

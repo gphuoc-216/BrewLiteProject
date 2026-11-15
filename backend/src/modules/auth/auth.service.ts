@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable, BadRequestException, UnauthorizedException, ConflictException, ServiceUnavailableException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
@@ -89,7 +89,7 @@ export class AuthService {
       });
     } catch (err: any) {
       if (err instanceof UnauthorizedException) throw err;
-      account = null;
+      throw new ServiceUnavailableException('Hệ thống cơ sở dữ liệu tạm thời gián đoạn, vui lòng thử lại sau');
     }
 
     if (!account) {

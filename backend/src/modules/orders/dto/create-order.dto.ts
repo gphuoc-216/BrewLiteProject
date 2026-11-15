@@ -17,6 +17,16 @@ export class CreateOrderItemDto {
   @IsOptional()
   @IsArray()
   toppings?: string[];
+
+  @ApiPropertyOptional({ description: 'Mức đường (0%, 50%, 70%, 100%)', example: '70%' })
+  @IsOptional()
+  @IsString()
+  sugarLevel?: string;
+
+  @ApiPropertyOptional({ description: 'Lượng đá (0%, 50%, 100%)', example: '100%' })
+  @IsOptional()
+  @IsString()
+  iceLevel?: string;
 }
 
 export class CreateOrderDto {

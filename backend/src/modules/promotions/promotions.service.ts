@@ -214,7 +214,7 @@ export class PromotionsService {
     const minOrderValue =
       (promo as any).minOrderValue !== undefined
         ? Number((promo as any).minOrderValue)
-        : !process.env.JEST_WORKER_ID && rule?.minOrderValue
+        : rule?.minOrderValue
         ? rule.minOrderValue
         : 0;
 

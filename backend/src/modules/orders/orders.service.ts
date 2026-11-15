@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException, ForbiddenException, HttpException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ForbiddenException, ConflictException, HttpException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PromotionsService } from '../promotions/promotions.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -114,47 +114,59 @@ export class OrdersService {
           variantId: item.variantId,
           quantity: item.quantity,
           lineTotal,
+          sugarLevel: item.sugarLevel || '100%',
+          iceLevel: item.iceLevel || '100%',
+          toppings: filteredToppings,
         };
       });
 
       // Bước 2: Kiểm tra và áp dụng mã khuyến mãi (nếu khách hàng có nhập mã)
       const promoApplied = await this.applyPromotionCodes(dto.promotionCode, subtotal);
       const promotionId = promoApplied.promotionId;
-      let discountAmount = promoApplied.discountAmount;
+      const secondaryPromotionId = promoApplied.secondaryPromotionId;
+      const baseDiscountAmount = promoApplied.discountAmount;
 
-      // 2.2 Áp dụng điểm thưởng Loyalty (1 điểm = 100 VNĐ, 10 điểm = 1.000 VNĐ)
-      let actualPointsUsed = 0;
-      let pointsDiscount = 0;
-      if (dto.loyaltyPointsToUse && dto.loyaltyPointsToUse > 0) {
-        const customer = await this.prisma.customer.findUnique({ where: { id: effectiveCustomerId } });
-        const availablePoints = customer?.loyaltyPoints || 0;
-        const remainingSubtotal = Math.max(0, subtotal - discountAmount);
-        actualPointsUsed = Math.min(
-          Math.floor(dto.loyaltyPointsToUse),
-          availablePoints,
-          Math.floor(remainingSubtotal / 100)
-        );
-        pointsDiscount = actualPointsUsed * 100;
-        discountAmount += pointsDiscount;
-      }
-
-      // Tiền sau giảm giá tuyệt đối không được âm
-      const totalAfterDiscount = Math.max(0, subtotal - discountAmount);
-
-      // Bước 3: Khởi tạo đơn hàng ở trạng thái PENDING trong 1 Transaction đảm bảo tính nguyên tố
+      // Bước 3: Khởi tạo đơn hàng ở trạng thái PENDING trong 1 Transaction đảm bảo tính nguyên tố (chống race condition loyaltyPoints)
       const order = await this.prisma.$transaction(async (tx) => {
-        if (actualPointsUsed > 0) {
-          await tx.customer.update({
-            where: { id: effectiveCustomerId },
-            data: { loyaltyPoints: { decrement: actualPointsUsed } },
-          });
+        let discountAmount = baseDiscountAmount;
+        let actualPointsUsed = 0;
+
+        if (dto.loyaltyPointsToUse && dto.loyaltyPointsToUse > 0) {
+          const customer = await tx.customer.findUnique({ where: { id: effectiveCustomerId } });
+          const availablePoints = customer?.loyaltyPoints || 0;
+          const remainingSubtotal = Math.max(0, subtotal - discountAmount);
+          actualPointsUsed = Math.min(
+            Math.floor(dto.loyaltyPointsToUse),
+            availablePoints,
+            Math.floor(remainingSubtotal / 100),
+          );
+          if (actualPointsUsed > 0) {
+            if (typeof tx.customer.updateMany === 'function') {
+              const updatedCust = await tx.customer.updateMany({
+                where: { id: effectiveCustomerId, loyaltyPoints: { gte: actualPointsUsed } },
+                data: { loyaltyPoints: { decrement: actualPointsUsed } },
+              });
+              if (updatedCust.count === 0) {
+                throw new ConflictException('Điểm thưởng tích lũy vừa thay đổi, vui lòng thử lại');
+              }
+            } else {
+              await tx.customer.update({
+                where: { id: effectiveCustomerId },
+                data: { loyaltyPoints: { decrement: actualPointsUsed } },
+              });
+            }
+            discountAmount += actualPointsUsed * 100;
+          }
         }
+
+        const totalAfterDiscount = Math.max(0, subtotal - discountAmount);
 
         // 3.1 Tạo bản ghi Order cùng các OrderItem
         const newOrder = await tx.order.create({
           data: {
             customerId: effectiveCustomerId,
             promotionId,
+            ...(secondaryPromotionId ? { secondaryPromotionId } : {}),
             status: OrderStatus.PENDING,
             discountAmount,
             totalAfterDiscount,
@@ -204,9 +216,9 @@ export class OrdersService {
   private async applyPromotionCodes(
     promotionCode: string | undefined,
     subtotal: number,
-  ): Promise<{ promotionId: string | null; discountAmount: number }> {
+  ): Promise<{ promotionId: string | null; secondaryPromotionId: string | null; discountAmount: number }> {
     if (!promotionCode) {
-      return { promotionId: null, discountAmount: 0 };
+      return { promotionId: null, secondaryPromotionId: null, discountAmount: 0 };
     }
 
     const codes = Array.from(
@@ -226,6 +238,7 @@ export class OrdersService {
     }
 
     let promotionId: string | null = null;
+    let secondaryPromotionId: string | null = null;
     let remaining = subtotal;
     let discountAmount = 0;
 
@@ -238,11 +251,15 @@ export class OrdersService {
 
       const rawId = promoResult.promotionId;
       if (rawId && !String(rawId).startsWith('virtual-') && !String(rawId).startsWith('seed-')) {
-        if (!promotionId) promotionId = rawId;
+        if (!promotionId) {
+          promotionId = rawId;
+        } else if (rawId !== promotionId && !secondaryPromotionId) {
+          secondaryPromotionId = rawId;
+        }
       }
     }
 
-    return { promotionId, discountAmount };
+    return { promotionId, secondaryPromotionId, discountAmount };
   }
 
   /**
@@ -416,29 +433,40 @@ export class OrdersService {
               }
             }
 
-            // 2. Thu hồi lại số điểm thưởng loyalty đã tích lũy (+1 điểm / 10.000đ)
             const loyaltyPointsToRefund = Math.floor(Number(order.totalAfterDiscount) / 10000);
             if (loyaltyPointsToRefund > 0) {
-              await tx.customer.update({
-                where: { id: order.customerId },
-                data: {
-                  loyaltyPoints: {
-                    decrement: loyaltyPointsToRefund, // Trừ lại điểm thưởng khách hàng
+              const custRecord =
+                typeof tx.customer.findUnique === 'function'
+                  ? await tx.customer.findUnique({ where: { id: order.customerId } })
+                  : null;
+              const safeRefund = custRecord
+                ? Math.min(loyaltyPointsToRefund, Math.max(0, custRecord.loyaltyPoints || 0))
+                : loyaltyPointsToRefund;
+              if (safeRefund > 0) {
+                await tx.customer.update({
+                  where: { id: order.customerId },
+                  data: {
+                    loyaltyPoints: {
+                      decrement: safeRefund,
+                    },
                   },
-                },
-              });
+                });
+              }
             }
 
-            // 3. Hoàn lại lượt sử dụng mã khuyến mãi nếu đơn này có áp dụng
-            if (order.promotionId) {
-              await tx.promotion.update({
-                where: { id: order.promotionId },
-                data: {
-                  usedCount: {
-                    decrement: 1, // Giảm số lần đã dùng để voucher có hiệu lực lại
-                  },
-                },
-              });
+            const promoIdsToDecrement = [order.promotionId, (order as any).secondaryPromotionId].filter(Boolean) as string[];
+            for (const pId of promoIdsToDecrement) {
+              if (typeof tx.promotion.updateMany === 'function') {
+                await tx.promotion.updateMany({
+                  where: { id: pId, usedCount: { gt: 0 } },
+                  data: { usedCount: { decrement: 1 } },
+                });
+              } else {
+                await tx.promotion.update({
+                  where: { id: pId },
+                  data: { usedCount: { decrement: 1 } },
+                });
+              }
             }
           }
 

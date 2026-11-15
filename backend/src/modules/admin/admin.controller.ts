@@ -5,6 +5,23 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '@prisma/client';
+import {
+  AdminCreateCustomerDto,
+  AdminUpdateAccountDto,
+  AdminCreateStaffDto,
+  AdminUpdateStaffDto,
+  AdminCreateProductDto,
+  AdminUpdateProductDto,
+  AdminCreateVariantDto,
+  AdminUpdateVariantDto,
+  AdminCreateRecipeDto,
+  AdminCreatePromotionDto,
+  AdminUpdatePromotionDto,
+  AdminCreateIngredientDto,
+  AdminUpdateIngredientDto,
+  AdminCreateSupplierDto,
+  AdminCreateImportReceiptDto,
+} from './dto/admin.dto';
 
 @ApiTags('Quản Trị Hệ Thống (Admin)')
 @Controller('admin')
@@ -23,13 +40,13 @@ export class AdminController {
 
   @Post('customers')
   @ApiOperation({ summary: 'Tạo tài khoản khách hàng mới' })
-  createCustomer(@Body() dto: any) {
+  createCustomer(@Body() dto: AdminCreateCustomerDto) {
     return this.adminService.createCustomer(dto);
   }
 
   @Patch('accounts/:id')
   @ApiOperation({ summary: 'Cập nhật thông tin tài khoản (Họ tên, email, mật khẩu...)' })
-  updateAccount(@Param('id') id: string, @Body() dto: any) {
+  updateAccount(@Param('id') id: string, @Body() dto: AdminUpdateAccountDto) {
     return this.adminService.updateAccount(id, dto);
   }
 
@@ -59,13 +76,13 @@ export class AdminController {
 
   @Post('staff')
   @ApiOperation({ summary: 'Tạo tài khoản nhân viên mới' })
-  createStaff(@Body() dto: any) {
+  createStaff(@Body() dto: AdminCreateStaffDto) {
     return this.adminService.createStaff(dto);
   }
 
   @Patch('staff/:id')
   @ApiOperation({ summary: 'Cập nhật thông tin nhân viên' })
-  updateStaff(@Param('id') id: string, @Body() dto: any) {
+  updateStaff(@Param('id') id: string, @Body() dto: AdminUpdateStaffDto) {
     return this.adminService.updateStaff(id, dto);
   }
 
@@ -78,13 +95,13 @@ export class AdminController {
   // Sản phẩm, biến thể, công thức
   @Post('products')
   @ApiOperation({ summary: 'Tạo sản phẩm mới' })
-  createProduct(@Body() dto: any) {
+  createProduct(@Body() dto: AdminCreateProductDto) {
     return this.adminService.createProduct(dto);
   }
 
   @Patch('products/:id')
   @ApiOperation({ summary: 'Sửa sản phẩm' })
-  updateProduct(@Param('id') id: string, @Body() dto: any) {
+  updateProduct(@Param('id') id: string, @Body() dto: AdminUpdateProductDto) {
     return this.adminService.updateProduct(id, dto);
   }
 
@@ -96,13 +113,13 @@ export class AdminController {
 
   @Post('variants')
   @ApiOperation({ summary: 'Thêm biến thể size cho sản phẩm' })
-  createVariant(@Body() dto: any) {
+  createVariant(@Body() dto: AdminCreateVariantDto) {
     return this.adminService.createVariant(dto);
   }
 
   @Patch('variants/:id')
   @ApiOperation({ summary: 'Sửa đơn giá biến thể size' })
-  updateVariant(@Param('id') id: string, @Body() dto: any) {
+  updateVariant(@Param('id') id: string, @Body() dto: AdminUpdateVariantDto) {
     return this.adminService.updateVariant(id, dto);
   }
 
@@ -120,7 +137,7 @@ export class AdminController {
 
   @Post('recipes')
   @ApiOperation({ summary: 'Thiết lập công thức nguyên liệu' })
-  createRecipe(@Body() dto: any) {
+  createRecipe(@Body() dto: AdminCreateRecipeDto) {
     return this.adminService.createRecipe(dto);
   }
 
@@ -145,13 +162,13 @@ export class AdminController {
 
   @Post('promotions')
   @ApiOperation({ summary: 'Tạo mã khuyến mãi mới' })
-  createPromotion(@Body() dto: any) {
+  createPromotion(@Body() dto: AdminCreatePromotionDto) {
     return this.adminService.createPromotion(dto);
   }
 
   @Patch('promotions/:id')
   @ApiOperation({ summary: 'Sửa mã khuyến mãi' })
-  updatePromotion(@Param('id') id: string, @Body() dto: any) {
+  updatePromotion(@Param('id') id: string, @Body() dto: AdminUpdatePromotionDto) {
     return this.adminService.updatePromotion(id, dto);
   }
 
@@ -170,7 +187,7 @@ export class AdminController {
 
   @Post('ingredients')
   @ApiOperation({ summary: 'Thêm nguyên liệu mới' })
-  createIngredient(@Body() dto: any) {
+  createIngredient(@Body() dto: AdminCreateIngredientDto) {
     return this.adminService.createIngredient(dto);
   }
 
@@ -181,7 +198,7 @@ export class AdminController {
     description: 'Có thể nhập ID (UUID) HOẶC nhập trực tiếp Tên nguyên liệu (VD: Chanh, Cà phê, Bạc hà, Sữa)',
     example: 'Chanh',
   })
-  updateIngredient(@Param('id') id: string, @Body() dto: any) {
+  updateIngredient(@Param('id') id: string, @Body() dto: AdminUpdateIngredientDto) {
     return this.adminService.updateIngredient(id, dto);
   }
 
@@ -199,7 +216,7 @@ export class AdminController {
 
   @Post('suppliers')
   @ApiOperation({ summary: 'Thêm nhà cung cấp mới' })
-  createSupplier(@Body() dto: any) {
+  createSupplier(@Body() dto: AdminCreateSupplierDto) {
     return this.adminService.createSupplier(dto);
   }
 
@@ -211,13 +228,13 @@ export class AdminController {
 
   @Post('import-receipts')
   @ApiOperation({ summary: 'Lập phiếu nhập kho & tự động cộng dồn tồn kho' })
-  createImportReceipt(@Body() dto: any) {
+  createImportReceipt(@Body() dto: AdminCreateImportReceiptDto) {
     return this.adminService.createImportReceipt(dto);
   }
 
   @Post('inventory/import')
   @ApiOperation({ summary: 'Lập phiếu nhập kho (Alias route)' })
-  importInventory(@Body() dto: any) {
+  importInventory(@Body() dto: AdminCreateImportReceiptDto) {
     return this.adminService.createImportReceipt(dto);
   }
 

@@ -23,13 +23,13 @@ export const TOPPING_CATALOG: ToppingItem[] = [
 export function calculateToppingsExtraPrice(toppings?: string[]): number {
   if (!toppings || !Array.isArray(toppings)) return 0;
   return toppings.reduce((sum, name) => {
+    if (typeof name !== 'string') return sum;
     const rawName = name.trim().toLowerCase();
+    if (!rawName) return sum;
     const item = TOPPING_CATALOG.find(
       (t) =>
         t.id.toLowerCase() === rawName ||
-        t.name.toLowerCase() === rawName ||
-        t.name.toLowerCase().includes(rawName) ||
-        rawName.includes(t.name.toLowerCase()),
+        t.name.toLowerCase() === rawName,
     );
     return sum + (item ? item.price : 0);
   }, 0);
