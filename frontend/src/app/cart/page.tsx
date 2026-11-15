@@ -19,6 +19,8 @@ import {
   Plus,
   ArrowLeft,
   Info,
+  Clock,
+  Check,
 } from 'lucide-react';
 
 interface AvailableVoucher {
@@ -602,23 +604,15 @@ export default function CartPage() {
                   const isHappyHour = v.code.toUpperCase() === 'HAPPYHOUR';
                   const nowHour = new Date().getHours();
                   const isHappyHourValidTime = !isHappyHour || (nowHour >= 14 && nowHour < 17);
-                  const isEffectiveEligible = v.isEligible && isHappyHourValidTime;
-                  const hasOtherOrderDiscountApplied =
-                    !isHappyHour &&
-                    !isApplied &&
-                    (promotions.some((p) => p.code.toUpperCase() !== 'HAPPYHOUR') ||
-                      (!!promotion && promotion.code.toUpperCase() !== 'HAPPYHOUR'));
-                  const isDisabled = !isApplied && (!isEffectiveEligible || hasOtherOrderDiscountApplied);
+                  const isUnavailable = !isHappyHourValidTime || !v.isEligible;
 
                   const buttonLabel = isApplied
-                    ? 'Đã áp dụng ✓'
-                    : hasOtherOrderDiscountApplied
-                    ? 'Đã chọn mã khác'
+                    ? 'Đã chọn ✓'
                     : !isHappyHourValidTime
-                    ? 'Ngoài giờ (14h-17h)'
-                    : v.isEligible
-                    ? 'Áp dụng'
-                    : 'Chưa đủ';
+                    ? '14h – 17h'
+                    : !v.isEligible
+                    ? 'Chưa đủ'
+                    : 'Áp dụng';
 
                   return (
                     <div
@@ -626,16 +620,16 @@ export default function CartPage() {
                       onClick={() => {
                         if (isApplied) {
                           removePromotion(v.code);
-                        } else if (!isDisabled) {
+                        } else if (!isUnavailable) {
                           handleToggleVoucher(v);
                         }
                       }}
-                      className={`p-3 rounded-lg border text-xs transition-all space-y-2 ${
+                      className={`p-3 rounded-lg border text-xs transition-colors space-y-2 select-none ${
                         isApplied
-                          ? 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/30 ring-1 ring-emerald-500 cursor-pointer'
-                          : isDisabled
-                          ? 'border-stone-200 dark:border-stone-800 bg-stone-100/80 dark:bg-stone-900/40 text-stone-700 dark:text-stone-300 cursor-not-allowed opacity-90'
-                          : 'border-line hover:border-accent bg-surface hover:bg-surface-2/40 cursor-pointer shadow-xs'
+                          ? 'border-emerald-600 bg-emerald-50/80 ring-1 ring-emerald-600 cursor-pointer shadow-xs'
+                          : isUnavailable
+                          ? 'border-line bg-surface-2/40 text-ink-3 cursor-not-allowed opacity-60'
+                          : 'border-line hover:border-accent bg-surface hover:bg-surface-2/30 cursor-pointer shadow-xs'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2.5">
@@ -644,18 +638,18 @@ export default function CartPage() {
                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
                               isApplied
                                 ? 'bg-emerald-600 text-white'
-                                : isDisabled
-                                ? 'bg-stone-200 text-stone-600 dark:bg-stone-800 dark:text-stone-400'
+                                : isUnavailable
+                                ? 'bg-line text-ink-3'
                                 : 'bg-accent/15 text-accent'
                             }`}>
                               {v.code} {isApplied ? '✓' : ''}
                             </span>
-                            <span className={`font-semibold text-xs ${isDisabled ? 'text-stone-700 dark:text-stone-300' : 'text-ink'}`}>
+                            <span className={`font-semibold text-xs ${isUnavailable ? 'text-ink-2' : 'text-ink'}`}>
                               {v.name}
                             </span>
                           </div>
                           {v.description && v.description !== v.name && (
-                            <p className={`text-[11px] leading-relaxed ${isDisabled ? 'text-stone-500 dark:text-stone-400' : 'text-ink-2'}`}>
+                            <p className="text-[11px] leading-relaxed text-ink-2">
                               {v.description}
                             </p>
                           )}
@@ -663,12 +657,12 @@ export default function CartPage() {
 
                         <button
                           type="button"
-                          disabled={isDisabled}
+                          disabled={isUnavailable}
                           className={`px-3 py-1.5 text-[11px] font-semibold rounded shrink-0 transition-colors ${
                             isApplied
                               ? 'bg-emerald-600 text-white font-bold'
-                              : isDisabled
-                              ? 'bg-stone-200 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 text-stone-500 dark:text-stone-400 cursor-not-allowed'
+                              : isUnavailable
+                              ? 'bg-surface-2 border border-line text-ink-3 cursor-not-allowed'
                               : 'bg-accent text-on-accent hover:bg-accent-hover'
                           }`}
                         >
@@ -676,48 +670,45 @@ export default function CartPage() {
                         </button>
                       </div>
 
-                      {/* Chi tiết điều kiện áp dụng ở dưới */}
-                      <div className={`pt-2 border-t text-[10.5px] space-y-1 ${isDisabled ? 'border-stone-200 dark:border-stone-800 text-stone-500 dark:text-stone-400' : 'border-line/50 text-ink-3'}`}>
-                        <div className="flex items-center justify-between flex-wrap gap-1">
+                      {/* Chi tiết điều kiện áp dụng ở dưới - Chiều cao cố định chống giật layout */}
+                      <div className="pt-2 border-t border-line/60 text-[10.5px] space-y-1.5">
+                        <div className="flex items-center justify-between flex-wrap gap-1 text-ink-3">
                           <span>📌 <b>Đơn tối thiểu:</b> {v.minOrderValue.toLocaleString('vi-VN')}đ</span>
                           {v.maxDiscount && (
                             <span>🎯 <b>Giảm tối đa:</b> {v.maxDiscount.toLocaleString('vi-VN')}đ</span>
                           )}
                           <span>
                             ⚡ {isHappyHour ? (
-                              <b className={isDisabled ? 'text-amber-700 dark:text-amber-400' : 'text-amber-600 dark:text-amber-400'}>Cộng dồn (14h–17h)</b>
+                              <b className="text-amber-700">Cộng dồn (14h–17h)</b>
                             ) : (
                               'Tối đa 1 mã đơn hàng'
                             )}
                           </span>
                         </div>
 
-                        {!isHappyHourValidTime ? (
-                          <div className="font-medium p-1.5 rounded border flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300">
-                            <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
-                            <span>Ngoài khung giờ vàng: Chỉ áp dụng từ 14:00 đến 17:00.</span>
-                          </div>
-                        ) : !v.isEligible ? (
-                          <div className="font-medium p-1.5 rounded border flex items-center gap-1.5 bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300">
-                            <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-500" />
-                            <span>Chưa hợp lệ: {v.ineligibleReason || `Đơn còn thiếu ${(v.minOrderValue - subtotal).toLocaleString('vi-VN')}đ để dùng mã này.`}</span>
-                          </div>
-                        ) : hasOtherOrderDiscountApplied ? (
-                          <div className="font-medium p-1.5 rounded border flex items-center gap-1.5 bg-stone-200/70 dark:bg-stone-800/80 border-stone-300 dark:border-stone-700 text-stone-700 dark:text-stone-300">
-                            <AlertCircle className="w-3.5 h-3.5 shrink-0 text-stone-500" />
-                            <span>Đã chọn 1 mã giảm đơn khác (chạm vào mã đang chọn để bỏ nếu muốn đổi sang mã này).</span>
-                          </div>
-                        ) : isApplied ? (
-                          <div className="text-emerald-700 dark:text-emerald-400 font-medium flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
-                            <span>Đã áp dụng vào đơn hàng hiện tại (chạm để gỡ mã).</span>
-                          </div>
-                        ) : (
-                          <div className="text-emerald-700 dark:text-emerald-400 font-medium flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
-                            <span>Đủ điều kiện áp dụng cho đơn hàng hiện tại.</span>
-                          </div>
-                        )}
+                        <div className="h-6 flex items-center">
+                          {isApplied ? (
+                            <div className="w-full h-full flex items-center gap-1.5 text-[11px] font-semibold text-emerald-800 bg-emerald-100/70 px-2 rounded border border-emerald-200">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              <span className="truncate">Đang áp dụng vào đơn này (chạm để gỡ mã)</span>
+                            </div>
+                          ) : !isHappyHourValidTime ? (
+                            <div className="w-full h-full flex items-center gap-1.5 text-[11px] font-medium text-amber-800 bg-amber-100/70 px-2 rounded border border-amber-200">
+                              <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                              <span className="truncate">Chỉ áp dụng trong khung giờ vàng 14:00 – 17:00</span>
+                            </div>
+                          ) : !v.isEligible ? (
+                            <div className="w-full h-full flex items-center gap-1.5 text-[11px] font-medium text-rose-800 bg-rose-100/70 px-2 rounded border border-rose-200">
+                              <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                              <span className="truncate">Cần mua thêm {(v.minOrderValue - subtotal).toLocaleString('vi-VN')}đ để dùng mã này</span>
+                            </div>
+                          ) : (
+                            <div className="w-full h-full flex items-center gap-1.5 text-[11px] font-medium text-ink-2 bg-surface-2/60 px-2 rounded border border-line/60">
+                              <Check className="w-3.5 h-3.5 text-accent shrink-0" />
+                              <span className="truncate">Đủ điều kiện · Chạm để áp dụng ngay</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
