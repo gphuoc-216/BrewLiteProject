@@ -374,42 +374,47 @@ export default function ProductDetailPage() {
       if (!isCancelled) setToppingsCatalog(list);
     });
 
-        if (targetId) {
-      setReviewEligibility((prev) => ({ ...prev, loading: true }));
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') || localStorage.getItem('customerToken') : null;
-      if (!token) {
-        setReviewEligibility({ canReview: false, loading: false });
-      } else {
-        fetchApi<{ canReview: boolean; hasReviewed?: boolean; hasDeleted?: boolean; orderId?: string; message?: string }>(
-          `/reviews/eligibility/${targetId}`
-        )
-          .then((res) => {
-            if (!isCancelled && res) {
-              setReviewEligibility({
-                canReview: !!res.canReview,
-                hasReviewed: !!res.hasReviewed,
-                hasDeleted: !!res.hasDeleted,
-                orderId: res.orderId,
-                message: res.message,
-                loading: false,
-              });
-              if (res.orderId) setEligibleOrderId(res.orderId);
-            }
-          })
-          .catch(() => {
-            if (!isCancelled) {
-              setReviewEligibility({ canReview: false, loading: false });
-            }
-          });
-      }
-    } else {
-      setReviewEligibility({ canReview: false, loading: false });
-    }
-
     return () => {
       isCancelled = true;
     };
   }, [params.id]);
+
+  useEffect(() => {
+    let isCancelled = false;
+    const targetId = Array.isArray(params.id) ? params.id[0] : params.id;
+
+    if (!targetId || !user || user.role !== 'CUSTOMER') {
+      setReviewEligibility({ canReview: false, loading: false });
+      return;
+    }
+
+    setReviewEligibility((prev) => ({ ...prev, loading: true }));
+    fetchApi<{ canReview: boolean; hasReviewed?: boolean; hasDeleted?: boolean; orderId?: string; message?: string }>(
+      `/reviews/eligibility/${targetId}`
+    )
+      .then((res) => {
+        if (!isCancelled && res) {
+          setReviewEligibility({
+            canReview: !!res.canReview,
+            hasReviewed: !!res.hasReviewed,
+            hasDeleted: !!res.hasDeleted,
+            orderId: res.orderId,
+            message: res.message,
+            loading: false,
+          });
+          if (res.orderId) setEligibleOrderId(res.orderId);
+        }
+      })
+      .catch(() => {
+        if (!isCancelled) {
+          setReviewEligibility({ canReview: false, loading: false });
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [params.id, user]);
 
   if (loading) {
     return (
