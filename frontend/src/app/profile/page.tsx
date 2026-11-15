@@ -8,6 +8,52 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { Button, Card, Input, PageHeader } from '../../components/ui';
 import { useRequireRole } from '@/hooks/useRequireRole';
 
+function PasswordInput({
+  id,
+  label,
+  value,
+  visible,
+  autoComplete,
+  onChange,
+  onToggle,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  visible: boolean;
+  autoComplete: string;
+  onChange: (value: string) => void;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="space-y-1.5 text-left">
+      <label htmlFor={id} className="block text-xs font-medium text-ink-2">
+        {label}
+      </label>
+      <div className="relative">
+        <input
+          id={id}
+          type={visible ? 'text' : 'password'}
+          required
+          minLength={6}
+          autoComplete={autoComplete}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="w-full h-10 px-3 pr-10 py-2 text-sm bg-surface text-ink placeholder:text-ink-3 border border-line hover:border-line-strong rounded transition-colors focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+        />
+        <button
+          type="button"
+          onClick={onToggle}
+          className="absolute inset-y-0 right-2 flex items-center text-ink-3 hover:text-ink"
+          aria-label={visible ? `Ẩn ${label.toLowerCase()}` : `Hiện ${label.toLowerCase()}`}
+        >
+          {visible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const { ready } = useRequireRole(['CUSTOMER', 'STAFF', 'ADMIN']);
@@ -59,50 +105,6 @@ export default function ProfilePage() {
       setLoading(false);
     }
   };
-
-  const PasswordInput = ({
-    id,
-    label,
-    value,
-    visible,
-    autoComplete,
-    onChange,
-    onToggle,
-  }: {
-    id: string;
-    label: string;
-    value: string;
-    visible: boolean;
-    autoComplete: string;
-    onChange: (value: string) => void;
-    onToggle: () => void;
-  }) => (
-    <div className="space-y-1.5 text-left">
-      <label htmlFor={id} className="block text-xs font-medium text-ink-2">
-        {label}
-      </label>
-      <div className="relative">
-        <input
-          id={id}
-          type={visible ? 'text' : 'password'}
-          required
-          minLength={6}
-          autoComplete={autoComplete}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          className="w-full h-10 px-3 pr-10 py-2 text-sm bg-surface text-ink placeholder:text-ink-3 border border-line hover:border-line-strong rounded transition-colors focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-        />
-        <button
-          type="button"
-          onClick={onToggle}
-          className="absolute inset-y-0 right-2 flex items-center text-ink-3 hover:text-ink"
-          aria-label={visible ? `Ẩn ${label.toLowerCase()}` : `Hiện ${label.toLowerCase()}`}
-        >
-          {visible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-        </button>
-      </div>
-    </div>
-  );
 
   if (!ready) {
     return (

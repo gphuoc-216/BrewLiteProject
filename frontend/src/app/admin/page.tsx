@@ -1985,7 +1985,7 @@ export default function AdminDashboardPage() {
               </div>
             ) : (
               <div className="text-[11px] text-ink-3 italic py-1 text-center bg-surface/50 rounded border border-dashed border-line">
-                Chưa thêm công thức nguyên liệu (có thể cấu hình sau qua nút "Công thức").
+                Chưa thêm công thức nguyên liệu (có thể cấu hình sau qua nút &ldquo;Công thức&rdquo;).
               </div>
             )}
           </div>
@@ -2473,7 +2473,7 @@ export default function AdminDashboardPage() {
               placeholder="VD: 10 để test tranh mua hoặc 0 để test hết hàng"
             />
             <span className="text-[11px] text-ink-3 block">
-              💡 Mẹo kiểm thử: Đặt = 10 để test 2 khách cùng tranh mua 1 ly cuối, hoặc đặt = 0 để kiểm tra hiển thị "Tạm hết hàng".
+              💡 Mẹo kiểm thử: Đặt = 10 để test 2 khách cùng tranh mua 1 ly cuối, hoặc đặt = 0 để kiểm tra hiển thị &ldquo;Tạm hết hàng&rdquo;.
             </span>
           </div>
 
