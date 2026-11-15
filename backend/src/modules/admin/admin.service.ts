@@ -77,7 +77,7 @@ export class AdminService {
   async updateStaff(id: string, dto: { fullName?: string; email?: string }) {
     return this.prisma.staff.update({
       where: { id },
-      data: validData,
+      data: dto,
     });
   }
 
@@ -449,9 +449,17 @@ export class AdminService {
       throw new NotFoundException(`Không tìm thấy nguyên liệu có mã hoặc tên chứa '${cleanId}'`);
     }
 
+    if (dto.stockQuantity !== undefined && (typeof dto.stockQuantity !== 'number' || dto.stockQuantity < 0)) {
+      throw new BadRequestException('Số lượng tồn kho phải là số hợp lệ và không được là số âm!');
+    }
+    const safeData: any = {};
+    if (dto.name !== undefined) safeData.name = dto.name;
+    if (dto.unit !== undefined) safeData.unit = dto.unit;
+    if (dto.stockQuantity !== undefined) safeData.stockQuantity = dto.stockQuantity;
+
     return this.prisma.ingredient.update({
       where: { id: ing.id },
-      data: dto,
+      data: safeData,
     });
   }
 
