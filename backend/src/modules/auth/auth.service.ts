@@ -3,7 +3,6 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../prisma/prisma.service';
-import { fallbackStore, MockAccount } from '../../prisma/fallback-store';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -72,41 +71,8 @@ export class AuthService {
       };
     } catch (err: any) {
       if (err instanceof ConflictException) throw err;
-      // Only fallback on database connection / runtime errors
+      throw err;
     }
-
-    // 2. Fallback in-memory store
-    const existingAcc = fallbackStore.findAccountByUsername(dto.username);
-    if (existingAcc) {
-      throw new ConflictException('Tên đăng nhập đã được sử dụng');
-    }
-
-    const existingEmail = fallbackStore.findAccountByEmail(dto.email);
-    if (existingEmail) {
-      throw new ConflictException('Địa chỉ Email đã được đăng ký tài khoản khác');
-    }
-
-    const passwordHash = await bcrypt.hash(dto.password, 10);
-    const newAcc = fallbackStore.createAccount({
-      username: dto.username,
-      passwordHash,
-      fullName: dto.fullName,
-      email: dto.email,
-    });
-
-    const tokens = await this.generateTokens(newAcc.id, newAcc.username, newAcc.role);
-    return {
-      user: {
-        accountId: newAcc.id,
-        username: newAcc.username,
-        role: newAcc.role,
-        profileId: newAcc.customer?.id,
-        fullName: newAcc.customer?.fullName,
-        email: newAcc.customer?.email,
-        loyaltyPoints: newAcc.customer?.loyaltyPoints || 0,
-      },
-      ...tokens,
-    };
   }
 
   async login(dto: LoginDto) {
@@ -123,13 +89,7 @@ export class AuthService {
       });
     } catch (err: any) {
       if (err instanceof UnauthorizedException) throw err;
-      // DB connection error
       account = null;
-    }
-
-    // Fallback store if not found in DB or DB offline
-    if (!account) {
-      account = fallbackStore.findAccountByUsername(dto.username) as any;
     }
 
     if (!account) {
@@ -180,10 +140,6 @@ export class AuthService {
         account = null;
       }
 
-      if (!account) {
-        account = fallbackStore.findAccountById(payload.sub) as any;
-      }
-
       if (!account || account.status === AccountStatus.LOCKED) {
         throw new UnauthorizedException('Token không hợp lệ hoặc tài khoản đã bị khóa');
       }
@@ -206,10 +162,6 @@ export class AuthService {
     }
 
     if (!account) {
-      account = fallbackStore.findAccountById(accountId) as any;
-    }
-
-    if (!account) {
       throw new BadRequestException('Tài khoản không tồn tại');
     }
 
@@ -220,14 +172,10 @@ export class AuthService {
 
     const newPasswordHash = await bcrypt.hash(dto.newPassword, 10);
 
-    try {
-      await this.prisma.account.update({
-        where: { id: accountId },
-        data: { passwordHash: newPasswordHash },
-      });
-    } catch {
-      fallbackStore.updatePassword(accountId, newPasswordHash);
-    }
+    await this.prisma.account.update({
+      where: { id: accountId },
+      data: { passwordHash: newPasswordHash },
+    });
 
     return { message: 'Đổi mật khẩu thành công' };
   }

@@ -11,7 +11,6 @@ import {
 } from '@nestjs/common';
 import { IsNotEmpty, IsString, IsEnum, IsOptional } from 'class-validator';
 import { PrismaService } from '../../prisma/prisma.service';
-import { fallbackStore } from '../../prisma/fallback-store';
 import { MockGatewayService } from './mock-gateway/mock-gateway.service';
 import { assertTransition } from '../orders/order-state-machine';
 import { OrderStatus, PaymentMethod, PaymentStatus } from '@prisma/client';
@@ -476,92 +475,9 @@ export class PaymentService {
       if (err instanceof HttpException || err?.status === 409) {
         throw err;
       }
-      // Nếu là lỗi mất kết nối CSDL PostgreSQL -> Tự động chuyển sang chế độ Fallback bên dưới
-      this.logger.warn(`PostgreSQL không khả dụng khi thanh toán, chuyển sang Fallback Store: ${err?.message || err}`);
+      this.logger.error(`Lỗi giao dịch thanh toán: ${err?.message || err}`);
+      throw err;
     }
-
-    // -------------------------------------------------------------------------------------
-    // BƯỚC 5: CƠ CHẾ DỰ PHÒNG (FALLBACK IN-MEMORY STORE KHI POSTGRESQL OFFLINE)
-    // -------------------------------------------------------------------------------------
-    // Giúp ứng dụng vẫn demo mượt mà nếu máy chấm thi không bật Docker hoặc mất mạng CSDL
-    const existing = fallbackStore.findPaymentByIdempotencyKey(idempotencyKey.trim());
-    if (existing) {
-      if (
-        existing.order?.customerId &&
-        (!actorCustomerId || existing.order.customerId !== actorCustomerId)
-      ) {
-        throw new ForbiddenException('Bạn không thể truy cập giao dịch thanh toán của khách hàng khác');
-      }
-      if (existing.orderId === dto.orderId) {
-        if (existing.method && existing.method !== dto.method) {
-          const methodLabel = existing.method === 'WALLET' ? 'Ví điện tử' : 'Thẻ ngân hàng';
-          throw new UnprocessableEntityException(
-            `Giao dịch này đã được thanh toán bằng ${methodLabel}. Quý khách vui lòng không thay đổi phương thức thanh toán.`,
-          );
-        }
-        return {
-          cached: true,
-          replayed: true,
-          message: 'Giao dịch đã được xử lý trước đó (Idempotent replay)',
-          payment: existing,
-          order: existing.order,
-        };
-      } else {
-        throw new UnprocessableEntityException(
-          'Phiên giao dịch đã được sử dụng cho một đơn hàng khác. Quý khách vui lòng làm mới trang và thử lại.',
-        );
-      }
-    }
-
-    let orderToPayId = dto.orderId;
-    let order = fallbackStore.findOrderById(orderToPayId);
-    if (!order) {
-      const myOrders = fallbackStore.getMyOrders(user.profileId);
-      const pending = myOrders.find((o) => o.status === OrderStatus.PENDING || o.status === OrderStatus.PAYMENT_FAILED);
-      if (pending) {
-        order = pending;
-        orderToPayId = pending.id;
-      } else {
-        throw new NotFoundException(`Không tìm thấy đơn hàng với mã: ${orderToPayId}`);
-      }
-    }
-
-    if (!actorCustomerId || order.customerId !== actorCustomerId) {
-      throw new ForbiddenException('Bạn không thể thanh toán đơn hàng của khách hàng khác');
-    }
-
-    if (order.status === OrderStatus.PAID) {
-      throw new ConflictException(
-        'Đơn hàng này đã được thanh toán thành công trước đó. Quý khách vui lòng không thanh toán lại.',
-      );
-    }
-
-    assertTransition(order.status, OrderStatus.PAID);
-
-    const payResult = fallbackStore.processPayment({
-      orderId: order.id,
-      idempotencyKey: idempotencyKey.trim(),
-      method: dto.method,
-      simulateError: dto.simulateError,
-      actorId: user.profileId,
-    });
-
-    if (!payResult || !payResult.success) {
-      if (dto.simulateError === 'TIMEOUT') {
-        throw new RequestTimeoutException(`Cổng thanh toán timeout: Mô phỏng lỗi giao dịch (${dto.simulateError})`);
-      }
-      throw new BadRequestException(`Cổng thanh toán từ chối: Mô phỏng lỗi giao dịch (${dto.simulateError})`);
-    }
-
-    return {
-      cached: false,
-      replayed: false,
-      success: true,
-      message: 'Thanh toán đơn hàng thành công',
-      payment: payResult.payment,
-      order: payResult.order,
-      earnedPoints: payResult.earnedPoints,
-    };
   }
 
   private async recordPaymentFailure(

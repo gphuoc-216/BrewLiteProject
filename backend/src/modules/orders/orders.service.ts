@@ -1,6 +1,5 @@
 import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { fallbackStore } from '../../prisma/fallback-store';
 import { PromotionsService } from '../promotions/promotions.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { assertTransition } from './order-state-machine';
@@ -194,43 +193,8 @@ export class OrdersService {
       return order;
     } catch (err: any) {
       if (err instanceof BadRequestException) throw err;
-      // DB connection error -> fallback to in-memory store
+      throw err;
     }
-
-    // 2. Fallback in-memory store khi PostgreSQL offline
-    let subtotal = 0;
-    for (const item of dto.items) {
-      const v = fallbackStore.findVariantById(item.variantId);
-      const extraToppings = calculateToppingsExtraPrice(item.toppings);
-      const price = (v ? v.price : 35000) + extraToppings;
-      subtotal += price * item.quantity;
-    }
-
-    let promotionId: string | null = null;
-    let discountAmount = 0;
-
-    if (dto.promotionCode) {
-      const codes = dto.promotionCode.split(",").map((c) => c.trim()).filter(Boolean);
-      for (const c of codes) {
-        try {
-          const promoResult = await this.promotionsService.validatePromotion(c, subtotal);
-          if (!promotionId) promotionId = promoResult.promotionId;
-          discountAmount += promoResult.discountAmount;
-        } catch {}
-      }
-      discountAmount = Math.min(discountAmount, subtotal);
-    }
-
-    if (dto.loyaltyPointsToUse && dto.loyaltyPointsToUse > 0) {
-      const remainingSubtotal = Math.max(0, subtotal - discountAmount);
-      const pointsDiscount = Math.min(
-        Math.floor(dto.loyaltyPointsToUse) * 100,
-        remainingSubtotal
-      );
-      discountAmount += pointsDiscount;
-    }
-
-    return fallbackStore.createOrder(customerId, dto.items, discountAmount, promotionId);
   }
 
   /**
@@ -243,31 +207,23 @@ export class OrdersService {
    */
   async getMyOrders(customerId: string) {
     const effectiveCustomerId = await this.resolveCustomerId(customerId);
-    try {
-      const orders = await this.prisma.order.findMany({
-        where: { customerId: effectiveCustomerId },
-        include: {
-          items: {
-            include: {
-              variant: {
-                include: { product: true },
-              },
+    const orders = await this.prisma.order.findMany({
+      where: { customerId: effectiveCustomerId },
+      include: {
+        items: {
+          include: {
+            variant: {
+              include: { product: true },
             },
           },
-          payments: true,
-          promotion: true,
-          reviews: true,
         },
-        orderBy: { createdAt: 'desc' },
-      });
-      if (orders && orders.length > 0) {
-        return orders;
-      }
-    } catch {
-      // Database offline -> fallback
-    }
-
-    return fallbackStore.getMyOrders(effectiveCustomerId);
+        payments: true,
+        promotion: true,
+        reviews: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return orders || [];
   }
 
   /**
@@ -315,27 +271,19 @@ export class OrdersService {
         },
       });
 
-      if (order) {
-        if (!actorCustomerId || order.customerId !== actorCustomerId) {
-          throw new ForbiddenException('Bạn không có quyền xem đơn hàng của người khác');
-        }
-        return order;
+      if (!order) {
+        throw new NotFoundException('Không tìm thấy thông tin đơn hàng');
       }
+
+      if (!actorCustomerId || order.customerId !== actorCustomerId) {
+        throw new ForbiddenException('Bạn không có quyền xem đơn hàng của người khác');
+      }
+
+      return order;
     } catch (err: any) {
-      if (err instanceof ForbiddenException) throw err;
-      // DB connection error -> fallback
+      if (err instanceof ForbiddenException || err instanceof NotFoundException) throw err;
+      throw err;
     }
-
-    const fallbackOrder = fallbackStore.findOrderById(orderId);
-    if (!fallbackOrder) {
-      throw new NotFoundException('Không tìm thấy thông tin đơn hàng');
-    }
-
-    if (!actorCustomerId || fallbackOrder.customerId !== actorCustomerId) {
-      throw new ForbiddenException('Bạn không có quyền xem đơn hàng của người khác');
-    }
-
-    return fallbackOrder;
   }
 
   /**
@@ -496,23 +444,13 @@ export class OrdersService {
           return updatedOrder;
         });
       }
+
+      throw new NotFoundException('Không tìm thấy đơn hàng cần hủy');
     } catch (err: any) {
-      if (err instanceof ForbiddenException || err instanceof BadRequestException || err?.status === 409) {
+      if (err instanceof ForbiddenException || err instanceof BadRequestException || err instanceof NotFoundException || err?.status === 409) {
         throw err;
       }
-      // DB error -> fallback
+      throw err;
     }
-
-    const fallbackOrder = fallbackStore.findOrderById(orderId);
-    if (!fallbackOrder) {
-      throw new NotFoundException('Không tìm thấy đơn hàng cần hủy');
-    }
-
-    if (!actorCustomerId || fallbackOrder.customerId !== actorCustomerId) {
-      throw new ForbiddenException('Bạn không thể hủy đơn hàng của người khác');
-    }
-
-    assertTransition(fallbackOrder.status, OrderStatus.CANCELLED);
-    return fallbackStore.cancelOrder(orderId, user.profileId || user.accountId);
   }
 }

@@ -3,7 +3,6 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { fallbackStore } from '../../../prisma/fallback-store';
 import { AccountStatus } from '@prisma/client';
 
 @Injectable()
@@ -22,23 +21,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: any) {
     let account = null;
 
-    if (this.prisma.isConnected) {
-      try {
-        account = await this.prisma.account.findUnique({
-          where: { id: payload.sub },
-          include: {
-            customer: true,
-            staff: true,
-            admin: true,
-          },
-        });
-      } catch {
-        account = null;
-      }
-    }
-
-    if (!account) {
-      account = fallbackStore.findAccountById(payload.sub) as any;
+    try {
+      account = await this.prisma.account.findUnique({
+        where: { id: payload.sub },
+        include: {
+          customer: true,
+          staff: true,
+          admin: true,
+        },
+      });
+    } catch {
+      account = null;
     }
 
     if (!account) {
