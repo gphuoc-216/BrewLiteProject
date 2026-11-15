@@ -95,7 +95,18 @@ export class OrdersService {
       // Chuẩn bị dữ liệu chi tiết đơn hàng (OrderItem) và tính tổng tiền chưa giảm (subtotal)
       const orderItemsData = dto.items.map((item) => {
         const variant = variantMap.get(item.variantId)!;
-        const extraToppingsPrice = calculateToppingsExtraPrice(item.toppings);
+        const variantTopping = (variant.topping || '').toLowerCase();
+        const filteredToppings = (item.toppings || []).filter((t) => {
+          const lower = t.trim().toLowerCase();
+          if (!lower) return false;
+          if (variantTopping && variantTopping !== 'tiêu chuẩn') {
+            if (lower.includes('trân châu') && variantTopping.includes('trân châu')) return false;
+            if (lower.includes('kem cheese') && variantTopping.includes('kem cheese')) return false;
+            if (variantTopping.includes(lower)) return false;
+          }
+          return true;
+        });
+        const extraToppingsPrice = calculateToppingsExtraPrice(filteredToppings);
         const unitPrice = Number(variant.price) + extraToppingsPrice;
         const lineTotal = unitPrice * item.quantity;
         subtotal += lineTotal;

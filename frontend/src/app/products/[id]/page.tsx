@@ -455,8 +455,9 @@ export default function ProductDetailPage() {
   const baseVariant =
     variantsForSize.find((v) => v.topping === 'Tiêu chuẩn') || variantsForSize[0];
 
-  // Tìm variant khớp với các checkbox topping đã tick
-  let selectedVariant = baseVariant;
+  // Luôn dùng biến thể gốc (Tiêu chuẩn) làm variantId để tránh cộng đúp giá với danh sách toppings gửi kèm
+  const selectedVariant = baseVariant;
+  let stockCheckVariant = baseVariant;
   const hasBoba = selectedToppings.includes('Trân châu đường đen');
   const hasCheese = selectedToppings.includes('Kem Cheese Macchiato');
 
@@ -464,20 +465,20 @@ export default function ProductDetailPage() {
     const combo = variantsForSize.find(
       (v) => v.topping?.includes('Trân châu') && v.topping?.includes('Kem Cheese')
     );
-    if (combo) selectedVariant = combo;
+    if (combo) stockCheckVariant = combo;
   } else if (hasBoba) {
     const single = variantsForSize.find(
       (v) => v.topping?.includes('Trân châu') && !v.topping?.includes('Kem Cheese')
     );
-    if (single) selectedVariant = single;
+    if (single) stockCheckVariant = single;
   } else if (hasCheese) {
     const single = variantsForSize.find(
       (v) => v.topping?.includes('Kem Cheese') && !v.topping?.includes('Trân châu')
     );
-    if (single) selectedVariant = single;
+    if (single) stockCheckVariant = single;
   }
 
-  const isSelectedVariantOutOfStock = Boolean(selectedVariant?.isOutOfStock) || Boolean(product?.isOutOfStock);
+  const isSelectedVariantOutOfStock = Boolean(stockCheckVariant?.isOutOfStock) || Boolean(product?.isOutOfStock);
 
   // Phân phối Topping chính xác theo từng món thực tế (Trà đào/vải -> thạch đào/nha đam; Trà sữa -> trân châu/khúc bạch; Cà phê -> espresso/cheese)
   const toppingsForCategory = getToppingsForProduct(product, toppingsCatalog);
