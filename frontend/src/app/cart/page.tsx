@@ -203,6 +203,15 @@ export default function CartPage() {
       return;
     }
 
+    const isHappyHour = v.code.toUpperCase() === 'HAPPYHOUR';
+    if (isHappyHour) {
+      const nowHour = new Date().getHours();
+      if (nowHour < 14 || nowHour >= 17) {
+        setCouponError('Mã HAPPYHOUR chỉ áp dụng trong khung giờ vàng 14:00 – 17:00.');
+        return;
+      }
+    }
+
     if (subtotal < v.minOrderValue) {
       const missing = v.minOrderValue - subtotal;
       setCouponError(
@@ -211,14 +220,17 @@ export default function CartPage() {
       return;
     }
 
-    // Kiểm tra nếu đơn hàng đã được giảm tối đa 0đ
-    const currentDiscount = promotions.reduce((sum, p) => sum + (p.discountAmount || 0), 0);
-    const remainingBefore = Math.max(0, subtotal - currentDiscount);
-    if (remainingBefore <= 0) {
-      setCouponError('Đơn hàng đã được giảm tối đa (0đ), không thể chọn thêm voucher khác.');
-      return;
+    // Nếu chọn mã giảm giá đơn thông thường (không phải HAPPYHOUR)
+    // thì chỉ được chọn 1 mã: tự động gỡ các mã giảm giá đơn khác đã chọn
+    if (!isHappyHour) {
+      promotions.forEach((p) => {
+        if (p.code.toUpperCase() !== 'HAPPYHOUR') {
+          removePromotion(p.code);
+        }
+      });
     }
 
+    // Tính toán số tiền giảm
     let calcDiscount = 0;
     if (v.discountType === 'PERCENT') {
       calcDiscount = Math.round((subtotal * v.discountValue) / 100);
@@ -228,6 +240,12 @@ export default function CartPage() {
     } else {
       calcDiscount = v.discountValue;
     }
+
+    // Giới hạn không vượt quá số tiền còn lại của đơn hàng
+    const otherDiscount = promotions
+      .filter((p) => (isHappyHour ? p.code.toUpperCase() !== 'HAPPYHOUR' : p.code.toUpperCase() === 'HAPPYHOUR'))
+      .reduce((sum, p) => sum + (p.discountAmount || 0), 0);
+    const remainingBefore = Math.max(0, subtotal - otherDiscount);
     calcDiscount = Math.min(calcDiscount, remainingBefore);
 
     togglePromotion({
@@ -574,10 +592,10 @@ export default function CartPage() {
                   <span>Quy định áp dụng & cộng dồn Voucher:</span>
                 </div>
                 <ul className="list-disc list-inside space-y-0.5 text-ink-3 pl-0.5">
-                  <li>Được phép chọn và cộng dồn nhiều mã ưu đãi cùng lúc trên 1 đơn hàng.</li>
-                  <li>Mã Giờ vàng (HAPPYHOUR) chỉ áp dụng trong khung giờ vàng 14:00 – 17:00.</li>
-                  <li>Khi đơn hàng đã giảm hết về 0đ hoặc chưa đạt giá trị tối thiểu, các mã không phù hợp sẽ tự động chuyển màu tối mờ và khóa chọn.</li>
+                  <li>Mỗi đơn được chọn <b>tối đa 1 mã Giảm giá đơn hàng</b> (các mã cùng điều kiện khác sẽ tự động đổi màu tối mờ và khóa chọn).</li>
+                  <li>Được phép cộng dồn thêm <b>1 mã Giờ vàng (HAPPYHOUR)</b> vì thuộc điều kiện khung giờ khác (14:00 – 17:00).</li>
                   <li>Được kết hợp đồng thời cùng <b>Điểm thưởng Loyalty</b> thành viên.</li>
+                  <li>Chỉ áp dụng nhận tại quầy / mang đi (BrewLite không có phí ship).</li>
                 </ul>
               </div>
 
@@ -590,29 +608,32 @@ export default function CartPage() {
                   const nowHour = new Date().getHours();
                   const isHappyHourValidTime = !isHappyHour || (nowHour >= 14 && nowHour < 17);
 
-                  // Tổng tiền giảm của các mã ĐANG ĐƯỢC CHỌN
-                  const currentDiscountSum = promotions.reduce((sum, p) => sum + (p.discountAmount || 0), 0);
-                  const remainingBalance = Math.max(0, subtotal - currentDiscountSum);
+                  // Kiểm tra xem đã có mã giảm đơn hàng thông thường nào khác đang chọn chưa
+                  const hasOtherOrderDiscountApplied =
+                    !isHappyHour &&
+                    !isApplied &&
+                    (promotions.some((p) => p.code.toUpperCase() !== 'HAPPYHOUR') ||
+                      (!!promotion && promotion.code.toUpperCase() !== 'HAPPYHOUR'));
 
-                  // Mã không phù hợp / không chọn được nếu:
-                  // 1. Ngoài khung giờ vàng (HAPPYHOUR 14h-17h)
-                  // 2. Không đủ đơn tối thiểu (subtotal < v.minOrderValue)
-                  // 3. Đơn đã giảm hết về 0đ mà mã này chưa được chọn (hết hạn mức giảm)
                   const isMinOrderMet = subtotal >= v.minOrderValue;
-                  const isAlreadyZero = !isApplied && remainingBalance <= 0;
-                  const isUnavailable = !isApplied && (!isHappyHourValidTime || !isMinOrderMet || isAlreadyZero);
+
+                  // Mã không phù hợp / bị tối mờ / không được chọn:
+                  // 1. Nếu là mã giảm đơn thông thường mà ĐÃ CÓ 1 MÃ GIẢM ĐƠN KHÁC đang chọn (điều kiện na ná nhau chỉ chọn 1)
+                  // 2. Ngoài giờ vàng (HAPPYHOUR 14h-17h)
+                  // 3. Chưa đạt đơn tối thiểu
+                  const isUnavailable = !isApplied && (hasOtherOrderDiscountApplied || !isHappyHourValidTime || !isMinOrderMet);
 
                   const appliedPromo = promotions.find((p) => p.code.toUpperCase() === v.code.toUpperCase());
                   const appliedAmount = appliedPromo?.discountAmount || (v.discountType === 'FIXED' ? v.discountValue : 0);
 
                   const buttonLabel = isApplied
                     ? 'Đã chọn ✓'
+                    : hasOtherOrderDiscountApplied
+                    ? 'Đã chọn mã khác'
                     : !isHappyHourValidTime
                     ? '14h – 17h'
                     : !isMinOrderMet
                     ? 'Chưa đủ'
-                    : isAlreadyZero
-                    ? 'Đã giảm 0đ'
                     : 'Áp dụng';
 
                   return (
@@ -682,7 +703,7 @@ export default function CartPage() {
                             ⚡ {isHappyHour ? (
                               <b className={isUnavailable ? 'text-stone-500' : 'text-amber-700'}>Cộng dồn (14h–17h)</b>
                             ) : (
-                              'Cộng dồn nhiều mã'
+                              'Tối đa 1 mã đơn hàng'
                             )}
                           </span>
                         </div>
@@ -692,6 +713,11 @@ export default function CartPage() {
                             <div className="w-full h-full flex items-center gap-1.5 text-[11px] font-semibold text-emerald-800 bg-emerald-100/70 px-2 rounded border border-emerald-200">
                               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                               <span className="truncate">Đang áp dụng (-{appliedAmount.toLocaleString('vi-VN')}đ) · Chạm để gỡ mã</span>
+                            </div>
+                          ) : hasOtherOrderDiscountApplied ? (
+                            <div className="w-full h-full flex items-center gap-1.5 text-[11px] font-medium text-stone-600 bg-stone-200/80 px-2 rounded border border-stone-300">
+                              <Info className="w-3.5 h-3.5 text-stone-500 shrink-0" />
+                              <span className="truncate">Đã chọn 1 mã giảm đơn khác (chạm mã đang chọn để bỏ nếu muốn đổi)</span>
                             </div>
                           ) : !isHappyHourValidTime ? (
                             <div className="w-full h-full flex items-center gap-1.5 text-[11px] font-medium text-amber-800 bg-amber-100/70 px-2 rounded border border-amber-200">
@@ -703,15 +729,10 @@ export default function CartPage() {
                               <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
                               <span className="truncate">Cần mua thêm {(v.minOrderValue - subtotal).toLocaleString('vi-VN')}đ để dùng mã này</span>
                             </div>
-                          ) : isAlreadyZero ? (
-                            <div className="w-full h-full flex items-center gap-1.5 text-[11px] font-medium text-stone-600 bg-stone-200/80 px-2 rounded border border-stone-300">
-                              <Info className="w-3.5 h-3.5 text-stone-500 shrink-0" />
-                              <span className="truncate">Đơn đã giảm tối đa (0đ) · Không thể cộng dồn thêm</span>
-                            </div>
                           ) : (
                             <div className="w-full h-full flex items-center gap-1.5 text-[11px] font-medium text-ink-2 bg-surface-2/60 px-2 rounded border border-line/60">
                               <Check className="w-3.5 h-3.5 text-accent shrink-0" />
-                              <span className="truncate">Đủ điều kiện · Chạm để cộng dồn thêm vào đơn</span>
+                              <span className="truncate">Đủ điều kiện · Chạm để áp dụng ngay</span>
                             </div>
                           )}
                         </div>
