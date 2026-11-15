@@ -58,6 +58,11 @@ export const VOUCHER_RULES: Record<string, PromotionRule> = {
 export class PromotionsService {
   constructor(private prisma: PrismaService) {}
 
+  private isHappyHourActive(now: Date = new Date()): boolean {
+    const hour = now.getHours();
+    return hour >= 14 && hour < 17;
+  }
+
   async getAvailablePromotions(orderSubtotal = 0) {
     const now = new Date();
     let promos = [];
@@ -105,12 +110,19 @@ export class PromotionsService {
       const rule = VOUCHER_RULES[codeUpper];
       const minOrderValue = Number((promo as any).minOrderValue ?? rule?.minOrderValue ?? 0);
       const maxDiscount = Number((promo as any).maxDiscount ?? rule?.maxDiscount ?? 0);
-      const isEligible = orderSubtotal >= minOrderValue;
+      const meetsMinOrder = orderSubtotal >= minOrderValue;
+      const isWithinHappyHour = codeUpper !== 'HAPPYHOUR' || this.isHappyHourActive(now);
+      const isEligible = meetsMinOrder && isWithinHappyHour;
       const missingAmount = Math.max(0, minOrderValue - orderSubtotal);
       const progressPercent =
         minOrderValue > 0
           ? Math.min(100, Math.round((orderSubtotal / minOrderValue) * 100))
           : 100;
+      const ineligibleReason = !isWithinHappyHour
+        ? 'Chỉ áp dụng trong khung giờ vàng 14:00 – 17:00.'
+        : !meetsMinOrder
+        ? `Đơn còn thiếu ${missingAmount.toLocaleString('vi-VN')}đ để dùng mã này.`
+        : null;
 
       return {
         id: promo.id,
@@ -127,6 +139,7 @@ export class PromotionsService {
             : `Giảm ${(Number(promo.discountValue) / 1000).toFixed(0)}K`),
         description: rule?.description || promo.name,
         isEligible,
+        ineligibleReason,
         missingAmount,
         progressPercent,
       };
@@ -188,6 +201,12 @@ export class PromotionsService {
 
     if (promo.usedCount >= promo.quantity) {
       throw new BadRequestException(`Mã khuyến mãi "${code}" đã hết lượt sử dụng`);
+    }
+
+    if (codeUpper === 'HAPPYHOUR' && !this.isHappyHourActive(now)) {
+      throw new BadRequestException(
+        'Mã khuyến mãi "HAPPYHOUR" chỉ áp dụng trong khung giờ vàng 14:00 – 17:00.'
+      );
     }
 
     // Kiểm tra quy tắc giá trị đơn hàng tối thiểu

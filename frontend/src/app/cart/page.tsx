@@ -32,6 +32,7 @@ interface AvailableVoucher {
   badge: string;
   description: string;
   isEligible: boolean;
+  ineligibleReason?: string | null;
   missingAmount: number;
   progressPercent: number;
 }
@@ -586,8 +587,8 @@ export default function CartPage() {
                   <span>Quy định áp dụng & cộng dồn Voucher:</span>
                 </div>
                 <ul className="list-disc list-inside space-y-0.5 text-ink-3 pl-0.5">
-                  <li>Mỗi đơn được chọn <b>tối đa 1 mã Giảm giá đơn hàng</b> (chọn mã khác sẽ tự động thay thế).</li>
-                  <li>Được phép cộng dồn thêm <b>1 mã Giờ vàng (HAPPYHOUR)</b> nếu tổng đơn chưa về 0đ.</li>
+                  <li>Mỗi đơn được chọn <b>tối đa 1 mã Giảm giá đơn hàng</b> (bỏ chọn mã đang dùng nếu muốn đổi sang mã khác).</li>
+                  <li>Được phép cộng dồn thêm <b>1 mã Giờ vàng (HAPPYHOUR)</b> trong khung <b>14:00 – 17:00</b> nếu tổng đơn chưa về 0đ.</li>
                   <li>Được kết hợp đồng thời cùng <b>Điểm thưởng Loyalty</b> thành viên.</li>
                   <li>Chỉ áp dụng nhận tại quầy / mang đi (BrewLite không có phí ship).</li>
                 </ul>
@@ -599,6 +600,25 @@ export default function CartPage() {
                     (p) => p.code.toUpperCase() === v.code.toUpperCase()
                   ) || promotion?.code?.toUpperCase() === v.code.toUpperCase();
                   const isHappyHour = v.code.toUpperCase() === 'HAPPYHOUR';
+                  const nowHour = new Date().getHours();
+                  const isHappyHourValidTime = !isHappyHour || (nowHour >= 14 && nowHour < 17);
+                  const isEffectiveEligible = v.isEligible && isHappyHourValidTime;
+                  const hasOtherOrderDiscountApplied =
+                    !isHappyHour &&
+                    !isApplied &&
+                    (promotions.some((p) => p.code.toUpperCase() !== 'HAPPYHOUR') ||
+                      (!!promotion && promotion.code.toUpperCase() !== 'HAPPYHOUR'));
+                  const isDisabled = !isApplied && (!isEffectiveEligible || hasOtherOrderDiscountApplied);
+
+                  const buttonLabel = isApplied
+                    ? 'Đã áp dụng ✓'
+                    : hasOtherOrderDiscountApplied
+                    ? 'Đã chọn mã khác'
+                    : !isHappyHourValidTime
+                    ? 'Ngoài giờ (14h-17h)'
+                    : v.isEligible
+                    ? 'Áp dụng'
+                    : 'Chưa đủ';
 
                   return (
                     <div
@@ -606,23 +626,27 @@ export default function CartPage() {
                       onClick={() => {
                         if (isApplied) {
                           removePromotion(v.code);
-                        } else if (v.isEligible) {
+                        } else if (!isDisabled) {
                           handleToggleVoucher(v);
                         }
                       }}
-                      className={`p-3 rounded-lg border text-xs cursor-pointer transition-all space-y-2 ${
+                      className={`p-3 rounded-lg border text-xs transition-all space-y-2 ${
                         isApplied
-                          ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/30 ring-1 ring-emerald-500'
-                          : v.isEligible
-                          ? 'border-line hover:border-accent bg-surface hover:bg-surface-2/40'
-                          : 'border-line/60 bg-surface-2/30 opacity-75'
+                          ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/30 ring-1 ring-emerald-500 cursor-pointer'
+                          : isDisabled
+                          ? 'border-neutral-300 dark:border-neutral-800 bg-neutral-200/80 dark:bg-neutral-900/85 opacity-50 grayscale cursor-not-allowed'
+                          : 'border-line hover:border-accent bg-surface hover:bg-surface-2/40 cursor-pointer'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2.5">
                         <div className="min-w-0 space-y-1">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                              isApplied ? 'bg-emerald-600 text-white' : 'bg-accent/15 text-accent'
+                              isApplied
+                                ? 'bg-emerald-600 text-white'
+                                : isDisabled
+                                ? 'bg-neutral-700 text-neutral-200 dark:bg-neutral-800 dark:text-neutral-400'
+                                : 'bg-accent/15 text-accent'
                             }`}>
                               {v.code} {isApplied ? '✓' : ''}
                             </span>
@@ -637,16 +661,16 @@ export default function CartPage() {
 
                         <button
                           type="button"
-                          disabled={!v.isEligible && !isApplied}
+                          disabled={isDisabled}
                           className={`px-3 py-1.5 text-[11px] font-semibold rounded shrink-0 transition-colors ${
                             isApplied
                               ? 'bg-emerald-600 text-white font-bold'
-                              : v.isEligible
-                              ? 'bg-accent text-on-accent hover:bg-accent-hover'
-                              : 'text-ink-3 bg-line/50 cursor-not-allowed'
+                              : isDisabled
+                              ? 'bg-neutral-800/85 text-neutral-300 dark:bg-neutral-800 dark:text-neutral-500 cursor-not-allowed'
+                              : 'bg-accent text-on-accent hover:bg-accent-hover'
                           }`}
                         >
-                          {isApplied ? 'Đã áp dụng ✓' : v.isEligible ? 'Áp dụng' : 'Chưa đủ'}
+                          {buttonLabel}
                         </button>
                       </div>
 
@@ -659,17 +683,27 @@ export default function CartPage() {
                           )}
                           <span>
                             ⚡ {isHappyHour ? (
-                              <b className="text-amber-600 dark:text-amber-400">Được phép cộng dồn</b>
+                              <b className="text-amber-600 dark:text-amber-400">Cộng dồn (14h–17h)</b>
                             ) : (
                               'Tối đa 1 mã đơn hàng'
                             )}
                           </span>
                         </div>
 
-                        {!v.isEligible ? (
+                        {!isHappyHourValidTime ? (
                           <div className="text-rose-600 dark:text-rose-400 font-medium bg-rose-50/80 dark:bg-rose-950/30 p-1.5 rounded border border-rose-200 dark:border-rose-900/50 flex items-center gap-1">
                             <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                            <span>Chưa hợp lệ: Đơn còn thiếu {(v.minOrderValue - subtotal).toLocaleString('vi-VN')}đ để dùng mã này.</span>
+                            <span>Ngoài khung giờ vàng: Chỉ áp dụng từ 14:00 đến 17:00.</span>
+                          </div>
+                        ) : !v.isEligible ? (
+                          <div className="text-rose-600 dark:text-rose-400 font-medium bg-rose-50/80 dark:bg-rose-950/30 p-1.5 rounded border border-rose-200 dark:border-rose-900/50 flex items-center gap-1">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                            <span>Chưa hợp lệ: {v.ineligibleReason || `Đơn còn thiếu ${(v.minOrderValue - subtotal).toLocaleString('vi-VN')}đ để dùng mã này.`}</span>
+                          </div>
+                        ) : hasOtherOrderDiscountApplied ? (
+                          <div className="text-neutral-700 dark:text-neutral-300 font-medium bg-neutral-300/60 dark:bg-neutral-800/80 p-1.5 rounded border border-neutral-400/50 dark:border-neutral-700 flex items-center gap-1">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                            <span>Không thể chọn cùng lúc với mã giảm đơn hàng đang áp dụng (bấm mã đang chọn để bỏ nếu muốn đổi).</span>
                           </div>
                         ) : (
                           <div className="text-emerald-700 dark:text-emerald-400 font-medium flex items-center gap-1">
