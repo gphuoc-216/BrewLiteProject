@@ -634,7 +634,7 @@ export default function CartPage() {
                         isApplied
                           ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/30 ring-1 ring-emerald-500 cursor-pointer'
                           : isDisabled
-                          ? 'border-neutral-300 dark:border-neutral-800 bg-neutral-200/80 dark:bg-neutral-900/85 opacity-50 grayscale cursor-not-allowed'
+                          ? 'border-neutral-700 bg-neutral-900/90 text-neutral-100 cursor-not-allowed'
                           : 'border-line hover:border-accent bg-surface hover:bg-surface-2/40 cursor-pointer'
                       }`}
                     >
@@ -645,16 +645,16 @@ export default function CartPage() {
                               isApplied
                                 ? 'bg-emerald-600 text-white'
                                 : isDisabled
-                                ? 'bg-neutral-700 text-neutral-200 dark:bg-neutral-800 dark:text-neutral-400'
+                                ? 'bg-neutral-700 text-neutral-200'
                                 : 'bg-accent/15 text-accent'
                             }`}>
                               {v.code} {isApplied ? '✓' : ''}
                             </span>
-                            <span className="font-semibold text-ink text-xs">
+                            <span className={`font-semibold text-xs ${isDisabled ? 'text-neutral-100' : 'text-ink'}`}>
                               {v.name}
                             </span>
                           </div>
-                          <p className="text-[11px] text-ink-2 leading-relaxed">
+                          <p className={`text-[11px] leading-relaxed ${isDisabled ? 'text-neutral-300' : 'text-ink-2'}`}>
                             {v.description}
                           </p>
                         </div>
@@ -666,7 +666,7 @@ export default function CartPage() {
                             isApplied
                               ? 'bg-emerald-600 text-white font-bold'
                               : isDisabled
-                              ? 'bg-neutral-800/85 text-neutral-300 dark:bg-neutral-800 dark:text-neutral-500 cursor-not-allowed'
+                              ? 'bg-neutral-800 border border-neutral-600 text-neutral-300 cursor-not-allowed'
                               : 'bg-accent text-on-accent hover:bg-accent-hover'
                           }`}
                         >
@@ -675,7 +675,7 @@ export default function CartPage() {
                       </div>
 
                       {/* Chi tiết điều kiện áp dụng ở dưới */}
-                      <div className="pt-2 border-t border-line/50 text-[10.5px] space-y-1 text-ink-3">
+                      <div className={`pt-2 border-t text-[10.5px] space-y-1 ${isDisabled ? 'border-neutral-700 text-neutral-300' : 'border-line/50 text-ink-3'}`}>
                         <div className="flex items-center justify-between flex-wrap gap-1">
                           <span>📌 <b>Đơn tối thiểu:</b> {v.minOrderValue.toLocaleString('vi-VN')}đ</span>
                           {v.maxDiscount && (
@@ -683,7 +683,7 @@ export default function CartPage() {
                           )}
                           <span>
                             ⚡ {isHappyHour ? (
-                              <b className="text-amber-600 dark:text-amber-400">Cộng dồn (14h–17h)</b>
+                              <b className={isDisabled ? 'text-amber-300' : 'text-amber-600 dark:text-amber-400'}>Cộng dồn (14h–17h)</b>
                             ) : (
                               'Tối đa 1 mã đơn hàng'
                             )}
@@ -691,18 +691,18 @@ export default function CartPage() {
                         </div>
 
                         {!isHappyHourValidTime ? (
-                          <div className="text-rose-600 dark:text-rose-400 font-medium bg-rose-50/80 dark:bg-rose-950/30 p-1.5 rounded border border-rose-200 dark:border-rose-900/50 flex items-center gap-1">
+                          <div className={`font-medium p-1.5 rounded border flex items-center gap-1 ${isDisabled ? 'bg-rose-950/70 border-rose-700/70 text-rose-200' : 'text-rose-600 bg-rose-50/80 border-rose-200'}`}>
                             <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                             <span>Ngoài khung giờ vàng: Chỉ áp dụng từ 14:00 đến 17:00.</span>
                           </div>
                         ) : !v.isEligible ? (
-                          <div className="text-rose-600 dark:text-rose-400 font-medium bg-rose-50/80 dark:bg-rose-950/30 p-1.5 rounded border border-rose-200 dark:border-rose-900/50 flex items-center gap-1">
+                          <div className={`font-medium p-1.5 rounded border flex items-center gap-1 ${isDisabled ? 'bg-rose-950/70 border-rose-700/70 text-rose-200' : 'text-rose-600 bg-rose-50/80 border-rose-200'}`}>
                             <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                             <span>Chưa hợp lệ: {v.ineligibleReason || `Đơn còn thiếu ${(v.minOrderValue - subtotal).toLocaleString('vi-VN')}đ để dùng mã này.`}</span>
                           </div>
                         ) : hasOtherOrderDiscountApplied ? (
-                          <div className="text-neutral-700 dark:text-neutral-300 font-medium bg-neutral-300/60 dark:bg-neutral-800/80 p-1.5 rounded border border-neutral-400/50 dark:border-neutral-700 flex items-center gap-1">
-                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                          <div className="text-neutral-200 font-medium bg-neutral-800 p-1.5 rounded border border-neutral-700 flex items-center gap-1">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0 text-neutral-400" />
                             <span>Không thể chọn cùng lúc với mã giảm đơn hàng đang áp dụng (bấm mã đang chọn để bỏ nếu muốn đổi).</span>
                           </div>
                         ) : (
