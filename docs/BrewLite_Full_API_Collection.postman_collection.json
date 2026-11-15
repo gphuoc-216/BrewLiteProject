@@ -13,37 +13,37 @@
     },
     {
       "key": "customerToken",
-      "value": "",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NmViMDVjNC02MzNhLTQ1NzAtOWNhNi02ZmNkZTk0MGU5NzgiLCJ1c2VybmFtZSI6ImN1c3RvbWVyMSIsInJvbGUiOiJDVVNUT01FUiIsImlhdCI6MTc5NDc3ODExNSwiZXhwIjoxNzk1MzgyOTE1fQ.iT4I5t_1LJPgXRcvjCqEH4xFtvSUO4ZhgtNqyfSzTq4",
       "type": "string"
     },
     {
       "key": "staffToken",
-      "value": "",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMmJkYmIyZS0xYWEwLTQ2NWQtOGZiOS1kOTNlYjcxNzA4NTciLCJ1c2VybmFtZSI6ImJhcmlzdGExIiwicm9sZSI6IlNUQUZGIiwiaWF0IjoxNzk0Nzc4MTE2LCJleHAiOjE3OTUzODI5MTZ9.I_U1iJJDDTWiqNoGfsFNQKk370N2UEUHyfjegkIErdk",
       "type": "string"
     },
     {
       "key": "adminToken",
-      "value": "",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhYWM2ZmRmMC1jYzc5LTRmMTEtOGY5My1mODQxNmUyZDZiMzIiLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6IkFETUlOIiwiaWF0IjoxNzk0Nzc4MTE2LCJleHAiOjE3OTUzODI5MTZ9.bsOK4Uy8EAkRf41rRFUZaG1V1hdc1ebNJrNEKdMEGG4",
       "type": "string"
     },
     {
       "key": "testProductId",
-      "value": "",
+      "value": "c7c833c4-bdd0-4835-af49-e5ab73e50d96",
       "type": "string"
     },
     {
       "key": "testVariantId",
-      "value": "",
+      "value": "1fb2edac-927b-4595-9d6c-8f2a3213b1d0",
       "type": "string"
     },
     {
       "key": "activeOrderId",
-      "value": "",
+      "value": "2089065c-0b2f-40d4-ab38-fdbe5391f0d6",
       "type": "string"
     },
     {
       "key": "robustaId",
-      "value": "",
+      "value": "e0ff5119-4ac4-4a6d-946f-990f58e5756c",
       "type": "string"
     },
     {
@@ -519,7 +519,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"items\": [\n    {\n      \"variantId\": \"{{testVariantId}}\",\n      \"quantity\": 1\n    }\n  ]\n}"
+              "raw": "{\n  \"items\": [\n    {\n      \"variantId\": \"1fb2edac-927b-4595-9d6c-8f2a3213b1d0\",\n      \"quantity\": 1\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/orders",
@@ -1377,7 +1377,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"items\": [\n    {\n      \"variantId\": \"{{testVariantId}}\",\n      \"quantity\": 1\n    }\n  ]\n}"
+                  "raw": "{\n  \"items\": [\n    {\n      \"variantId\": \"1fb2edac-927b-4595-9d6c-8f2a3213b1d0\",\n      \"quantity\": 1\n    }\n  ]\n}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/orders",
@@ -1585,7 +1585,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"items\": [\n    {\n      \"variantId\": \"{{testVariantId}}\",\n      \"quantity\": 1\n    }\n  ]\n}"
+                  "raw": "{\n  \"items\": [\n    {\n      \"variantId\": \"1fb2edac-927b-4595-9d6c-8f2a3213b1d0\",\n      \"quantity\": 1\n    }\n  ]\n}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/orders",
@@ -1685,7 +1685,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"items\": [\n    {\n      \"variantId\": \"{{testVariantId}}\",\n      \"quantity\": 1\n    }\n  ]\n}"
+                  "raw": "{\n  \"items\": [\n    {\n      \"variantId\": \"1fb2edac-927b-4595-9d6c-8f2a3213b1d0\",\n      \"quantity\": 1\n    }\n  ]\n}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/orders",
@@ -1877,7 +1877,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"items\": [\n    {\n      \"variantId\": \"{{testVariantId}}\",\n      \"quantity\": 1\n    }\n  ]\n}"
+                  "raw": "{\n  \"items\": [\n    {\n      \"variantId\": \"1fb2edac-927b-4595-9d6c-8f2a3213b1d0\",\n      \"quantity\": 1\n    }\n  ]\n}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/orders",
@@ -1968,7 +1968,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"items\": [\n    {\n      \"variantId\": \"{{testVariantId}}\",\n      \"quantity\": 1\n    }\n  ]\n}"
+                  "raw": "{\n  \"items\": [\n    {\n      \"variantId\": \"1fb2edac-927b-4595-9d6c-8f2a3213b1d0\",\n      \"quantity\": 1\n    }\n  ]\n}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/orders",
