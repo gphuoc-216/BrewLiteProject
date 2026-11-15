@@ -132,7 +132,7 @@ export default function CartPage() {
   const [couponCode, setCouponCode] = useState('');
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
-  const [vouchers, setVouchers] = useState<AvailableVoucher[]>(DEFAULT_COFFEE_VOUCHERS);
+  const [vouchers, setVouchers] = useState<AvailableVoucher[]>([]);
 
   const subtotal = getSubtotal();
   const totalCount = getTotalCount();
@@ -152,35 +152,15 @@ export default function CartPage() {
     } catch {}
   }, [router]);
 
-  // Tính toán điều kiện áp dụng cho từng voucher theo tổng tiền hiện tại
+  // Tính toán điều kiện áp dụng cho từng voucher theo tổng tiền hiện tại từ Backend API
   useEffect(() => {
     async function loadVouchers() {
       try {
         const data = await fetchApi<AvailableVoucher[]>(`/promotions/available?subtotal=${subtotal}`);
-        if (data && Array.isArray(data) && data.length > 0) {
-          setVouchers(data);
-          return;
-        }
+        setVouchers(Array.isArray(data) ? data : []);
       } catch {
-        // Fallback local vouchers
+        setVouchers([]);
       }
-
-      const calculated = DEFAULT_COFFEE_VOUCHERS.map((v) => {
-        const isEligible = subtotal >= v.minOrderValue;
-        const missingAmount = Math.max(0, v.minOrderValue - subtotal);
-        const progressPercent =
-          v.minOrderValue > 0
-            ? Math.min(100, Math.round((subtotal / v.minOrderValue) * 100))
-            : 100;
-
-        return {
-          ...v,
-          isEligible,
-          missingAmount,
-          progressPercent,
-        };
-      });
-      setVouchers(calculated);
     }
 
     loadVouchers();

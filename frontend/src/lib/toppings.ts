@@ -12,34 +12,33 @@ let cachedToppingsCatalog: ToppingOption[] | null = null;
 let cachedToppingsPromise: Promise<ToppingOption[]> | null = null;
 
 /**
- * Truy vấn danh sách topping từ Backend (GET /products/toppings) kèm fallback an toàn về ALL_TOPPINGS.
+ * Truy vấn danh sách topping 100% từ Backend (GET /products/toppings).
  */
 export async function fetchToppingsCatalog(): Promise<ToppingOption[]> {
   if (cachedToppingsCatalog) return cachedToppingsCatalog;
   if (!cachedToppingsPromise) {
     cachedToppingsPromise = (async () => {
       try {
-        const remote = await fetchApi<Array<{ id: string; name: string; price: number; desc?: string }>>(
+        const remote = await fetchApi<Array<{ id: string; name: string; price: number; desc?: string; imageUrl?: string }>>(
           '/products/toppings',
         );
-        if (Array.isArray(remote) && remote.length > 0) {
-          cachedToppingsCatalog = ALL_TOPPINGS.map((localItem) => {
-            const match = remote.find((r) => r.id === localItem.id || r.name === localItem.name);
-            return match
-              ? {
-                  ...localItem,
-                  name: match.name || localItem.name,
-                  price: Number(match.price) || localItem.price,
-                  desc: match.desc || localItem.desc,
-                }
-              : localItem;
+        if (Array.isArray(remote)) {
+          cachedToppingsCatalog = remote.map((r) => {
+            const localMeta = ALL_TOPPINGS.find((l) => l.id === r.id || l.name === r.name);
+            return {
+              id: r.id,
+              name: r.name,
+              price: Number(r.price) || 0,
+              desc: r.desc || localMeta?.desc || '',
+              imageUrl: r.imageUrl || localMeta?.imageUrl || '/toppings/tran-chau-trang.svg',
+            };
           });
           return cachedToppingsCatalog;
         }
       } catch {
-        // Fallback mượt về catalog local nếu backend chưa sẵn sàng
+        cachedToppingsPromise = null;
       }
-      return ALL_TOPPINGS;
+      return [];
     })();
   }
   return cachedToppingsPromise;

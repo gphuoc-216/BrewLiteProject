@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { fetchApi } from '../lib/api';
-import { MOCK_PRODUCTS } from '../lib/mockProducts';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useRouter } from 'next/navigation';
@@ -136,13 +135,15 @@ function ProductCard({
 }
 
 export default function HomePage() {
-  const [products, setProducts] = useState<ProductItem[]>(MOCK_PRODUCTS as unknown as ProductItem[]);
-  const [loading, setLoading] = useState(false);
+  const [products, setProducts] = useState<ProductItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadTick, setReloadTick] = useState(0);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(3);
-  const [totalItems, setTotalItems] = useState(24);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const [toast, setToast] = useState<{
     message: string;
     type?: 'success' | 'danger' | 'info';
@@ -172,6 +173,7 @@ export default function HomePage() {
     async function loadProducts() {
       try {
         setLoading(true);
+        setError(null);
         const params = new URLSearchParams();
         if (search) params.append('search', search);
         if (selectedCategory !== 'ALL') params.append('category', selectedCategory);
@@ -190,21 +192,11 @@ export default function HomePage() {
             setTotalItems(data.meta.totalItems || data.items.length);
           }
         }
-      } catch {
-        let fallback = [...MOCK_PRODUCTS] as unknown as ProductItem[];
-        if (selectedCategory !== 'ALL') {
-          fallback = fallback.filter((p) => p.category === selectedCategory);
-        }
-        if (search) {
-          const q = search.toLowerCase();
-          fallback = fallback.filter(
-            (p) => p.name.toLowerCase().includes(q) || (p.description && p.description.toLowerCase().includes(q))
-          );
-        }
-        const startIndex = (currentPage - 1) * 8;
-        setTotalPages(Math.ceil(fallback.length / 8) || 1);
-        setTotalItems(fallback.length);
-        setProducts(fallback.slice(startIndex, startIndex + 8));
+      } catch (err) {
+        setProducts([]);
+        setTotalPages(1);
+        setTotalItems(0);
+        setError(err instanceof Error ? err.message : 'Không thể tải thực đơn từ máy chủ. Vui lòng thử lại.');
       } finally {
         setLoading(false);
       }
@@ -212,7 +204,7 @@ export default function HomePage() {
 
     const timer = setTimeout(loadProducts, 200);
     return () => clearTimeout(timer);
-  }, [search, selectedCategory, currentPage]);
+  }, [search, selectedCategory, currentPage, reloadTick]);
 
   const handleModalAddToCart = (
     item: {
@@ -364,6 +356,13 @@ export default function HomePage() {
               </div>
             ))}
           </div>
+        ) : error ? (
+          <EmptyState
+            title="Không thể tải thực đơn"
+            description={error}
+            actionLabel="Thử lại"
+            onAction={() => setReloadTick((v) => v + 1)}
+          />
         ) : products.length === 0 ? (
           <EmptyState
             title="Không tìm thấy món uống phù hợp"
