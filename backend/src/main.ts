@@ -14,9 +14,19 @@ async function bootstrap() {
     exclude: ['health', 'api/health'],
   });
 
-  // 2. Cấu hình CORS
+  // 2. Cấu hình CORS bảo mật (chặn Origin lạ khi credentials = true)
   app.enableCors({
-    origin: '*',
+    origin: (origin, callback) => {
+      if (
+        !origin ||
+        /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ||
+        origin.endsWith('.vercel.app')
+      ) {
+        callback(null, true);
+      } else {
+        callback(new Error('Chặn bởi chính sách CORS: Origin không được phép'));
+      }
+    },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });

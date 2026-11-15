@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ForbiddenException, HttpException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PromotionsService } from '../promotions/promotions.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -107,20 +107,9 @@ export class OrdersService {
       });
 
       // Bước 2: Kiểm tra và áp dụng mã khuyến mãi (nếu khách hàng có nhập mã)
-      let promotionId: string | null = null;
-      let discountAmount = 0;
-
-      if (dto.promotionCode) {
-        const codes = dto.promotionCode.split(",").map((c) => c.trim()).filter(Boolean);
-        for (const c of codes) {
-          try {
-            const promoResult = await this.promotionsService.validatePromotion(c, subtotal);
-            if (!promotionId) promotionId = promoResult.promotionId;
-            discountAmount += promoResult.discountAmount;
-          } catch {}
-        }
-        discountAmount = Math.min(discountAmount, subtotal);
-      }
+      const promoApplied = await this.applyPromotionCodes(dto.promotionCode, subtotal);
+      const promotionId = promoApplied.promotionId;
+      let discountAmount = promoApplied.discountAmount;
 
       // 2.2 Áp dụng điểm thưởng Loyalty (1 điểm = 100 VNĐ, 10 điểm = 1.000 VNĐ)
       let actualPointsUsed = 0;
@@ -192,9 +181,57 @@ export class OrdersService {
 
       return order;
     } catch (err: any) {
-      if (err instanceof BadRequestException) throw err;
+      if (err instanceof HttpException) throw err;
       throw err;
     }
+  }
+
+  /**
+   * Thẩm định danh sách mã voucher (tối đa 1 mã đơn hàng + mã cộng dồn HAPPYHOUR),
+   * không nuốt lỗi khi mã không hợp lệ và tránh gán virtual-* làm FK PostgreSQL.
+   */
+  private async applyPromotionCodes(
+    promotionCode: string | undefined,
+    subtotal: number,
+  ): Promise<{ promotionId: string | null; discountAmount: number }> {
+    if (!promotionCode) {
+      return { promotionId: null, discountAmount: 0 };
+    }
+
+    const codes = Array.from(
+      new Set(
+        promotionCode
+          .split(',')
+          .map((c) => c.trim().toUpperCase())
+          .filter(Boolean),
+      ),
+    );
+
+    const regularCodes = codes.filter((c) => c !== 'HAPPYHOUR');
+    if (regularCodes.length > 1) {
+      throw new BadRequestException(
+        'Chỉ được áp dụng tối đa 1 mã giảm giá đơn hàng (có thể kết hợp thêm mã HAPPYHOUR)',
+      );
+    }
+
+    let promotionId: string | null = null;
+    let remaining = subtotal;
+    let discountAmount = 0;
+
+    for (const code of codes) {
+      if (remaining <= 0) break;
+      const promoResult = await this.promotionsService.validatePromotion(code, subtotal);
+      const applied = Math.min(promoResult.discountAmount, remaining);
+      discountAmount += applied;
+      remaining -= applied;
+
+      const rawId = promoResult.promotionId;
+      if (rawId && !String(rawId).startsWith('virtual-') && !String(rawId).startsWith('seed-')) {
+        if (!promotionId) promotionId = rawId;
+      }
+    }
+
+    return { promotionId, discountAmount };
   }
 
   /**
@@ -278,7 +315,6 @@ export class OrdersService {
       if (!actorCustomerId || order.customerId !== actorCustomerId) {
         throw new ForbiddenException('Bạn không có quyền xem đơn hàng của người khác');
       }
-
       return order;
     } catch (err: any) {
       if (err instanceof ForbiddenException || err instanceof NotFoundException) throw err;

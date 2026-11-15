@@ -77,7 +77,7 @@ export class AdminService {
   async updateStaff(id: string, dto: { fullName?: string; email?: string }) {
     return this.prisma.staff.update({
       where: { id },
-      data: dto,
+      data: validData,
     });
   }
 

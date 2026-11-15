@@ -65,151 +65,89 @@ export class ReviewsService {
 
     const effectiveProductId = dto.productId.trim();
 
-    // 1. Resolve customerId hợp lệ trong PostgreSQL
-    let customerId = actorId;
-    if (this.prisma.isConnected && actorId) {
-      try {
-        const customer = await this.prisma.customer.findUnique({ where: { id: actorId } });
-        if (customer) {
-          customerId = customer.id;
+    let finalCustId = '';
+    try {
+      const directCustomer = await this.prisma.customer.findUnique({ where: { id: actorId } });
+        if (directCustomer) {
+          finalCustId = directCustomer.id;
         } else {
           const account = await this.prisma.account.findFirst({
             where: {
-              OR: [
-                { id: actorId },
-                { customer: { id: actorId } },
-              ],
+              OR: [{ id: actorId }, { customer: { id: actorId } }],
             },
             include: { customer: true },
           });
           if (account?.customer) {
-            customerId = account.customer.id;
+            finalCustId = account.customer.id;
           }
         }
-      } catch {
-        // Fallback to actorId
+      } catch (err: any) {
+        console.error(
+          JSON.stringify({
+            level: 'ERROR',
+            module: 'ReviewsService',
+            event: 'resolveCustomer_failed',
+            actorId,
+            error: err?.message,
+          }),
+        );
       }
-    }
 
-    if (this.prisma.isConnected) {
+      if (!finalCustId) {
+        throw new ForbiddenException('Không tìm thấy hồ sơ khách hàng hợp lệ để đánh giá');
+      }
+
       try {
-        // 2. Đảm bảo Product tồn tại trong PostgreSQL
-        let prodRecord = await this.prisma.product.findUnique({ where: { id: effectiveProductId } });
+        // 2. Xác thực sản phẩm tồn tại trong CSDL (không tự ý tạo bản ghi giả)
+        const prodRecord = await this.prisma.product.findUnique({
+          where: { id: effectiveProductId },
+        });
         if (!prodRecord) {
-          prodRecord = await this.prisma.product.create({
-            data: {
-              id: effectiveProductId,
-              name: 'Món đồ uống BrewLite',
-              category: 'COFFEE',
-              imageUrl: '',
-              description: 'Hương vị thơm ngon đặc trưng.',
-              isActive: true,
-            },
-          });
+          throw new NotFoundException('Không tìm thấy sản phẩm cần đánh giá');
         }
 
-        // 3. Đảm bảo Customer tồn tại trong PostgreSQL
-        let finalCustId = customerId;
-        const custRecord = await this.prisma.customer.findUnique({ where: { id: customerId } });
-        if (custRecord) {
-          finalCustId = custRecord.id;
-        } else {
-          const firstCust = await this.prisma.customer.findFirst();
-          if (firstCust) {
-            finalCustId = firstCust.id;
-          } else {
-            const firstAcc = await this.prisma.account.findFirst();
-            if (firstAcc) {
-              const newCust = await this.prisma.customer.create({
-                data: {
-                  fullName: 'Khách Hàng Thân Thiết',
-                  email: `khach_${Date.now()}@brewlite.vn`,
-                  loyaltyPoints: 100,
-                  accountId: firstAcc.id,
-                },
-              });
-              finalCustId = newCust.id;
-            }
-          }
-        }
-
-        // 4. Tìm hoặc khởi tạo Order hợp lệ để đáp ứng toàn vẹn khóa ngoại CSDL
-        let order: any = null;
+        // 3. KiemTraDaMua: Chỉ cho phép đánh giá nếu có đơn hàng COMPLETED thuộc khách hàng này chứa món đồ uống
+        let verifiedOrder: any = null;
         if (dto.orderId) {
-          order = await this.prisma.order.findUnique({
+          const candidateOrder = await this.prisma.order.findUnique({
             where: { id: dto.orderId },
             include: { items: { include: { variant: true } } },
           });
-        }
-
-        if (!order) {
-          order = await this.prisma.order.findFirst({
-            where: { customerId: finalCustId },
+          const hasMatchingItem = candidateOrder?.items?.some(
+            (i: any) =>
+              i.variant?.productId === effectiveProductId || i.variantId === effectiveProductId,
+          );
+          if (
+            candidateOrder &&
+            candidateOrder.customerId === finalCustId &&
+            candidateOrder.status === OrderStatus.COMPLETED &&
+            hasMatchingItem
+          ) {
+            verifiedOrder = candidateOrder;
+          }
+        } else {
+          verifiedOrder = await this.prisma.order.findFirst({
+            where: {
+              customerId: finalCustId,
+              status: OrderStatus.COMPLETED,
+              items: {
+                some: {
+                  variant: { productId: effectiveProductId },
+                },
+              },
+            },
             include: { items: { include: { variant: true } } },
             orderBy: { createdAt: 'desc' },
           });
         }
 
-        if (!order) {
-          let variant = await this.prisma.productVariant.findFirst({ where: { productId: effectiveProductId } });
-          if (!variant) {
-            variant = await this.prisma.productVariant.create({
-              data: {
-                productId: effectiveProductId,
-                size: 'S',
-                price: 39000,
-                topping: 'Tiêu chuẩn',
-              },
-            });
-          }
-
-          order = await this.prisma.order.create({
-            data: {
-              customerId: finalCustId,
-              status: OrderStatus.COMPLETED,
-              discountAmount: 0,
-              totalAfterDiscount: variant.price,
-              items: {
-                create: [
-                  {
-                    variantId: variant.id,
-                    quantity: 1,
-                    lineTotal: variant.price,
-                  },
-                ],
-              },
-            },
-            include: { items: { include: { variant: true } } },
-          });
+        if (!verifiedOrder) {
+          throw new ForbiddenException(
+            'Bạn chỉ có thể đánh giá sau khi đã mua và nhận hoàn tất (COMPLETED) món đồ uống này!',
+          );
         }
 
-        // Đảm bảo đơn hàng có item tương ứng với món đang đánh giá
-        const hasItem = order.items?.some(
-          (i: any) => i.variant?.productId === effectiveProductId || i.variantId === effectiveProductId
-        );
-        if (!hasItem) {
-          let variant = await this.prisma.productVariant.findFirst({ where: { productId: effectiveProductId } });
-          if (!variant) {
-            variant = await this.prisma.productVariant.create({
-              data: {
-                productId: effectiveProductId,
-                size: 'S',
-                price: 39000,
-                topping: 'Tiêu chuẩn',
-              },
-            });
-          }
-          await this.prisma.orderItem.create({
-            data: {
-              orderId: order.id,
-              variantId: variant.id,
-              quantity: 1,
-              lineTotal: variant.price,
-            },
-          });
-        }
-
-        // 5. Kiểm tra nếu đã đánh giá thì chặn và báo lỗi ConflictException (không ghi đè sửa lại nội dung)
+        // 4. Chặn đánh giá trùng lặp cho cùng 1 sản phẩm bởi 1 khách hàng
         const existingReview = await this.prisma.review.findFirst({
           where: {
             customerId: finalCustId,
@@ -218,14 +156,16 @@ export class ReviewsService {
         });
 
         if (existingReview) {
-          throw new ConflictException('Bạn đã đánh giá món đồ uống này rồi. Không thể đánh giá lại!');
+          throw new ConflictException(
+            'Bạn đã đánh giá món đồ uống này rồi. Bạn chỉ có thể sửa hoặc xóa đánh giá hiện có!',
+          );
         }
 
         return await this.prisma.review.create({
           data: {
             customerId: finalCustId,
             productId: effectiveProductId,
-            orderId: order.id,
+            orderId: verifiedOrder.id,
             stars: dto.stars,
             content: dto.content || 'Đồ uống rất ngon và vừa miệng!',
             status: ReviewStatus.VISIBLE,
@@ -239,23 +179,18 @@ export class ReviewsService {
         if (err instanceof HttpException) {
           throw err;
         }
-        console.error('Lỗi khi lưu Review vào PostgreSQL:', err);
-      }
+        console.error(
+          JSON.stringify({
+            level: 'ERROR',
+            module: 'ReviewsService',
+            event: 'createReview_db_error',
+            actorId,
+            productId: effectiveProductId,
+            error: err?.message,
+          }),
+        );
+        throw new BadRequestException('Không thể lưu đánh giá vào hệ thống');
     }
-
-    // Fallback nếu DB offline
-    return {
-      id: `rev-${Date.now()}`,
-      productId: effectiveProductId,
-      customerId: actorId || 'customer-demo',
-      orderId: dto.orderId || `ord-demo-${Date.now()}`,
-      stars: dto.stars,
-      content: dto.content || 'Đồ uống rất ngon!',
-      status: ReviewStatus.VISIBLE,
-      customer: { fullName: 'Khách Hàng Thân Thiết' },
-      product: { name: 'Món nước BrewLite' },
-      createdAt: new Date(),
-    };
   }
 
   async updateReview(reviewId: string, actorId: string, stars?: number, content?: string) {

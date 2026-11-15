@@ -184,6 +184,8 @@ export class AuthService {
     const payload = { sub: accountId, username, role };
     const jwtSecret = this.configService.get<string>('JWT_SECRET') || 'brewlite_super_secret_jwt_key_2026';
     const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET') || 'brewlite_refresh_secret_key_2026';
+    const jwtExpiresIn = this.configService.get<string>('JWT_EXPIRES_IN') || '15m';
+    const refreshExpiresIn = this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') || '7d';
 
     const signFn = typeof this.jwtService.signAsync === 'function'
       ? this.jwtService.signAsync.bind(this.jwtService)
@@ -192,18 +194,27 @@ export class AuthService {
     const [accessToken, refreshToken] = await Promise.all([
       signFn(payload, {
         secret: jwtSecret,
-        expiresIn: '7d',
+        expiresIn: jwtExpiresIn,
       }),
       signFn(payload, {
         secret: refreshSecret,
-        expiresIn: '30d',
+        expiresIn: refreshExpiresIn,
       }),
     ]);
 
     return {
       accessToken,
       refreshToken,
-      expiresIn: 604800, // 7 days in seconds
+      expiresIn: this.parseDurationToSeconds(jwtExpiresIn),
     };
+  }
+
+  private parseDurationToSeconds(duration: string): number {
+    const match = /^(\d+)([smhd])?$/i.exec(duration.trim());
+    if (!match) return 900;
+    const value = Number(match[1]);
+    const unit = (match[2] || 's').toLowerCase();
+    const multipliers: Record<string, number> = { s: 1, m: 60, h: 3600, d: 86400 };
+    return value * (multipliers[unit] ?? 1);
   }
 }
