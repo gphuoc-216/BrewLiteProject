@@ -1198,18 +1198,9 @@ export default function ProductDetailPage() {
             <div className="space-y-1">
               <p className="font-semibold text-ink">Chưa có đánh giá nào cho món đồ uống này</p>
               <p className="text-ink-3 text-[11px]">
-                Hãy đặt mua và thưởng thức để trở thành người đầu tiên chia sẻ cảm nhận nhé!
+                Hãy đặt mua, thanh toán và nhận hàng hoàn tất để chia sẻ cảm nhận của bạn nhé!
               </p>
             </div>
-            {(!user || user.role === 'CUSTOMER') && (
-              <button
-                type="button"
-                onClick={handleOpenReviewModal}
-                className="text-xs text-accent font-semibold hover:underline"
-              >
-                Gửi đánh giá đầu tiên →
-              </button>
-            )}
           </div>
         )}
       </div>
