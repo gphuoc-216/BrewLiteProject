@@ -223,6 +223,8 @@ function CheckoutContent() {
   // Lưu trữ orderId và idempotencyKey để tránh tạo trùng đơn khi bấm nhiều lần
   const existingOrderRef = useRef<string | null>(null);
   const idempotencyKeyRef = useRef<string | null>(null);
+  const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
+  const [cancellingOrder, setCancellingOrder] = useState(false);
   const isPollingRef = useRef<boolean>(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -404,6 +406,7 @@ function CheckoutContent() {
 
         setRetryOrder(data);
         existingOrderRef.current = data.id;
+        setPendingOrderId(data.id);
       } catch (err: unknown) {
         if (!cancelled) setErrorMsg(getErrorMessage(err));
       }
@@ -553,6 +556,7 @@ function CheckoutContent() {
             throw new Error('Không thể khởi tạo đơn hàng từ máy chủ. Vui lòng thử lại.');
           }
           existingOrderRef.current = orderId;
+          setPendingOrderId(orderId);
         }
 
         // 2. Sinh UUIDv4 duy nhất cho idempotencyKey nếu chưa có
@@ -610,6 +614,7 @@ function CheckoutContent() {
         // Dọn dẹp giỏ hàng & Hủy bỏ mã QR hoàn toàn
         existingOrderRef.current = null;
         idempotencyKeyRef.current = null;
+        setPendingOrderId(null);
         localStorage.removeItem('brewlite_pending_order');
         sessionStorage.removeItem('brewlite_active_order_code');
         sessionStorage.setItem('brewlite_completed_order_' + orderCodeDisplay, 'true');
@@ -672,6 +677,65 @@ function CheckoutContent() {
       userKey,
     ]
   );
+
+  // Đổi phương thức thanh toán: tạo khóa Idempotency-Key mới để tránh 422, nhưng giữ orderId đang chờ để không tạo trùng đơn
+  const handleSelectPaymentMethod = (method: 'CARD' | 'WALLET') => {
+    if (method === paymentMethod) return;
+    idempotencyKeyRef.current = null;
+    setErrorMsg(null);
+    setPaymentMethod(method);
+  };
+
+  // Hủy đơn hàng PENDING / PAYMENT_FAILED ngay tại màn hình thanh toán (Sequence Step 28 / UC-18)
+  const handleCancelPendingOrder = async () => {
+    if (!pendingOrderId || cancellingOrder || paymentStatus === 'SUCCESS') return;
+    setCancellingOrder(true);
+    setErrorMsg(null);
+    try {
+      const targetOrderId = pendingOrderId;
+      await fetchApi(`/orders/${targetOrderId}/cancel`, { method: 'POST' });
+      try {
+        await fetchApi(`/payments/mbbank-invalidate/${orderCodeDisplay}`, { method: 'POST' });
+      } catch {
+        // Bỏ qua nếu QR chưa tồn tại hoặc đã hết hạn
+      }
+      existingOrderRef.current = null;
+      idempotencyKeyRef.current = null;
+      setPendingOrderId(null);
+      setRetryOrder(null);
+      localStorage.removeItem('brewlite_pending_order');
+      sessionStorage.removeItem('brewlite_active_order_code');
+      fetchProfile();
+      router.replace(`/orders/${targetOrderId}`);
+    } catch (err: unknown) {
+      setErrorMsg(getErrorMessage(err));
+    } finally {
+      setCancellingOrder(false);
+    }
+  };
+
+  // Khối thao tác hủy đơn chia sẻ dùng chung khi đơn đang ở PENDING / PAYMENT_FAILED
+  const pendingCancelBanner =
+    pendingOrderId && paymentStatus !== 'SUCCESS' ? (
+      <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-ink flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-left animate-fade-in">
+        <div className="space-y-0.5">
+          <p className="font-semibold text-amber-700 dark:text-amber-300">
+            Đơn hàng #{pendingOrderId.slice(0, 8).toUpperCase()} đang chờ hoàn tất thanh toán
+          </p>
+          <p className="text-[11px] text-ink-3">
+            Bạn có thể bấm thanh toán lại để dùng chính đơn này hoặc hủy đơn nếu không muốn tiếp tục.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleCancelPendingOrder}
+          disabled={cancellingOrder || loading}
+          className="px-3 py-1.5 rounded-lg border border-danger/40 text-danger hover:bg-danger-soft text-[11px] font-semibold shrink-0 transition-colors cursor-pointer disabled:opacity-50"
+        >
+          {cancellingOrder ? 'Đang hủy...' : 'Hủy đơn hàng'}
+        </button>
+      </div>
+    ) : null;
 
   // Lắng nghe sự kiện chuyển khoản: kết hợp localStorage (cùng tab) & Backend API Polling (qua điện thoại thật trong LAN)
   useEffect(() => {
@@ -969,6 +1033,8 @@ function CheckoutContent() {
             </div>
           )}
 
+          {pendingCancelBanner && <div className="max-w-md mx-auto">{pendingCancelBanner}</div>}
+
           {/* Nút Xác Nhận Đặt Đơn Ngay 0đ */}
           <div className="pt-2">
             <Button
@@ -1001,7 +1067,7 @@ function CheckoutContent() {
             <div className="flex border-b border-line gap-2">
               <button
                 type="button"
-                onClick={() => setPaymentMethod('CARD')}
+                onClick={() => handleSelectPaymentMethod('CARD')}
                 className={`pb-3 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-all ${
                   paymentMethod === 'CARD'
                     ? 'border-accent text-accent'
@@ -1014,7 +1080,7 @@ function CheckoutContent() {
 
               <button
                 type="button"
-                onClick={() => setPaymentMethod('WALLET')}
+                onClick={() => handleSelectPaymentMethod('WALLET')}
                 className={`pb-3 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-all ${
                   paymentMethod === 'WALLET'
                     ? 'border-accent text-accent'
@@ -1355,6 +1421,7 @@ function CheckoutContent() {
                 <span>{errorMsg}</span>
               </div>
             )}
+            {pendingCancelBanner}
           </div>
         </div>
       ) : (
@@ -1617,6 +1684,15 @@ function CheckoutContent() {
               </div>
             )
           )}
+
+          {errorMsg && (
+            <div className="p-3 bg-danger-soft border border-danger/30 rounded-xl text-xs text-danger flex items-center gap-2 animate-fade-in">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {pendingCancelBanner}
 
           {/* Nút Thanh toán */}
           {selectedWallet ? (

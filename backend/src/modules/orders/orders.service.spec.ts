@@ -327,6 +327,39 @@ describe('OrdersService - UC-18: Hủy đơn hàng (cancelOrder RBAC & Refund)',
       })
     );
   });
+
+  it('6. Hoàn lại số điểm tích lũy đã quy đổi giảm giá khi hủy đơn PAYMENT_FAILED/PENDING', async () => {
+    prismaMock.order.findUnique.mockResolvedValue({
+      id: 'order-failed-pts',
+      customerId: 'cust-owner',
+      status: OrderStatus.PAYMENT_FAILED,
+      totalAfterDiscount: 25000,
+      promotionId: null,
+      items: [],
+    });
+    prismaMock.orderStatusHistory.findFirst = jest.fn().mockResolvedValue({
+      id: 'hist-init',
+      note: 'Khởi tạo đơn hàng thành công, chờ thanh toán [REDEEMED_POINTS:50]',
+    });
+    prismaMock.order.update.mockResolvedValue({
+      id: 'order-failed-pts',
+      status: OrderStatus.CANCELLED,
+    });
+    prismaMock.orderStatusHistory.create.mockResolvedValue({ id: 'hist-cancel-2' });
+
+    const result = await service.cancelOrder('order-failed-pts', {
+      accountId: 'acc-owner',
+      profileId: 'cust-owner',
+      customerId: 'cust-owner',
+      role: 'CUSTOMER',
+    });
+
+    expect(result.status).toBe(OrderStatus.CANCELLED);
+    expect(prismaMock.customer.update).toHaveBeenCalledWith({
+      where: { id: 'cust-owner' },
+      data: { loyaltyPoints: { increment: 50 } },
+    });
+  });
 });
 
 describe('OrdersService - UC-17: Xem chi tiết đơn hàng (getOrderById RBAC)', () => {

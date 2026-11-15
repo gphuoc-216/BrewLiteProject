@@ -41,7 +41,7 @@ Nhóm gồm 7 thành viên đảm nhận 7 gói công việc độc lập trên 
 |:---:|:---:|:---|:---|:---|
 | **Sprint 1** | 14/10 – 20/10 | Nền tảng & hiển thị menu | Task 1, Task 2, Task 3, Task 4 | Khởi tạo Monorepo, CSDL PostgreSQL, API Products, Giao diện Menu & Modal chi tiết món chọn size/topping. |
 | **Sprint 2** | 21/10 – 27/10 | Giỏ hàng, đặt đơn & đăng nhập | Task 5, Task 6, Task 7 | Giỏ hàng Zustand persist, Voucher, Điểm loyalty, API POST /orders, Auth JWT / Bcrypt. |
-| **Sprint 3** | 28/10 – 02/11 | Thanh toán, bàn giao & nghiệp vụ nâng cao | Task 8, Task 9, Task 10 | Thanh toán VietQR / MBBank, Lịch sử đơn, Order State Machine, OCC chống oversell kho, Docker Compose & 48 unit tests. |
+| **Sprint 3** | 28/10 – 02/11 | Thanh toán, bàn giao & nghiệp vụ nâng cao | Task 8, Task 9, Task 10 | Thanh toán VietQR / MBBank, Lịch sử đơn, Order State Machine, OCC chống oversell kho, Docker Compose & 100 unit tests. |
 
 ### 2.3 Quy Tắc Git Flow & Lịch Sử Merge Code (Git Branching Strategy)
 ```
@@ -244,7 +244,7 @@ node scripts/tunnel.js
 
 ### 5.7 Chạy Kiểm Thử Tự Động (Automated Testing)
 
-#### 1. Chạy Unit Tests Backend (48 tests Jest pass 100%):
+#### 1. Chạy Unit Tests Backend (100 tests Jest pass 100%):
 ```powershell
 npm run test
 # Hoặc:
@@ -301,7 +301,7 @@ Dữ liệu tài khoản đã nạp sẵn trong lệnh `npm run seed`:
 |:---|:---|:---:|:---:|:---|
 | **Khách Hàng (Customer)** | `customer1` | `123456` | `/login` ➔ `/` | Đặt món, chọn size/topping, áp mã voucher, dùng điểm tích lũy, quét mã VietQR, thanh toán tự động, đánh giá sao. |
 | **Nhân Viên Pha Chế (Staff)** | `barista1` | `123456` | `/staff` | **Bảng Kanban Barista (FIFO):** Tiếp nhận đơn từ "Đã thanh toán" ➔ "Đang pha chế" ➔ "Sẵn sàng" ➔ "Hoàn thành". |
-| **Quản Trị Viên (Admin)** | `admin` | `admin123` | `/admin` | **Dashboard Quản Trị:** Thống kê doanh thu, cảnh báo tồn kho nguyên liệu chạm ngưỡng đỏ, tạo phiếu nhập kho. |
+| **Quản Trị Viên (Admin)** | `admin` | `123456` | `/admin` | **Dashboard Quản Trị:** Thống kê doanh thu, cảnh báo tồn kho nguyên liệu chạm ngưỡng đỏ, tạo phiếu nhập kho. |
 
 ---
 
@@ -321,7 +321,7 @@ Dữ liệu tài khoản đã nạp sẵn trong lệnh `npm run seed`:
 - [x] Đầy đủ commit trên Git với conventional commit (`feat`, `fix`, `docs`, `refactor`).
 - [x] Toàn bộ API có validation (`class-validator`), UI có trạng thái loading/error boundary/skeleton.
 - [x] Có hướng dẫn cài đặt từ A đến Z trong file README.md này.
-- [x] Đạt 48 unit tests pass và kịch bản race condition test thành công.
+- [x] Đạt 100 unit tests pass (10 suites) và kịch bản race condition test thành công.
 
 ---
 
@@ -329,3 +329,4 @@ Dữ liệu tài khoản đã nạp sẵn trong lệnh `npm run seed`:
 - **Bảng Phân Công Công Việc 7 Thành Viên**: [docs/TASK-ALLOCATION.md](./docs/TASK-ALLOCATION.md)
 - **Tài Liệu Đặc Tả Kỹ Thuật & 81 Hàm Nguyên Tử**: [docs/01-analysis-spec.md](./docs/01-analysis-spec.md)
 - **Kế Hoạch Triển Khai Chi Tiết**: [docs/02-implementation-plan.md](./docs/02-implementation-plan.md)
+- **Bộ Kiểm Thử API Postman (A–Z)**: [docs/BrewLite_Full_API_Collection.postman_collection.json](./docs/BrewLite_Full_API_Collection.postman_collection.json) & [docs/BrewLite_Environment.postman_environment.json](./docs/BrewLite_Environment.postman_environment.json)

@@ -56,3 +56,8 @@ cloudflared*
 example_screenshot.png
 
 Usecase/
+
+# Root loose diagrams & local HTTPS dev certs (keep docs/*.drawio tracked)
+/*.drawio
+https-proxy.js
+ssl/

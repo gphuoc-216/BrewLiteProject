@@ -175,12 +175,16 @@ export class OrdersService {
         });
 
         // 3.2 Ghi vết lịch sử trạng thái ban đầu (Audit Log)
+        const initNote =
+          actualPointsUsed > 0
+            ? `Khởi tạo đơn hàng thành công, chờ thanh toán [REDEEMED_POINTS:${actualPointsUsed}]`
+            : 'Khởi tạo đơn hàng thành công, chờ thanh toán';
         await tx.orderStatusHistory.create({
           data: {
             orderId: newOrder.id,
             fromStatus: OrderStatus.PENDING,
             toStatus: OrderStatus.PENDING,
-            note: 'Khởi tạo đơn hàng thành công, chờ thanh toán',
+            note: initNote,
           },
         });
 
@@ -443,6 +447,28 @@ export class OrdersService {
             }
           }
 
+          // Hoàn lại điểm tích lũy khách hàng đã quy đổi giảm giá cho đơn này (nếu có)
+          const initHistory = await (tx as any).orderStatusHistory?.findFirst?.({
+            where: {
+              orderId,
+              fromStatus: OrderStatus.PENDING,
+              toStatus: OrderStatus.PENDING,
+            },
+            orderBy: { createdAt: 'asc' },
+          });
+          const redeemedMatch = initHistory?.note?.match?.(/\[REDEEMED_POINTS:(\d+)\]/);
+          const redeemedPoints = redeemedMatch ? parseInt(redeemedMatch[1], 10) : 0;
+          if (redeemedPoints > 0) {
+            await tx.customer.update({
+              where: { id: order.customerId },
+              data: {
+                loyaltyPoints: {
+                  increment: redeemedPoints,
+                },
+              },
+            });
+          }
+
           // Cập nhật trạng thái đơn hàng sang CANCELLED
           const updatedOrder = await tx.order.update({
             where: { id: orderId },
@@ -450,13 +476,20 @@ export class OrdersService {
           });
 
           // Ghi vết vào bảng Audit Log (OrderStatusHistory) phục vụ đối soát và chấm điểm đồ án
+          const refundNotes: string[] = [];
+          if (order.status === OrderStatus.PAID) {
+            refundNotes.push('Đã hoàn kho nguyên liệu, thu hồi điểm tích và hoàn voucher thành công.');
+          }
+          if (redeemedPoints > 0) {
+            refundNotes.push(`Đã hoàn ${redeemedPoints} điểm tích lũy đã sử dụng.`);
+          }
           await tx.orderStatusHistory.create({
             data: {
               orderId,
               fromStatus: order.status,
               toStatus: OrderStatus.CANCELLED,
               actorId: actorCustomerId || user.accountId,
-              note: `Khách hàng hủy đơn. ${order.status === OrderStatus.PAID ? 'Đã hoàn kho nguyên liệu, điểm thưởng và voucher thành công.' : ''}`,
+              note: `Khách hàng hủy đơn.${refundNotes.length ? ' ' + refundNotes.join(' ') : ''}`,
             },
           });
 

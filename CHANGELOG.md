@@ -1,5 +1,23 @@
 # CHANGELOG - BrewLite Platform
 
+## [Unreleased] - 2026-11-15
+
+### Fixed
+- **Cancel Pending/Payment-Failed Order Loyalty Points Refund (`backend/src/modules/orders/orders.service.ts`, `orders.service.spec.ts`)**:
+  - Recorded `[REDEEMED_POINTS:N]` inside the initial `OrderStatusHistory` `note` on `createOrder` whenever loyalty points are redeemed so `cancelOrder` restores redeemed points on `PENDING`, `PAYMENT_FAILED`, and `PAID` cancellations without schema changes.
+  - Added unit test #6 in `orders.service.spec.ts` verifying redeemed loyalty point refund when cancelling an unpaid `PAYMENT_FAILED` order.
+- **Checkout Pending Order Lifecycle & Method Switch Safety (`frontend/src/app/checkout/page.tsx`)**:
+  - Tracked `pendingOrderId` & `cancellingOrder` state synced with `existingOrderRef.current`, added `handleSelectPaymentMethod(method)` to reset `idempotencyKeyRef.current` & `errorMsg` safely when switching `WALLET` ↔ `CARD` without recreating duplicate orders.
+  - Added `handleCancelPendingOrder()` calling `POST /api/orders/:id/cancel` + `/api/payments/mbbank-invalidate/:code` alongside a shared `pendingCancelBanner` across `0đ`, `CARD`, and `WALLET` modes plus missing error alert display in `WALLET` mode.
+- **Backend Production Entrypoint & Env Config (`backend/package.json`, `.env.example`)**:
+  - Fixed `"start:prod"` from `"node dist/main"` to `"node dist/src/main"` matching NestJS compiler output `backend/dist/src/main.js`, and documented `INTERNAL_BACKEND_URL` in `.env.example`.
+
+### Changed
+- **Deployment Diagram Alignment (`docs/BrewLite_Deployment_Diagram.drawio`)**:
+  - Updated to a clean monochrome 3D-cube UML Deployment Diagram aligned 100% with Assignment 1 local execution & 3-container Docker Compose on `brewlite_network` (`brewlite_frontend :3000`, `brewlite_backend :3001`, `brewlite_postgres :5432` + `brewlite_postgres_data`), `dist/src/main.js`, all 8 NestJS modules + internal `MockGatewayService`, Next.js rewrites, mobile `/mbbank` QR tunnel demo (`scripts/tunnel.js`), `/api/health`, and `AllExceptionsFilter`.
+- **Draw.io UML Alignment (`docs/BrewLite_Activity_Diagram_EndToEnd.drawio`, `docs/BrewLite_Class_Diagram.drawio`, `docs/BrewLite_Sequence_Diagram_Order_Payment.drawio`)**:
+  - Synced all 3 Draw.io diagrams to 100% match the Prisma schema (all 17 models, 7 enums, `LoyaltyTransaction «Logical Domain View»`), 2-phase `/checkout` flow (`handlePay`, VietQR `mbbank-check`/`mbbank-invalidate`, `ValidationPipe` 400 checks, in-page cancel), and `/api/*` Activity flow (`isOutOfStock`, `/cart` voucher preview, cancel point refunds, 2s polling).
+
 ## [Unreleased] - 2026-11-14
 
 ### Fixed
