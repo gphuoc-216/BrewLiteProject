@@ -20,6 +20,22 @@ export const TOPPING_CATALOG: ToppingItem[] = [
   { id: 'thach-ca-phe', name: 'Thạch cà phê sương sáo', price: 7000, desc: 'Thạch đen giòn thơm cà phê' },
 ];
 
+export const TOPPING_INGREDIENT_MAP: Record<string, { ingredientName: string; qty: number }> = {
+  'tran-chau-den': { ingredientName: 'Trân châu đường đen', qty: 30 },
+  'trân châu đường đen': { ingredientName: 'Trân châu đường đen', qty: 30 },
+  'cheese': { ingredientName: 'Kem cheese Macchiato', qty: 25 },
+  'kem cheese macchiato': { ingredientName: 'Kem cheese Macchiato', qty: 25 },
+  'thach-dao': { ingredientName: 'Đào ngâm miếng giòn', qty: 25 },
+  'thạch đào giòn sần sật': { ingredientName: 'Đào ngâm miếng giòn', qty: 25 },
+  'espresso-shot': { ingredientName: 'Cà phê hạt Arabica', qty: 15 },
+  'thêm 1 shot espresso': { ingredientName: 'Cà phê hạt Arabica', qty: 15 },
+};
+
+export function getToppingIngredientRequirement(name: string): { ingredientName: string; qty: number } | null {
+  if (typeof name !== 'string') return null;
+  return TOPPING_INGREDIENT_MAP[name.trim().toLowerCase()] || null;
+}
+
 export function calculateToppingsExtraPrice(toppings?: string[]): number {
   if (!toppings || !Array.isArray(toppings)) return 0;
   return toppings.reduce((sum, name) => {

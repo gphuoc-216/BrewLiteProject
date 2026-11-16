@@ -225,6 +225,8 @@ export default function StaffKanbanPage() {
                         </span>
                         <span className="block text-xs text-ink-2 font-medium">
                           Size {it.variant?.size} {it.variant?.topping && `· Topping: ${it.variant.topping}`}
+                          {Array.isArray(it.toppings) && it.toppings.length > 0 ? ` · Thêm: ${it.toppings.join(', ')}` : ''}
+                          {(it.sugarLevel || it.iceLevel) ? ` · Đường ${it.sugarLevel || '100%'} / Đá ${it.iceLevel || '100%'}` : ''}
                         </span>
                       </div>
                     ))}
@@ -328,6 +330,8 @@ export default function StaffKanbanPage() {
                       <p className="text-xs text-ink-2">
                         Size {item.variant?.size || 'M'}
                         {item.variant?.topping ? ` · Topping: ${item.variant.topping}` : ''}
+                        {Array.isArray(item.toppings) && item.toppings.length > 0 ? ` · Thêm: ${item.toppings.join(', ')}` : ''}
+                        {(item.sugarLevel || item.iceLevel) ? ` · Đường ${item.sugarLevel || '100%'} / Đá ${item.iceLevel || '100%'}` : ''}
                       </p>
                     </div>
                     <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-surface border border-line text-ink-2">

@@ -53,6 +53,9 @@ export interface OrderItemRecord {
   variantId: string;
   quantity: number;
   lineTotal: number;
+  sugarLevel?: string;
+  iceLevel?: string;
+  toppings?: string[];
   variant?: {
     id: string;
     size: string;

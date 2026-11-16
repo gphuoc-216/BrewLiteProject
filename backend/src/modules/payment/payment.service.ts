@@ -14,6 +14,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { MockGatewayService } from './mock-gateway/mock-gateway.service';
 import { assertTransition } from '../orders/order-state-machine';
 import { OrderStatus, PaymentMethod, PaymentStatus } from '@prisma/client';
+import { getToppingIngredientRequirement } from '../products/constants/toppings.constant';
 
 /**
  * =========================================================================================
@@ -243,6 +244,7 @@ export class PaymentService {
       // -> Tổng cần trừ: 40g cà phê Robusta, 60ml Sữa đặc.
       // Dùng Map để cộng dồn định lượng theo từng mã nguyên liệu (ingredientId).
       const ingredientRequirements = new Map<string, { qty: number; name: string }>();
+      const extraToppingReqs = new Map<string, number>();
 
       for (const item of order.items) {
         for (const recipe of item.variant.recipes) {
@@ -251,6 +253,32 @@ export class PaymentService {
           const current = ingredientRequirements.get(ingId) || { qty: 0, name: recipe.ingredient.name };
           current.qty += required;
           ingredientRequirements.set(ingId, current);
+        }
+        const toppingsList = (item as { toppings?: string[] | null }).toppings;
+        if (Array.isArray(toppingsList) && toppingsList.length > 0) {
+          for (const tName of toppingsList) {
+            const req = getToppingIngredientRequirement(tName);
+            if (req) {
+              extraToppingReqs.set(
+                req.ingredientName,
+                (extraToppingReqs.get(req.ingredientName) || 0) + req.qty * item.quantity,
+              );
+            }
+          }
+        }
+      }
+
+      if (extraToppingReqs.size > 0 && typeof this.prisma.ingredient?.findMany === 'function') {
+        const toppingIngredients = await this.prisma.ingredient.findMany({
+          where: { name: { in: Array.from(extraToppingReqs.keys()) } },
+        });
+        for (const ing of toppingIngredients) {
+          const reqQty = extraToppingReqs.get(ing.name) || 0;
+          if (reqQty > 0) {
+            const current = ingredientRequirements.get(ing.id) || { qty: 0, name: ing.name };
+            current.qty += reqQty;
+            ingredientRequirements.set(ing.id, current);
+          }
         }
       }
 

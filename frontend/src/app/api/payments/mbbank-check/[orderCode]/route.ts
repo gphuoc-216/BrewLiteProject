@@ -11,13 +11,19 @@ export async function GET(
 ) {
   const { orderCode } = await params;
   const code = String(orderCode || '').toUpperCase().trim();
+  const urlObj = new URL(request.url);
+  const expectedAmountRaw = urlObj.searchParams.get('expectedAmount');
+  const expectedAmount = expectedAmountRaw !== null ? Number(expectedAmountRaw) : NaN;
+  const querySuffix = Number.isFinite(expectedAmount) && expectedAmount > 0
+    ? `?expectedAmount=${Math.round(expectedAmount)}`
+    : '';
 
   // 1. Thử hỏi NestJS Backend trước
   const backendEndpoints = [
-    `http://backend:3001/api/payments/mbbank-check/${encodeURIComponent(code)}`,
-    `http://brewlite_backend:3001/api/payments/mbbank-check/${encodeURIComponent(code)}`,
-    `http://127.0.0.1:3001/api/payments/mbbank-check/${encodeURIComponent(code)}`,
-    `http://localhost:3001/api/payments/mbbank-check/${encodeURIComponent(code)}`,
+    `http://backend:3001/api/payments/mbbank-check/${encodeURIComponent(code)}${querySuffix}`,
+    `http://brewlite_backend:3001/api/payments/mbbank-check/${encodeURIComponent(code)}${querySuffix}`,
+    `http://127.0.0.1:3001/api/payments/mbbank-check/${encodeURIComponent(code)}${querySuffix}`,
+    `http://localhost:3001/api/payments/mbbank-check/${encodeURIComponent(code)}${querySuffix}`,
   ];
 
   for (const url of backendEndpoints) {
@@ -53,6 +59,12 @@ export async function GET(
     }
 
     if (payment && Date.now() - payment.time < 300000) {
+      if (Number.isFinite(expectedAmount) && expectedAmount > 0 && Number(payment.amount || 0) < expectedAmount) {
+        return NextResponse.json({
+          success: true,
+          data: { paid: false, reason: 'UNDERPAID', receivedAmount: payment.amount, expectedAmount },
+        });
+      }
       return NextResponse.json({
         success: true,
         data: { paid: true, payment },

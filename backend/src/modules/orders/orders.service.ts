@@ -4,7 +4,7 @@ import { PromotionsService } from '../promotions/promotions.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { assertTransition } from './order-state-machine';
 import { OrderStatus } from '@prisma/client';
-import { calculateToppingsExtraPrice } from '../products/constants/toppings.constant';
+import { calculateToppingsExtraPrice, getToppingIngredientRequirement } from '../products/constants/toppings.constant';
 
 /**
  * =========================================================================================
@@ -419,6 +419,7 @@ export class OrdersService {
           // Trường hợp đặc biệt: Đơn đã thanh toán (PAID) bị hủy trước khi Barista pha chế
           if (order.status === OrderStatus.PAID) {
             // 1. Hoàn lại nguyên liệu vào kho (Hoàn số lượng tồn kho)
+            const extraToppingRefunds = new Map<string, number>();
             for (const item of order.items) {
               for (const recipe of item.variant.recipes) {
                 const returnQty = Number(recipe.quantityRequired) * item.quantity;
@@ -430,6 +431,33 @@ export class OrdersService {
                     },
                   },
                 });
+              }
+              const toppingsList = (item as { toppings?: string[] | null }).toppings;
+              if (Array.isArray(toppingsList) && toppingsList.length > 0) {
+                for (const tName of toppingsList) {
+                  const req = getToppingIngredientRequirement(tName);
+                  if (req) {
+                    extraToppingRefunds.set(
+                      req.ingredientName,
+                      (extraToppingRefunds.get(req.ingredientName) || 0) + req.qty * item.quantity,
+                    );
+                  }
+                }
+              }
+            }
+
+            if (extraToppingRefunds.size > 0 && typeof tx.ingredient?.findMany === 'function') {
+              const toppingIngredients = await tx.ingredient.findMany({
+                where: { name: { in: Array.from(extraToppingRefunds.keys()) } },
+              });
+              for (const ing of toppingIngredients) {
+                const refundQty = extraToppingRefunds.get(ing.name) || 0;
+                if (refundQty > 0) {
+                  await tx.ingredient.update({
+                    where: { id: ing.id },
+                    data: { stockQuantity: { increment: refundQty } },
+                  });
+                }
               }
             }
 

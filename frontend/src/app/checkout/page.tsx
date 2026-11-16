@@ -808,7 +808,7 @@ function CheckoutContent() {
         isPollingRef.current = true;
         try {
           const res = await fetchApi<{ paid: boolean; payment?: any; data?: any }>(
-            `/payments/mbbank-check/${orderCodeDisplay}`
+            `/payments/mbbank-check/${orderCodeDisplay}?expectedAmount=${Math.max(0, Math.round(finalTotal))}`
           );
           const payData = res?.payment || (res as any)?.data;
           if (res && res.paid && payData) {
