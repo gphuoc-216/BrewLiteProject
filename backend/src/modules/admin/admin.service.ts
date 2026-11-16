@@ -357,11 +357,58 @@ export class AdminService {
         },
         ingredient: true,
       },
+      orderBy: [{ ingredient: { name: 'asc' } }],
     });
   }
 
+  /**
+   * Khi chỉnh sửa công thức trên biến thể Tiêu chuẩn của một Size,
+   * tự động đồng bộ nguyên liệu nền sang các biến thể có Topping cùng Size đó.
+   */
+  private async syncBaseRecipeToSameSizeSiblings(
+    variant: { id: string; productId: string; size: string; topping: string | null } | null | undefined,
+    ingredientId: string,
+    quantityRequired: number | null,
+  ) {
+    if (!variant) return;
+    const isStandard = !variant.topping || variant.topping === 'Tiêu chuẩn';
+    if (!isStandard) return;
+
+    const siblings = await this.prisma.productVariant.findMany({
+      where: {
+        productId: variant.productId,
+        size: variant.size,
+        id: { not: variant.id },
+      },
+      select: { id: true },
+    });
+
+    for (const sib of siblings) {
+      if (quantityRequired === null) {
+        await this.prisma.recipe.deleteMany({
+          where: { variantId: sib.id, ingredientId },
+        });
+      } else {
+        await this.prisma.recipe.upsert({
+          where: {
+            variantId_ingredientId: {
+              variantId: sib.id,
+              ingredientId,
+            },
+          },
+          update: { quantityRequired },
+          create: {
+            variantId: sib.id,
+            ingredientId,
+            quantityRequired,
+          },
+        });
+      }
+    }
+  }
+
   async createRecipe(dto: { variantId: string; ingredientId: string; quantityRequired: number }) {
-    return this.prisma.recipe.upsert({
+    const saved = await this.prisma.recipe.upsert({
       where: {
         variantId_ingredientId: {
           variantId: dto.variantId,
@@ -370,18 +417,29 @@ export class AdminService {
       },
       update: { quantityRequired: dto.quantityRequired },
       create: dto,
+      include: { variant: true },
     });
+    await this.syncBaseRecipeToSameSizeSiblings(saved.variant, dto.ingredientId, dto.quantityRequired);
+    return saved;
   }
 
   async updateRecipe(id: string, quantityRequired: number) {
-    return this.prisma.recipe.update({
+    const updated = await this.prisma.recipe.update({
       where: { id },
       data: { quantityRequired },
+      include: { variant: true },
     });
+    await this.syncBaseRecipeToSameSizeSiblings(updated.variant, updated.ingredientId, quantityRequired);
+    return updated;
   }
 
   async deleteRecipe(id: string) {
-    return this.prisma.recipe.delete({ where: { id } });
+    const deleted = await this.prisma.recipe.delete({
+      where: { id },
+      include: { variant: true },
+    });
+    await this.syncBaseRecipeToSameSizeSiblings(deleted.variant, deleted.ingredientId, null);
+    return deleted;
   }
 
   // 3. Quản lý Khuyến mãi
