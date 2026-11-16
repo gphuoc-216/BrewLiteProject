@@ -49,10 +49,13 @@ describe('PromotionsService (Khuyến Mãi & Giảm Giá - Task 10)', () => {
       status: 'ACTIVE',
     });
 
-    // Đơn 15.000đ nhưng mã giảm 20.000đ -> Giảm tối đa 15.000đ, tổng tiền còn 0đ
-    const result = await service.validatePromotion('TEST20K', 15000);
-    expect(result.discountAmount).toBe(15000);
-    expect(result.finalTotal).toBe(0);
+    // Đơn 15.000đ nhưng mã giảm 20.000đ -> Chặn vì voucher không được giảm đơn về 0đ
+    await expect(service.validatePromotion('TEST20K', 15000)).rejects.toThrow(BadRequestException);
+
+    // Đơn 50.000đ -> giảm 20.000đ còn 30.000đ hợp lệ
+    const result = await service.validatePromotion('TEST20K', 50000);
+    expect(result.discountAmount).toBe(20000);
+    expect(result.finalTotal).toBe(30000);
   });
 
   it('từ chối mã khuyến mãi đã hết hạn', async () => {
