@@ -217,6 +217,12 @@ export class AdminCreatePromotionDto {
   @Min(0)
   discountValue: number;
 
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  minOrderValue?: number;
+
   @Type(() => Number)
   @IsNumber()
   @Min(1)

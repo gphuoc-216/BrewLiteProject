@@ -222,6 +222,7 @@ export default function OrderConfirmationPage() {
   const isSpecialStatus = ['PENDING', 'PAYMENT_FAILED', 'CANCELLED'].includes(order.status);
   const earnedPoints = Math.floor((Number(order.totalAfterDiscount) || 0) / 10000);
   const canCancel = order.status === 'PENDING' || order.status === 'PAID' || order.status === 'PAYMENT_FAILED';
+  const showCancelButton = canCancel || order.status === 'PREPARING' || order.status === 'READY';
   const uniqueOrderProductIds = Array.from(
     new Set((order.items || []).map(getItemProductId).filter(Boolean)),
   );
@@ -461,11 +462,17 @@ export default function OrderConfirmationPage() {
             <Home className="w-3.5 h-3.5" />
             <span>Về trang chủ</span>
           </Button>
-          {canCancel && (
+          {showCancelButton && (
             <Button
               variant="danger"
               size="sm"
-              onClick={() => setCancelModalOpen(true)}
+              onClick={() => {
+                if (canCancel) {
+                  setCancelModalOpen(true);
+                } else {
+                  setToastMsg({ message: 'Đơn đang pha, không thể hủy', type: 'danger' });
+                }
+              }}
             >
               Hủy đơn hàng
             </Button>

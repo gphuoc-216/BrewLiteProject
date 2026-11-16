@@ -1,7 +1,7 @@
 {
   "info": {
-    "_postman_id": "brewlite-full-api-collection-2026",
-    "name": "BrewLite Coffee - Full API Collection (A-Z)",
+    "_postman_id": "4bf1ec8b-b8ed-4bca-8af8-ac1c0cc15f38",
+    "name": "BrewLite Coffee - Full API Collection (A-Z) v2",
     "description": "Bộ sưu tập API hoàn chỉnh A-Z của đồ án BrewLite Coffee:\n- Đầy đủ toàn bộ Auth, Menu, Orders, Reviews, Staff Barista, Admin.\n- Bao gồm bộ kịch bản kiểm thử độc quyền phục vụ bảo vệ đồ án (Task 8, 9, 10).\n- Tự động bắt Token (JWT) và đồng bộ biến môi trường (Environment & Collection Variables).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
@@ -65,6 +65,26 @@
       "key": "orderIdLastCup2",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "customerRefreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "staffRefreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminRefreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "customer2Token",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -86,7 +106,8 @@
                   "pm.test(\"Đăng nhập Customer thành công (HTTP 200)\", () => {",
                   "    pm.response.to.have.status(200);",
                   "    pm.expect(token).to.be.a(\"string\");",
-                  "});"
+                  "});",
+                  "pm.collectionVariables.set('customerRefreshToken', res.refreshToken || res.data?.refreshToken || '');"
                 ]
               }
             }
@@ -130,7 +151,8 @@
                   "pm.test(\"Đăng nhập Barista thành công (HTTP 200)\", () => {",
                   "    pm.response.to.have.status(200);",
                   "    pm.expect(token).to.be.a(\"string\");",
-                  "});"
+                  "});",
+                  "pm.collectionVariables.set('staffRefreshToken', res.refreshToken || res.data?.refreshToken || '');"
                 ]
               }
             }
@@ -174,7 +196,8 @@
                   "pm.test(\"Đăng nhập Admin thành công (HTTP 200)\", () => {",
                   "    pm.response.to.have.status(200);",
                   "    pm.expect(token).to.be.a(\"string\");",
-                  "});"
+                  "});",
+                  "pm.collectionVariables.set('adminRefreshToken', res.refreshToken || res.data?.refreshToken || '');"
                 ]
               }
             }
@@ -266,7 +289,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"username\": \"new_customer_1534\",\n  \"password\": \"password123\",\n  \"email\": \"user_1534@example.com\",\n  \"fullName\": \"Nguyen Van Test\",\n  \"phone\": \"0908249683\"\n}"
+              "raw": "{\n  \"username\": \"new_customer_{{$timestamp}}\",\n  \"password\": \"password123\",\n  \"email\": \"user_{{$timestamp}}@example.com\",\n  \"fullName\": \"Nguyen Van Test\",\n  \"phone\": \"0901234567\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/auth/register",
@@ -307,6 +330,53 @@
               ]
             }
           }
+        },
+        {
+          "name": "0.7 Làm mới Access Token (/auth/refresh)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{customerRefreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200/201 Refreshed', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "const res = pm.response.json();",
+                  "const tok = res.accessToken || res.data?.accessToken;",
+                  "if (tok) pm.collectionVariables.set('customerToken', tok);",
+                  "const ref = res.refreshToken || res.data?.refreshToken;",
+                  "if (ref) pm.collectionVariables.set('customerRefreshToken', ref);"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -533,6 +603,54 @@
           }
         },
         {
+          "name": "2.1b Tạo đơn mẫu có Mã giảm giá + Điểm thưởng + Topping",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"variantId\": \"{{testVariantId}}\",\n      \"quantity\": 1,\n      \"toppings\": [\n        \"Trân châu trắng 3Q\"\n      ],\n      \"sugarLevel\": \"70%\",\n      \"iceLevel\": \"100%\"\n    }\n  ],\n  \"promotionCode\": \"BREW10\",\n  \"loyaltyPointsToUse\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201 Created PENDING', () => pm.response.to.have.status(201));",
+                  "const res = pm.response.json();",
+                  "const id = res.id || res.data?.id;",
+                  "if (id) pm.collectionVariables.set('activeOrderId', id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "2.2 Xem lịch sử đơn của tôi (/orders/me)",
           "event": [
             {
@@ -637,6 +755,104 @@
               ]
             }
           }
+        },
+        {
+          "name": "2.5 Thanh toán đơn thành công (PENDING -> PAID)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{activeOrderId}}\",\n  \"method\": \"WALLET\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201 PAID', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.6 Thanh toán đơn thất bại (simulateError FAIL -> PAYMENT_FAILED)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{activeOrderId}}\",\n  \"method\": \"WALLET\",\n  \"simulateError\": \"FAIL\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 402/400 Payment Failed', () => pm.expect(pm.response.code).to.be.oneOf([400, 402]));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -1802,6 +2018,50 @@
           "name": "3. Task 10.3 - Optimistic Locking (Chống âm kho)",
           "item": [
             {
+              "name": "3.0 Đăng nhập Khách 2 (customer2 -> lưu customer2Token)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"customer2\",\n  \"password\": \"123456\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200/201 Customer 2 Logged In', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                      "const res = pm.response.json();",
+                      "pm.collectionVariables.set('customer2Token', res.accessToken || res.data?.accessToken || '');"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
               "name": "3.1 [Kịch bản Ly Cuối] Admin đặt tồn kho Robusta còn đúng 20g (Đủ 1 ly)",
               "event": [
                 {
@@ -1959,7 +2219,7 @@
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{customerToken}}"
+                    "value": "Bearer {{customer2Token}}"
                   },
                   {
                     "key": "Content-Type",
@@ -2003,7 +2263,7 @@
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{customerToken}}"
+                    "value": "Bearer {{customer2Token}}"
                   },
                   {
                     "key": "Idempotency-Key",
@@ -2072,6 +2332,188 @@
                   ]
                 }
               }
+            }
+          ]
+        },
+        {
+          "name": "4. Task 10.4 & Bảo mật (Voucher, Loyalty & Chặn Gian Lận)",
+          "item": [
+            {
+              "name": "4.1 [Khuyến mãi & Loyalty] Tạo đơn áp mã BREW10 + 10 điểm thưởng",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{customerToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/orders",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "orders"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"variantId\": \"{{testVariantId}}\",\n      \"quantity\": 1\n    }\n  ],\n  \"promotionCode\": \"BREW10\",\n  \"loyaltyPointsToUse\": 10\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 201 Created', () => pm.response.to.have.status(201));",
+                      "const res = pm.response.json();",
+                      "const id = res.id || res.data?.id;",
+                      "if (id) pm.collectionVariables.set('activeOrderId', id);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "4.2 [Khuyến mãi LỖI] Áp mã hết hạn EXPIRED50 (HTTP 400)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{customerToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/orders",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "orders"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"variantId\": \"{{testVariantId}}\",\n      \"quantity\": 1\n    }\n  ],\n  \"promotionCode\": \"EXPIRED50\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 400 Expired Promo Blocked', () => pm.response.to.have.status(400));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "4.3 [Gian lận Role] Dùng customerToken gọi API Barista accept (Bắt buộc HTTP 403)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{customerToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/staff/orders/{{activeOrderId}}/accept",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "staff",
+                    "orders",
+                    "{{activeOrderId}}",
+                    "accept"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 403 Forbidden', () => pm.response.to.have.status(403));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "4.4 [Gian lận Thanh toán] Dùng staffToken thanh toán đơn của khách (Bắt buộc HTTP 403)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{staffToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{$guid}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/payments",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "payments"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"orderId\": \"{{activeOrderId}}\",\n  \"method\": \"WALLET\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 403 Forbidden', () => pm.response.to.have.status(403));"
+                    ]
+                  }
+                }
+              ]
             }
           ]
         }

@@ -235,6 +235,7 @@ export default function OrdersMePage() {
         <div className="border border-line rounded bg-surface divide-y divide-line">
           {filteredOrders.map((order) => {
             const canCancel = order.status === 'PENDING' || order.status === 'PAID' || order.status === 'PAYMENT_FAILED';
+            const showCancelButton = canCancel || order.status === 'PREPARING' || order.status === 'READY';
             const allReviewed = isAllProductsReviewed(order);
             const canReview = order.status === 'COMPLETED' && !allReviewed;
             const currentStep = ORDER_STATUS[order.status]?.step ?? -1;
@@ -279,11 +280,17 @@ export default function OrdersMePage() {
                       </span>
                     )}
 
-                    {canCancel && (
+                    {showCancelButton && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setCancelModalOrder(order)}
+                        onClick={() => {
+                          if (canCancel) {
+                            setCancelModalOrder(order);
+                          } else {
+                            setToastMsg({ message: 'Đơn đang pha, không thể hủy', type: 'danger' });
+                          }
+                        }}
                         className="text-danger hover:bg-danger-soft"
                       >
                         Hủy đơn

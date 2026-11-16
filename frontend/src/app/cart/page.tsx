@@ -137,6 +137,41 @@ export default function CartPage() {
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
   const [vouchers, setVouchers] = useState<AvailableVoucher[]>([]);
+  const [outOfStockVariantIds, setOutOfStockVariantIds] = useState<Set<string>>(new Set());
+
+  // Kiểm tra tồn kho thời gian thực cho các món trong giỏ hàng
+  useEffect(() => {
+    let cancelled = false;
+    const checkCartStock = async () => {
+      if (items.length === 0) {
+        if (!cancelled) setOutOfStockVariantIds(new Set());
+        return;
+      }
+      try {
+        const res = await fetchApi<{ items?: Array<{ variants?: Array<{ id: string; isOutOfStock?: boolean }> }> }>('/products?limit=100');
+        const list = Array.isArray(res) ? res : (res?.items || []);
+        const oos = new Set<string>();
+        for (const p of list) {
+          for (const v of p.variants || []) {
+            if (v.isOutOfStock) oos.add(v.id);
+          }
+        }
+        if (!cancelled) setOutOfStockVariantIds(oos);
+      } catch {
+        // Bỏ qua lỗi mạng tạm thời
+      }
+    };
+    checkCartStock();
+    const iv = setInterval(checkCartStock, 5000);
+    window.addEventListener('focus', checkCartStock);
+    return () => {
+      cancelled = true;
+      clearInterval(iv);
+      window.removeEventListener('focus', checkCartStock);
+    };
+  }, [items.length]);
+
+  const hasOutOfStockCartItem = items.some((item) => outOfStockVariantIds.has(item.variantId));
 
   useEffect(() => {
     setMounted(true);
@@ -427,6 +462,11 @@ export default function CartPage() {
                   <h3 className="font-medium text-sm text-ink truncate">
                     {item.productName}
                   </h3>
+                  {outOfStockVariantIds.has(item.variantId) && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-danger-soft text-danger border border-danger/30 text-[11px] font-semibold">
+                      ⛔ Món này vừa hết nguyên liệu — Vui lòng xóa khỏi giỏ
+                    </span>
+                  )}
                   <p className="text-xs text-ink-2">
                     Size: <span className="font-semibold text-ink">{item.size}</span>
                     {item.topping && item.topping !== 'Tiêu chuẩn' && (
@@ -621,28 +661,36 @@ export default function CartPage() {
                   const nowHour = new Date().getHours();
                   const isHappyHourValidTime = !isHappyHour || (nowHour >= 14 && nowHour < 17);
 
-                  // Kiểm tra xem đã có mã giảm đơn hàng thông thường nào khác đang chọn chưa
-                  const hasOtherOrderDiscountApplied =
-                    !isHappyHour &&
-                    !isApplied &&
-                    (promotions.some((p) => p.code.toUpperCase() !== 'HAPPYHOUR') ||
-                      (!!promotion && promotion.code.toUpperCase() !== 'HAPPYHOUR'));
-
-                  const isMinOrderMet = subtotal >= v.minOrderValue;
+                  const appliedCount = promotions.length > 0 ? promotions.length : (promotion ? 1 : 0);
+                  const isMaxVouchersReached = !isApplied && appliedCount >= 2;
+                  const isMaxDiscountReached = !isApplied && remainingAfterVoucher <= 0;
+                  const estVoucherDiscount =
+                    v.discountType === 'PERCENT'
+                      ? Math.min(Math.round((remainingAfterVoucher * v.discountValue) / 100), v.maxDiscount || Infinity)
+                      : v.discountValue;
+                  const wouldReduceToZero = !isApplied && remainingAfterVoucher - estVoucherDiscount <= 0;
+                  const isMinOrderMet = subtotal >= v.minOrderValue && remainingAfterVoucher >= v.minOrderValue;
 
                   // Mã không phù hợp / bị tối mờ / không được chọn:
-                  // 1. Nếu là mã giảm đơn thông thường mà ĐÃ CÓ 1 MÃ GIẢM ĐƠN KHÁC đang chọn (điều kiện na ná nhau chỉ chọn 1)
-                  // 2. Ngoài giờ vàng (HAPPYHOUR 14h-17h)
-                  // 3. Chưa đạt đơn tối thiểu
-                  const isUnavailable = !isApplied && (hasOtherOrderDiscountApplied || !isHappyHourValidTime || !isMinOrderMet);
+                  // 1. Đã chọn đủ tối đa 2 voucher cộng dồn
+                  // 2. Tổng tiền còn lại sau giảm đã về 0đ hoặc voucher làm đơn về 0đ (chỉ điểm thưởng mới được trừ về 0đ)
+                  // 3. Ngoài giờ vàng (HAPPYHOUR 14h-17h)
+                  // 4. Tiền hàng / phần còn lại chưa đạt đơn tối thiểu của voucher
+                  const isUnavailable =
+                    !isApplied &&
+                    (isMaxVouchersReached || isMaxDiscountReached || wouldReduceToZero || !isHappyHourValidTime || !isMinOrderMet);
 
                   const appliedPromo = promotions.find((p) => p.code.toUpperCase() === v.code.toUpperCase());
                   const appliedAmount = appliedPromo?.discountAmount || (v.discountType === 'FIXED' ? v.discountValue : 0);
 
                   const buttonLabel = isApplied
                     ? 'Đã chọn ✓'
-                    : hasOtherOrderDiscountApplied
-                    ? 'Đã chọn mã khác'
+                    : isMaxDiscountReached
+                    ? 'Đã giảm hết'
+                    : wouldReduceToZero
+                    ? 'Không về 0đ'
+                    : isMaxVouchersReached
+                    ? 'Tối đa 2 mã'
                     : !isHappyHourValidTime
                     ? '14h – 17h'
                     : !isMinOrderMet
@@ -727,10 +775,15 @@ export default function CartPage() {
                               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                               <span className="truncate">Đang áp dụng (-{appliedAmount.toLocaleString('vi-VN')}đ) · Chạm để gỡ mã</span>
                             </div>
-                          ) : hasOtherOrderDiscountApplied ? (
+                          ) : isMaxDiscountReached ? (
                             <div className="w-full h-full flex items-center gap-1.5 text-[11px] font-medium text-stone-600 bg-stone-200/80 px-2 rounded border border-stone-300">
                               <Info className="w-3.5 h-3.5 text-stone-500 shrink-0" />
-                              <span className="truncate">Đã chọn 1 mã giảm đơn khác (chạm mã đang chọn để bỏ nếu muốn đổi)</span>
+                              <span className="truncate">Đơn đã đạt mức giảm tối đa 100%, không cần thêm mã</span>
+                            </div>
+                          ) : isMaxVouchersReached ? (
+                            <div className="w-full h-full flex items-center gap-1.5 text-[11px] font-medium text-stone-600 bg-stone-200/80 px-2 rounded border border-stone-300">
+                              <Info className="w-3.5 h-3.5 text-stone-500 shrink-0" />
+                              <span className="truncate">Đã đạt tối đa 2 voucher cho mỗi đơn hàng</span>
                             </div>
                           ) : !isHappyHourValidTime ? (
                             <div className="w-full h-full flex items-center gap-1.5 text-[11px] font-medium text-amber-800 bg-amber-100/70 px-2 rounded border border-amber-200">
@@ -836,9 +889,18 @@ export default function CartPage() {
               </div>
             )}
 
+            {/* Out-of-Stock Warning */}
+            {hasOutOfStockCartItem && (
+              <div className="p-3 bg-danger-soft border border-danger/30 rounded-lg text-[11.5px] text-danger font-medium leading-relaxed flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>Một số món trong giỏ vừa hết nguyên liệu (do khách khác vừa đặt hết). Vui lòng xóa món hết hàng trước khi thanh toán.</span>
+              </div>
+            )}
+
             <Button
               variant={user ? "primary" : "secondary"}
               size="md"
+              disabled={hasOutOfStockCartItem}
               onClick={handleProceedToCheckout}
               className={`w-full gap-2 font-semibold text-xs py-3 ${
                 user && finalTotal === 0 ? 'bg-emerald-600 hover:bg-emerald-700 text-white font-bold' : ''

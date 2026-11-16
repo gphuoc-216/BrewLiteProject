@@ -66,6 +66,25 @@ import { useRequireRole } from '@/hooks/useRequireRole';
 
 type AdminTab = 'overview' | 'products' | 'inventory' | 'promotions' | 'reviews' | 'users';
 
+const FIXED_INGREDIENT_UNIT_PRICES: Record<string, number> = {
+  'Cà phê hạt Robusta': 250,
+  'Cà phê hạt Arabica': 380,
+  'Sữa đặc Ngôi Sao': 65,
+  'Sữa tươi thanh trùng DalatMilk': 38,
+  'Trà đen Ceylon': 320,
+  'Trà Ô Long Mộc Châu': 420,
+  'Đào ngâm miếng giòn': 95,
+  'Trân châu đường đen': 85,
+  'Kem cheese Macchiato': 140,
+  'Nước đường bắp tự nhiên': 45,
+  'Trứng gà tươi Ba Vì': 4000,
+};
+
+function getFixedIngredientUnitPrice(name?: string): number {
+  if (!name) return 100;
+  return FIXED_INGREDIENT_UNIT_PRICES[name] ?? 100;
+}
+
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === 'true';
 
 const PRESET_PRODUCT_IMAGES = [
@@ -181,6 +200,7 @@ export default function AdminDashboardPage() {
   const [newPromoName, setNewPromoName] = useState('');
   const [newPromoValue, setNewPromoValue] = useState('15');
   const [newPromoType, setNewPromoType] = useState<'PERCENT' | 'FIXED'>('PERCENT');
+  const [newPromoMinOrder, setNewPromoMinOrder] = useState('0');
 
   const [toastMsg, setToastMsg] = useState<{ message: string; type: 'success' | 'danger' } | null>(null);
 
@@ -350,7 +370,8 @@ export default function AdminDashboardPage() {
     setImportError(null);
 
     const qty = Number(importQuantity);
-    const unitPrice = Number(importUnitPrice);
+    const selectedIng = ingredients.find((i) => i.id === selectedIngredientId);
+    const unitPrice = getFixedIngredientUnitPrice(selectedIng?.name);
 
     if (!selectedSupplierId) {
       setImportError('Vui lòng chọn nhà cung cấp.');
@@ -408,11 +429,16 @@ export default function AdminDashboardPage() {
   const handleSaveQuickStock = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingStockIngredient) return;
+    const parsedQty = Number(quickStockValue);
+    if (!Number.isFinite(parsedQty) || parsedQty < 0) {
+      setToastMsg({ message: 'Số lượng tồn kho tuyệt đối không được là số âm (>= 0).', type: 'danger' });
+      return;
+    }
     try {
       setSavingStock(true);
       await fetchApi(`/admin/ingredients/${editingStockIngredient.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ stockQuantity: Number(quickStockValue) }),
+        body: JSON.stringify({ stockQuantity: parsedQty }),
       });
       setIngredients((prev) =>
         prev.map((i) =>
@@ -812,9 +838,10 @@ export default function AdminDashboardPage() {
   ];
 
   const activeSelectedIng = ingredients.find((i) => i.id === selectedIngredientId);
+  const fixedImportUnitPrice = getFixedIngredientUnitPrice(activeSelectedIng?.name);
   const currentStockNum = Number(activeSelectedIng?.stockQuantity || 0);
   const importQtyNum = Number(importQuantity) || 0;
-  const estimatedImportTotal = importQtyNum * (Number(importUnitPrice) || 0);
+  const estimatedImportTotal = importQtyNum * fixedImportUnitPrice;
   const afterImportStock = currentStockNum + importQtyNum;
 
   const maxDayRevenue = Math.max(
@@ -1239,7 +1266,11 @@ export default function AdminDashboardPage() {
                                     </span>
                                   </td>
                                   <td className="py-3 px-3 text-center">
-                                    {isCritical ? (
+                                    {stock <= 0 ? (
+                                      <Badge variant="danger" className="text-[11px] gap-1 inline-flex font-bold">
+                                        <AlertTriangle className="w-3 h-3" /> Hết hàng
+                                      </Badge>
+                                    ) : isCritical ? (
                                       <Badge variant="danger" className="text-[11px] gap-1 inline-flex">
                                         <AlertTriangle className="w-3 h-3" /> Sắp hết hàng
                                       </Badge>
@@ -1721,13 +1752,11 @@ export default function AdminDashboardPage() {
               placeholder="VD: 5000"
             />
             <Input
-              label="Đơn vị giá nhập (VNĐ)"
-              type="number"
-              min="1"
-              required
-              value={importUnitPrice}
-              onChange={(e) => setImportUnitPrice(e.target.value)}
-              placeholder="10000"
+              label="Đơn giá NCC cố định (VNĐ)"
+              type="text"
+              readOnly
+              value={`${fixedImportUnitPrice.toLocaleString('vi-VN')} đ / ${activeSelectedIng?.unit || 'đơn vị'}`}
+              className="bg-surface-2 text-ink-2 cursor-not-allowed font-mono"
             />
           </div>
 
@@ -2215,8 +2244,9 @@ export default function AdminDashboardPage() {
       <Modal
         isOpen={recipeModalOpen}
         onClose={() => setRecipeModalOpen(false)}
+        maxWidth="2xl"
         title={`Công thức pha chế & Định lượng kho: ${selectedProductForRecipe?.name}`}
-        description="Định lượng nguyên liệu thực tế cho từng kích cỡ. Khi khách đặt món, hệ thống sẽ tự động trừ kho nguyên liệu theo công thức này."
+        description="Định lượng nguyên liệu thực tế cho từng kích cỡ và topping. Khi khách đặt món, hệ thống sẽ tự động trừ kho nguyên liệu theo công thức này."
       >
         <div className="space-y-4 text-xs text-left max-h-[75vh] overflow-y-auto pr-1">
           {recipeLoading ? (
@@ -2235,77 +2265,98 @@ export default function AdminDashboardPage() {
                     Món này chưa có công thức định lượng chi tiết. Bạn có thể thêm nguyên liệu bên dưới!
                   </div>
                 ) : (
-                  <div className="divide-y divide-line border border-line rounded bg-surface">
-                    {productRecipes.map((r) => (
-                      <div key={r.id} className="p-2.5 flex items-center justify-between gap-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-[10px] font-bold bg-espresso text-espresso-text px-1.5 py-0.5 rounded">
-                              Size {r.variant?.size || 'Tiêu chuẩn'}
-                            </span>
-                            <span className="font-medium text-ink text-sm">{r.ingredient?.name}</span>
-                          </div>
-                          <span className="text-[11px] text-ink-3 mt-0.5 block">
-                            Tồn kho còn: {Number(r.ingredient?.stockQuantity || 0).toLocaleString('vi-VN')} {r.ingredient?.unit}
+                  <div className="space-y-3">
+                    {Object.entries(
+                      productRecipes.reduce<Record<string, { label: string; size: string; topping: string; rows: typeof productRecipes }>>(
+                        (acc, r) => {
+                          const vId = r.variantId || r.variant?.id || 'default';
+                          const size = r.variant?.size || 'S';
+                          const topping = (r.variant as { topping?: string } | undefined)?.topping || 'Tiêu chuẩn';
+                          if (!acc[vId]) {
+                            acc[vId] = { label: `Size ${size} · ${topping}`, size, topping, rows: [] };
+                          }
+                          acc[vId].rows.push(r);
+                          return acc;
+                        },
+                        {}
+                      )
+                    ).map(([variantId, group]) => (
+                      <div key={variantId} className="border border-line rounded-lg bg-surface overflow-hidden">
+                        <div className="px-3 py-2 bg-surface-2/70 border-b border-line flex items-center gap-2">
+                          <span className="font-mono text-[11px] font-bold bg-espresso text-espresso-text px-2 py-0.5 rounded whitespace-nowrap shrink-0">
+                            Size {group.size}
                           </span>
+                          <span className="text-xs font-semibold text-ink">{group.topping}</span>
                         </div>
+                        <div className="divide-y divide-line">
+                          {group.rows.map((r) => (
+                            <div key={r.id} className="px-3 py-2.5 flex items-center justify-between gap-4">
+                              <div className="min-w-0 flex-1">
+                                <span className="font-medium text-ink text-sm block">{r.ingredient?.name}</span>
+                                <span className="text-[11px] text-ink-3 block">
+                                  Tồn kho còn: {Number(r.ingredient?.stockQuantity || 0).toLocaleString('vi-VN')} {r.ingredient?.unit}
+                                </span>
+                              </div>
 
-                        <div className="flex items-center gap-2">
-                          {editingRecipeId === r.id ? (
-                            <div className="flex items-center gap-1.5">
-                              <input
-                                type="number"
-                                min="1"
-                                value={editingRecipeQty}
-                                onChange={(e) => setEditingRecipeQty(e.target.value)}
-                                className="w-16 h-7 px-1.5 text-xs bg-bg border border-accent rounded font-mono font-bold"
-                              />
-                              <span className="text-ink-2">{r.ingredient?.unit}</span>
-                              <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={() => handleUpdateRecipeQuantity(r.id)}
-                                className="h-7 px-2 text-[11px]"
-                              >
-                                Lưu
-                              </Button>
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => setEditingRecipeId(null)}
-                                className="h-7 px-1.5 text-[11px]"
-                              >
-                                Hủy
-                              </Button>
+                              <div className="flex items-center gap-2 shrink-0">
+                                {editingRecipeId === r.id ? (
+                                  <div className="flex items-center gap-1.5">
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      value={editingRecipeQty}
+                                      onChange={(e) => setEditingRecipeQty(e.target.value)}
+                                      className="w-16 h-7 px-1.5 text-xs bg-bg border border-accent rounded font-mono font-bold"
+                                    />
+                                    <span className="text-ink-2 whitespace-nowrap">{r.ingredient?.unit}</span>
+                                    <Button
+                                      variant="primary"
+                                      size="sm"
+                                      onClick={() => handleUpdateRecipeQuantity(r.id)}
+                                      className="h-7 px-2 text-[11px]"
+                                    >
+                                      Lưu
+                                    </Button>
+                                    <Button
+                                      variant="secondary"
+                                      size="sm"
+                                      onClick={() => setEditingRecipeId(null)}
+                                      className="h-7 px-1.5 text-[11px]"
+                                    >
+                                      Hủy
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-mono font-bold text-accent text-sm whitespace-nowrap">
+                                      {Number(r.quantityRequired).toLocaleString('vi-VN')} {r.ingredient?.unit}
+                                    </span>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setEditingRecipeId(r.id);
+                                        setEditingRecipeQty(String(r.quantityRequired));
+                                      }}
+                                      className="h-7 px-1.5 text-ink-3 hover:text-ink"
+                                      title="Sửa định lượng"
+                                    >
+                                      <Edit3 className="w-3.5 h-3.5" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleDeleteRecipe(r.id)}
+                                      className="h-7 px-1.5 text-danger hover:bg-danger/10"
+                                      title="Xóa khỏi công thức"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono font-bold text-accent text-sm">
-                                {Number(r.quantityRequired).toLocaleString('vi-VN')} {r.ingredient?.unit}
-                              </span>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setEditingRecipeId(r.id);
-                                  setEditingRecipeQty(String(r.quantityRequired));
-                                }}
-                                className="h-7 px-1.5 text-ink-3 hover:text-ink"
-                                title="Sửa định lượng"
-                              >
-                                <Edit3 className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteRecipe(r.id)}
-                                className="h-7 px-1.5 text-danger hover:bg-danger/10"
-                                title="Xóa khỏi công thức"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </Button>
-                            </div>
-                          )}
+                          ))}
                         </div>
                       </div>
                     ))}
@@ -2317,26 +2368,28 @@ export default function AdminDashboardPage() {
               <form onSubmit={handleAddRecipeIngredient} className="p-3 bg-surface-2/40 border border-line rounded space-y-3">
                 <span className="font-semibold text-ink block">+ Thêm nguyên liệu định lượng vào món</span>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <div className="space-y-1">
-                    <label className="text-[11px] text-ink-2 block">Chọn Size món</label>
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                  <div className="space-y-1 sm:col-span-5">
+                    <label className="text-[11px] text-ink-2 block">Chọn Size & Topping</label>
                     <select
                       value={newRecipeVariantId}
                       onChange={(e) => setNewRecipeVariantId(e.target.value)}
-                      className="w-full h-8 px-2 bg-bg border border-line rounded text-ink text-xs focus:border-accent focus:outline-none"
+                      className="w-full h-9 px-2.5 bg-bg border border-line rounded text-ink text-xs focus:border-accent focus:outline-none"
                     >
                       {selectedProductForRecipe?.variants?.map((v) => (
-                        <option key={v.id} value={v.id}>Size {v.size} ({Number(v.price).toLocaleString('vi-VN')}đ)</option>
+                        <option key={v.id} value={v.id}>
+                          Size {v.size} · {v.topping || 'Tiêu chuẩn'} ({Number(v.price).toLocaleString('vi-VN')}đ)
+                        </option>
                       ))}
                     </select>
                   </div>
 
-                  <div className="space-y-1">
+                  <div className="space-y-1 sm:col-span-4">
                     <label className="text-[11px] text-ink-2 block">Chọn Nguyên liệu kho</label>
                     <select
                       value={newRecipeIngredientId}
                       onChange={(e) => setNewRecipeIngredientId(e.target.value)}
-                      className="w-full h-8 px-2 bg-bg border border-line rounded text-ink text-xs focus:border-accent focus:outline-none"
+                      className="w-full h-9 px-2.5 bg-bg border border-line rounded text-ink text-xs focus:border-accent focus:outline-none"
                     >
                       {ingredients.map((ing) => (
                         <option key={ing.id} value={ing.id}>{ing.name} ({ing.unit})</option>
@@ -2344,8 +2397,8 @@ export default function AdminDashboardPage() {
                     </select>
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[11px] text-ink-2 block">Định lượng cần (ml / g)</label>
+                  <div className="space-y-1 sm:col-span-3">
+                    <label className="text-[11px] text-ink-2 block">Định lượng (ml / g)</label>
                     <div className="flex items-center gap-1.5">
                       <input
                         type="number"
@@ -2354,9 +2407,9 @@ export default function AdminDashboardPage() {
                         value={newRecipeQty}
                         onChange={(e) => setNewRecipeQty(e.target.value)}
                         placeholder="VD: 40"
-                        className="w-full h-8 px-2 bg-bg border border-line rounded text-ink text-xs focus:border-accent focus:outline-none"
+                        className="w-full h-9 px-2.5 bg-bg border border-line rounded text-ink text-xs focus:border-accent focus:outline-none"
                       />
-                      <Button variant="primary" size="sm" type="submit" className="h-8 px-3 shrink-0">
+                      <Button variant="primary" size="sm" type="submit" className="h-9 px-3 whitespace-nowrap shrink-0">
                         Thêm
                       </Button>
                     </div>
@@ -2392,6 +2445,7 @@ export default function AdminDashboardPage() {
                   name: newPromoName.trim(),
                   discountType: newPromoType,
                   discountValue: Number(newPromoValue),
+                  minOrderValue: Number(newPromoMinOrder) || 0,
                   quantity: 100,
                   startDate: new Date().toISOString(),
                   endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
@@ -2440,6 +2494,14 @@ export default function AdminDashboardPage() {
               onChange={(e) => setNewPromoValue(e.target.value)}
             />
           </div>
+          <Input
+            label="Đơn tối thiểu áp dụng (VNĐ)"
+            type="number"
+            min="0"
+            value={newPromoMinOrder}
+            onChange={(e) => setNewPromoMinOrder(e.target.value)}
+            placeholder="VD: 10000 (0 = không giới hạn)"
+          />
           <div className="flex justify-end gap-2 pt-3 border-t border-line">
             <Button variant="secondary" size="sm" type="button" onClick={() => setPromoModalOpen(false)}>
               Hủy
@@ -2465,10 +2527,16 @@ export default function AdminDashboardPage() {
             </label>
             <input
               type="number"
+              inputMode="decimal"
               min="0"
+              step="1"
               required
+              autoFocus
               value={quickStockValue}
-              onChange={(e) => setQuickStockValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault();
+              }}
+              onChange={(e) => setQuickStockValue(e.target.value.replace(/[^0-9.]/g, ''))}
               className="w-full h-9 px-3 bg-bg border border-line rounded text-ink text-sm font-mono focus:border-accent focus:outline-none"
               placeholder="VD: 10 để test tranh mua hoặc 0 để test hết hàng"
             />

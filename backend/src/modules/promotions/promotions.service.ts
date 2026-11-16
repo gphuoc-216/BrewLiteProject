@@ -108,11 +108,20 @@ export class PromotionsService {
     return allPromos.map((promo) => {
       const codeUpper = promo.code.toUpperCase();
       const rule = VOUCHER_RULES[codeUpper];
-      const minOrderValue = Number((promo as any).minOrderValue ?? rule?.minOrderValue ?? 0);
+      const dbMinOrder = Number((promo as any).minOrderValue ?? 0);
+      const minOrderValue = dbMinOrder > 0 ? dbMinOrder : (rule?.minOrderValue ?? 0);
       const maxDiscount = Number((promo as any).maxDiscount ?? rule?.maxDiscount ?? 0);
       const meetsMinOrder = orderSubtotal >= minOrderValue;
       const isWithinHappyHour = codeUpper !== 'HAPPYHOUR' || this.isHappyHourActive(now);
-      const isEligible = meetsMinOrder && isWithinHappyHour;
+      const estimatedDiscount =
+        promo.discountType === PromotionType.PERCENT
+          ? Math.min(
+              Math.round((orderSubtotal * Number(promo.discountValue)) / 100),
+              maxDiscount > 0 ? maxDiscount : Infinity,
+            )
+          : Number(promo.discountValue);
+      const wouldNotZeroOrder = orderSubtotal <= 0 || estimatedDiscount < orderSubtotal;
+      const isEligible = meetsMinOrder && isWithinHappyHour && wouldNotZeroOrder;
       const missingAmount = Math.max(0, minOrderValue - orderSubtotal);
       const progressPercent =
         minOrderValue > 0
@@ -122,6 +131,8 @@ export class PromotionsService {
         ? 'Chỉ áp dụng trong khung giờ vàng 14:00 – 17:00.'
         : !meetsMinOrder
         ? `Đơn còn thiếu ${missingAmount.toLocaleString('vi-VN')}đ để dùng mã này.`
+        : !wouldNotZeroOrder
+        ? 'Voucher không áp dụng để giảm đơn hàng về 0đ.'
         : null;
 
       return {
@@ -211,12 +222,8 @@ export class PromotionsService {
 
     // Kiểm tra quy tắc giá trị đơn hàng tối thiểu
     const rule = VOUCHER_RULES[codeUpper];
-    const minOrderValue =
-      (promo as any).minOrderValue !== undefined
-        ? Number((promo as any).minOrderValue)
-        : rule?.minOrderValue
-        ? rule.minOrderValue
-        : 0;
+    const dbMinOrder = Number((promo as any).minOrderValue ?? 0);
+    const minOrderValue = dbMinOrder > 0 ? dbMinOrder : (rule?.minOrderValue ?? 0);
 
     if (minOrderValue > 0 && orderSubtotal < minOrderValue) {
       const missing = minOrderValue - orderSubtotal;
@@ -239,8 +246,12 @@ export class PromotionsService {
       discountAmount = Number(promo.discountValue);
     }
 
-    // Không giảm quá tổng tiền đơn
-    discountAmount = Math.min(discountAmount, orderSubtotal);
+    // Voucher không được giảm đơn hàng về 0đ (chỉ điểm tích lũy mới được trừ hết)
+    if (orderSubtotal > 0 && discountAmount >= orderSubtotal) {
+      throw new BadRequestException(
+        `Voucher "${promo.code}" không áp dụng để giảm đơn hàng xuống 0đ (giá trị đơn cần lớn hơn ${discountAmount.toLocaleString('vi-VN')}đ).`
+      );
+    }
     const finalTotal = Math.max(0, orderSubtotal - discountAmount);
 
     return {

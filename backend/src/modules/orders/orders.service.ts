@@ -230,11 +230,8 @@ export class OrdersService {
       ),
     );
 
-    const regularCodes = codes.filter((c) => c !== 'HAPPYHOUR');
-    if (regularCodes.length > 1) {
-      throw new BadRequestException(
-        'Chỉ được áp dụng tối đa 1 mã giảm giá đơn hàng (có thể kết hợp thêm mã HAPPYHOUR)',
-      );
+    if (codes.length > 2) {
+      throw new BadRequestException('Chỉ được áp dụng tối đa 2 mã khuyến mãi cho mỗi đơn hàng');
     }
 
     let promotionId: string | null = null;
@@ -243,9 +240,16 @@ export class OrdersService {
     let discountAmount = 0;
 
     for (const code of codes) {
-      if (remaining <= 0) break;
-      const promoResult = await this.promotionsService.validatePromotion(code, subtotal);
-      const applied = Math.min(promoResult.discountAmount, remaining);
+      if (remaining <= 1000) {
+        throw new BadRequestException('Tổng giảm giá từ voucher không được đưa đơn hàng về 0đ');
+      }
+      const promoResult = await this.promotionsService.validatePromotion(code, remaining);
+      if (remaining - promoResult.discountAmount <= 0) {
+        throw new BadRequestException(
+          `Voucher "${code}" làm đơn hàng giảm về 0đ, vui lòng bỏ bớt voucher (chỉ điểm tích lũy mới được trừ hết).`,
+        );
+      }
+      const applied = promoResult.discountAmount;
       discountAmount += applied;
       remaining -= applied;
 

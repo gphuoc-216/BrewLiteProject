@@ -361,8 +361,15 @@ export class AdminService {
   }
 
   async createRecipe(dto: { variantId: string; ingredientId: string; quantityRequired: number }) {
-    return this.prisma.recipe.create({
-      data: dto,
+    return this.prisma.recipe.upsert({
+      where: {
+        variantId_ingredientId: {
+          variantId: dto.variantId,
+          ingredientId: dto.ingredientId,
+        },
+      },
+      update: { quantityRequired: dto.quantityRequired },
+      create: dto,
     });
   }
 
@@ -389,6 +396,7 @@ export class AdminService {
       data: {
         ...dto,
         code: dto.code.toUpperCase(),
+        minOrderValue: Number(dto.minOrderValue || 0),
         startDate: new Date(dto.startDate),
         endDate: new Date(dto.endDate),
       },
