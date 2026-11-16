@@ -2251,7 +2251,7 @@
                       "pm.test('Hệ thống CHẶN ĐỨNG Khách 2 với HTTP 409 Conflict (Không đủ tồn kho)', () => {",
                       "    pm.response.to.have.status(409);",
                       "    const res = pm.response.json();",
-                      "    pm.expect(res.message).to.include('không đủ tồn kho');",
+                      "    pm.expect(res.message).to.include('Tạm thời hết nguyên liệu');",
                       "});"
                     ],
                     "type": "text/javascript"

@@ -325,9 +325,7 @@ export class PaymentService {
 
             // ⚠️ KIỂM TRA CHỐNG ÂM KHO: Nếu số lượng trong kho không đủ -> Ném lỗi 409 ngay!
             if (!ingredient || Number(ingredient.stockQuantity) < requirement.qty) {
-              throw new ConflictException(
-                `Nguyên liệu "${requirement.name}" đã hết hoặc không đủ tồn kho (Còn lại: ${ingredient?.stockQuantity || 0}, Cần: ${requirement.qty}). Giao dịch bị hủy.`,
-              );
+              throw new ConflictException('Tạm thời hết nguyên liệu');
             }
 
             // ⚡ CÂU LỆNH CẬP NHẬT NGUYÊN TỬ (KHÓA LẠC QUAN - OCC):
