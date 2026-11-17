@@ -8,15 +8,17 @@ generator client {
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
+// Vai trò người dùng trong hệ thống (RBAC)
 enum Role {
-  CUSTOMER
-  STAFF
-  ADMIN
+  CUSTOMER // Khách hàng đặt món
+  STAFF    // Nhân viên pha chế (Barista)
+  ADMIN    // Quản trị viên
 }
 
+// Trạng thái tài khoản
 enum AccountStatus {
-  ACTIVE
-  LOCKED
+  ACTIVE // Đang hoạt động bình thường
+  LOCKED // Bị Admin khóa (bị chặn ngay ở JwtStrategy)
 }
 
 // =========================================================================================
@@ -53,16 +55,17 @@ enum ReviewStatus {
   DELETED
 }
 
-// 1. TaiKhoan (Account)
+// 1. TaiKhoan (Account) - Lưu thông tin đăng nhập chung và quyền (role) cho cả 3 đối tượng
 model Account {
-  id           String        @id @default(uuid())
-  username     String        @unique
-  passwordHash String
-  role         Role          @default(CUSTOMER)
-  status       AccountStatus @default(ACTIVE)
+  id           String        @id @default(uuid()) // Khóa chính UUID
+  username     String        @unique              // Tên đăng nhập duy nhất
+  passwordHash String                             // Mật khẩu đã băm bằng bcrypt
+  role         Role          @default(CUSTOMER)   // Vai trò: CUSTOMER | STAFF | ADMIN
+  status       AccountStatus @default(ACTIVE)     // Trạng thái: ACTIVE | LOCKED
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
+  // Quan hệ 1-1 tùy chọn tới từng bảng hồ sơ tương ứng với role
   customer Customer?
   staff    Staff?
   admin    Admin?
@@ -70,13 +73,13 @@ model Account {
   @@map("accounts")
 }
 
-// 2. KhachHang (Customer)
+// 2. KhachHang (Customer) - Hồ sơ khách hàng (quan hệ 1-1 với Account)
 model Customer {
   id            String   @id @default(uuid())
   fullName      String
   email         String   @unique
-  loyaltyPoints Int      @default(0)
-  accountId     String   @unique
+  loyaltyPoints Int      @default(0) // Điểm tích lũy (+1 điểm / 10.000đ khi PAID; thu hồi khi hủy đơn PAID)
+  accountId     String   @unique     // @unique đảm bảo 1 Account chỉ gắn 1 Customer
   account       Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -87,27 +90,27 @@ model Customer {
   @@map("customers")
 }
 
-// 3. NhanVien (Staff / Barista)
+// 3. NhanVien (Staff / Barista) - Hồ sơ nhân viên pha chế (quan hệ 1-1 với Account)
 model Staff {
   id        String   @id @default(uuid())
   fullName  String
   email     String
-  accountId String   @unique
+  accountId String   @unique // @unique đảm bảo 1 Account chỉ gắn 1 Staff
   account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  orders Order[]
+  orders Order[] // Danh sách đơn hàng Barista này đã nhận pha chế
 
   @@map("staffs")
 }
 
-// 4. Admin
+// 4. Admin - Hồ sơ quản trị viên (quan hệ 1-1 với Account)
 model Admin {
   id        String   @id @default(uuid())
   fullName  String
   email     String
-  accountId String   @unique
+  accountId String   @unique // @unique đảm bảo 1 Account chỉ gắn 1 Admin
   account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -115,70 +118,70 @@ model Admin {
   @@map("admins")
 }
 
-// 5. SanPham (Product)
+// 5. SanPham (Product) - Thông tin chung của món uống trong Menu
 model Product {
   id          String   @id @default(uuid())
   name        String
   imageUrl    String
   description String?
-  category    String   @default("COFFEE")
-  isActive    Boolean  @default(true)
+  category    String   @default("COFFEE") // COFFEE | TEA | FREEZE
+  isActive    Boolean  @default(true)     // Admin ẩn/hiện món trên Menu
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  variants ProductVariant[]
+  variants ProductVariant[] // Các biến thể size (S/M/L) & giá
   reviews  Review[]
 
   @@map("products")
 }
 
-// 6. ChiTietSanPham (ProductVariant)
+// 6. ChiTietSanPham (ProductVariant) - Biến thể kích cỡ & giá hiện hành của món
 model ProductVariant {
   id        String   @id @default(uuid())
   productId String
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   size      String   // S, M, L
-  price     Decimal  @db.Decimal(12, 2)
+  price     Decimal  @db.Decimal(12, 2) // Giá bán hiện tại (khi tạo đơn sẽ snapshot sang OrderItem.lineTotal)
   topping   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  recipes    Recipe[]
+  recipes    Recipe[]    // Công thức nguyên liệu cần để pha 1 ly biến thể này
   orderItems OrderItem[]
 
   @@map("product_variants")
 }
 
-// 7. ChiTietDonHang (OrderItem)
+// 7. ChiTietDonHang (OrderItem) - Chi tiết từng món trong đơn (đóng băng giá & tùy chọn lúc đặt)
 model OrderItem {
   id         Int            @id @default(autoincrement())
   orderId    String
   order      Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
   variantId  String
   variant    ProductVariant @relation(fields: [variantId], references: [id])
-  quantity   Int
-  lineTotal  Decimal        @db.Decimal(12, 2)
-  sugarLevel String?        @default("100%")
-  iceLevel   String?        @default("100%")
-  toppings   Json?
+  quantity   Int                                // Số lượng ly đặt mua
+  lineTotal  Decimal        @db.Decimal(12, 2)  // Snapshot thành tiền tại thời điểm đặt = (giá variant + topping) * quantity; không đổi khi Admin sửa giá sau này
+  sugarLevel String?        @default("100%")    // Mức đường khách chọn
+  iceLevel   String?        @default("100%")    // Mức đá khách chọn
+  toppings   Json?                              // Danh sách topping thêm (JSON array) để hiển thị cho Barista & trừ/hoàn kho
 
   @@map("order_items")
 }
 
-// 8. DonHang (Order)
+// 8. DonHang (Order) - Đơn hàng & trạng thái vòng đời (Order State Machine)
 model Order {
   id                   String      @id @default(uuid())
   customerId           String
   customer             Customer    @relation(fields: [customerId], references: [id])
-  staffId              String?
+  staffId              String?     // Barista tiếp nhận pha chế (gán nguyên tử khi PAID -> PREPARING)
   staff                Staff?      @relation(fields: [staffId], references: [id])
-  promotionId          String?
+  promotionId          String?     // Mã giảm giá chính (nếu có)
   promotion            Promotion?  @relation(fields: [promotionId], references: [id])
-  secondaryPromotionId String?
+  secondaryPromotionId String?     // Mã giảm giá cộng dồn thứ 2 (vd: HAPPYHOUR)
   secondaryPromotion   Promotion?  @relation("OrderSecondaryPromotion", fields: [secondaryPromotionId], references: [id])
   status               OrderStatus @default(PENDING)
-  discountAmount     Decimal     @default(0) @db.Decimal(12, 2)
-  totalAfterDiscount Decimal     @db.Decimal(12, 2)
+  discountAmount     Decimal     @default(0) @db.Decimal(12, 2) // Tổng tiền được giảm lúc đặt
+  totalAfterDiscount Decimal     @db.Decimal(12, 2)             // Tổng tiền thực thu cố định (không đổi nếu Admin đổi giá món sau này)
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
@@ -214,16 +217,16 @@ model Payment {
   @@map("payments")
 }
 
-// 10. KhuyenMai (Promotion)
+// 10. KhuyenMai (Promotion) - Mã giảm giá / Voucher
 model Promotion {
   id            String        @id @default(uuid())
-  code          String        @unique
+  code          String        @unique              // Mã voucher (vd: BREW10, GIAM20K, HAPPYHOUR)
   name          String
-  discountType  PromotionType @default(PERCENT)
-  discountValue Decimal       @db.Decimal(12, 2)
-  minOrderValue Decimal       @default(0) @db.Decimal(12, 2)
-  quantity      Int
-  usedCount     Int           @default(0)
+  discountType  PromotionType @default(PERCENT)    // PERCENT (%) hoặc FIXED (VNĐ cố định)
+  discountValue Decimal       @db.Decimal(12, 2)   // Giá trị giảm (% hoặc số tiền)
+  minOrderValue Decimal       @default(0) @db.Decimal(12, 2) // Giá trị đơn tối thiểu để áp dụng
+  quantity      Int                                // Tổng lượt phát hành
+  usedCount     Int           @default(0)          // Số lượt đã dùng (tăng khi PAID, giảm khi hủy đơn PAID)
   startDate     DateTime
   endDate       DateTime
   status        String        @default("ACTIVE")
@@ -263,20 +266,20 @@ model Ingredient {
   @@map("ingredients")
 }
 
-// 12. CongThuc (Recipe)
+// 12. CongThuc (Recipe) - Định mức nguyên liệu để pha 1 ly ProductVariant
 model Recipe {
   id               String         @id @default(uuid())
   variantId        String
   variant          ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
   ingredientId     String
   ingredient       Ingredient     @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
-  quantityRequired Decimal        @db.Decimal(12, 2)
+  quantityRequired Decimal        @db.Decimal(12, 2) // Lượng nguyên liệu tiêu hao cho 1 ly (dùng tính số ly tối đa & trừ kho)
 
   @@unique([variantId, ingredientId])
   @@map("recipes")
 }
 
-// 13. NhaCungCap (Supplier)
+// 13. NhaCungCap (Supplier) - Nhà cung cấp nguyên liệu cho kho
 model Supplier {
   id        String   @id @default(uuid())
   name      String
@@ -290,7 +293,7 @@ model Supplier {
   @@map("suppliers")
 }
 
-// 14. PhieuNhap (ImportReceipt)
+// 14. PhieuNhap (ImportReceipt) - Phiếu nhập kho từ nhà cung cấp (Admin tạo)
 model ImportReceipt {
   id          String   @id @default(uuid())
   supplierId  String
@@ -303,21 +306,21 @@ model ImportReceipt {
   @@map("import_receipts")
 }
 
-// 15. ChiTietPhieuNhap (ImportReceiptItem)
+// 15. ChiTietPhieuNhap (ImportReceiptItem) - Từng nguyên liệu nhập trong phiếu (tăng stockQuantity)
 model ImportReceiptItem {
   id           String        @id @default(uuid())
   receiptId    String
   receipt      ImportReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
   ingredientId String
   ingredient   Ingredient    @relation(fields: [ingredientId], references: [id])
-  quantity     Decimal       @db.Decimal(12, 2)
+  quantity     Decimal       @db.Decimal(12, 2) // Số lượng nhập thêm (> 0)
   unitPrice    Decimal       @db.Decimal(12, 2)
   lineTotal    Decimal       @db.Decimal(12, 2)
 
   @@map("import_receipt_items")
 }
 
-// 16. DanhGia (Review)
+// 16. DanhGia (Review) - Đánh giá 1-5 sao của khách sau khi đơn COMPLETED
 model Review {
   id         String       @id @default(uuid())
   customerId String
@@ -326,12 +329,12 @@ model Review {
   product    Product      @relation(fields: [productId], references: [id])
   orderId    String
   order      Order        @relation(fields: [orderId], references: [id])
-  stars      Int
-  content    String
-  status     ReviewStatus @default(VISIBLE)
+  stars      Int                                    // Số sao từ 1 đến 5
+  content    String                                 // Nội dung nhận xét
+  status     ReviewStatus @default(VISIBLE)         // VISIBLE | HIDDEN | DELETED (xóa mềm để chặn đánh giá lại)
   createdAt  DateTime     @default(now())
 
-  @@unique([customerId, productId, orderId])
+  @@unique([customerId, productId, orderId]) // Mỗi khách chỉ được đánh giá 1 lần / mỗi món / mỗi đơn
   @@map("reviews")
 }
 

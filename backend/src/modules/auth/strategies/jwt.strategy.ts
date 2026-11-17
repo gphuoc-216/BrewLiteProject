@@ -5,6 +5,11 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { AccountStatus } from '@prisma/client';
 
+/**
+ * Chiến lược xác thực JWT (Trạm bảo vệ 1 trong JwtAuthGuard):
+ * 1. Tách Bearer Token từ Header và kiểm tra chữ ký HMAC-SHA256 bằng JWT_SECRET + hạn sử dụng.
+ * 2. Luôn truy vấn lại bảng Account trong PostgreSQL theo payload.sub (không tin role ghi trong token).
+ */
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
@@ -12,9 +17,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private prisma: PrismaService,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET') || 'brewlite_super_secret_jwt_key_2026',
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(), // Đọc Authorization: Bearer <token>
+      ignoreExpiration: false,                                  // Từ chối token đã hết hạn (401)
+      secretOrKey: configService.get<string>('JWT_SECRET') || 'brewlite_super_secret_jwt_key_2026', // Khóa bí mật kiểm tra chữ ký
     });
   }
 
@@ -22,6 +27,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     let account = null;
 
     try {
+      // Tra cứu lại tài khoản mới nhất từ DB để lấy role thật & status thật
       account = await this.prisma.account.findUnique({
         where: { id: payload.sub },
         include: {
@@ -38,6 +44,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Tài khoản không tồn tại trong hệ thống');
     }
 
+    // Chặn ngay nếu tài khoản vừa bị Admin khóa dù token vẫn còn hạn
     if (account.status === AccountStatus.LOCKED) {
       throw new ForbiddenException('Tài khoản của bạn đã bị khóa bởi Quản trị viên');
     }
@@ -47,6 +54,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (account.role === 'STAFF') profile = account.staff;
     if (account.role === 'ADMIN') profile = account.admin;
 
+    // Object trả về này sẽ được NestJS gắn vào request.user cho RolesGuard & Controller dùng
     return {
       accountId: account.id,
       username: account.username,

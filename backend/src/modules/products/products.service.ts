@@ -129,6 +129,32 @@ export const SAMPLE_PRODUCTS = [
 export class ProductsService {
   constructor(private prisma: PrismaService) { }
 
+  /**
+   * Tính trạng thái hết hàng và số ly tối đa có thể pha chế dựa trên thành phần ít nhất (MIN) trong công thức.
+   */
+  private computeVariantStock(recipes: any[]): { isOutOfStock: boolean; maxAvailable: number | null } {
+    if (!recipes || recipes.length === 0) {
+      return { isOutOfStock: false, maxAvailable: null };
+    }
+    const servings = recipes
+      .map((r: any) => {
+        const req = Number(r.quantityRequired ?? 0);
+        const stock = Number(r.ingredient?.stockQuantity ?? 0);
+        if (req <= 0) return Infinity;
+        return Math.max(0, Math.floor(stock / req));
+      })
+      .filter((n: number) => Number.isFinite(n));
+
+    if (servings.length === 0) {
+      return { isOutOfStock: false, maxAvailable: null };
+    }
+    const maxAvailable = Math.min(...servings);
+    return {
+      isOutOfStock: maxAvailable < 1,
+      maxAvailable,
+    };
+  }
+
   async findAll(query: { search?: string; category?: string; page?: number; limit?: number }) {
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 20;
@@ -181,19 +207,22 @@ export class ProductsService {
         const minPrice = p.variants.length > 0 ? p.variants[0].price : 0;
 
         const formattedVariants = p.variants.map((v: any) => {
-          const isOutOfStock = v.recipes && v.recipes.length > 0
-            ? v.recipes.some((r: any) => Number(r.ingredient?.stockQuantity ?? 0) < Number(r.quantityRequired ?? 0))
-            : false;
+          const { isOutOfStock, maxAvailable } = this.computeVariantStock(v.recipes);
           return {
             id: v.id,
             size: v.size,
             price: v.price,
             topping: v.topping,
             isOutOfStock,
+            maxAvailable,
           };
         });
 
         const isProductOutOfStock = formattedVariants.length > 0 && formattedVariants.every((v) => v.isOutOfStock);
+        const finiteMaxes = formattedVariants
+          .map((v) => v.maxAvailable)
+          .filter((n): n is number => typeof n === 'number');
+        const productMaxAvailable = finiteMaxes.length > 0 ? Math.max(...finiteMaxes) : null;
 
         return {
           id: p.id,
@@ -205,6 +234,7 @@ export class ProductsService {
           rating: avgRating,
           reviewCount: p.reviews.length,
           isOutOfStock: isProductOutOfStock,
+          maxAvailable: productMaxAvailable,
           variants: formattedVariants,
         };
       });
@@ -279,21 +309,25 @@ export class ProductsService {
         const avgRating = product.reviews.length > 0 ? Number((totalStars / product.reviews.length).toFixed(1)) : null;
 
         const formattedVariants = product.variants.map((v) => {
-          const isOutOfStock = v.recipes && v.recipes.length > 0
-            ? v.recipes.some((r) => Number(r.ingredient?.stockQuantity ?? 0) < Number(r.quantityRequired ?? 0))
-            : false;
+          const { isOutOfStock, maxAvailable } = this.computeVariantStock(v.recipes);
           return {
             ...v,
             isOutOfStock,
+            maxAvailable,
           };
         });
 
         const isProductOutOfStock = formattedVariants.length > 0 && formattedVariants.every((v) => v.isOutOfStock);
+        const finiteMaxes = formattedVariants
+          .map((v) => v.maxAvailable)
+          .filter((n): n is number => typeof n === 'number');
+        const productMaxAvailable = finiteMaxes.length > 0 ? Math.max(...finiteMaxes) : null;
 
         return {
           ...product,
           variants: formattedVariants,
           isOutOfStock: isProductOutOfStock,
+          maxAvailable: productMaxAvailable,
           avgRating,
           reviewCount: product.reviews.length,
         };

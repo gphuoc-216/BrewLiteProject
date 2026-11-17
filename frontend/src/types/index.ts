@@ -25,6 +25,7 @@ export interface ProductVariant {
   price: number;
   topping?: string;
   isOutOfStock?: boolean;
+  maxAvailable?: number | null;
 }
 
 export interface ProductItem {
@@ -37,6 +38,7 @@ export interface ProductItem {
   rating?: number;
   reviewCount?: number;
   isOutOfStock?: boolean;
+  maxAvailable?: number | null;
   variants: ProductVariant[];
   reviews?: Array<{
     id: string;

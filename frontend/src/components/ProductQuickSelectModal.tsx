@@ -127,6 +127,10 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
   const variantsForSize = variants.filter((v) => v.size === currentSize);
   const baseVariant =
     variantsForSize.find((v) => v.topping === 'Tiêu chuẩn') || variantsForSize[0];
+  const variantMax =
+    typeof baseVariant?.maxAvailable === 'number'
+      ? Math.max(1, baseVariant.maxAvailable)
+      : 999;
 
   let selectedVariant = baseVariant;
   const hasBoba = selectedToppings.includes('Trân châu đường đen');
@@ -213,6 +217,7 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
   const handleConfirm = (isBuyNow = false) => {
     if (!selectedVariant || isSelectedVariantOutOfStock) return;
     if (user && user.role !== 'CUSTOMER') return;
+    const safeQty = Math.min(quantity, variantMax);
 
     const cartPayload = {
       id: `${selectedVariant.id}:${toppingLabel}`,
@@ -228,7 +233,7 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
     if (isBuyNow) {
       const buyNowItem = {
         ...cartPayload,
-        quantity,
+        quantity: safeQty,
         appliedVouchers: selectedVoucherCodes,
         voucherDiscount,
         loyaltyPointsUsed: pointsUsed,
@@ -246,9 +251,9 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
       router.push('/checkout?buyNow=1');
     } else {
       if (onAddToCart) {
-        onAddToCart(cartPayload, quantity);
+        onAddToCart(cartPayload, safeQty);
       } else {
-        addItem(cartPayload, quantity);
+        addItem(cartPayload, safeQty);
       }
       onClose();
     }
@@ -262,11 +267,16 @@ export const ProductQuickSelectModal: React.FC<ProductQuickSelectModalProps> = (
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium text-ink-2">Số lượng:</span>
           <QuantityStepper
-            value={quantity}
-            onChange={(q) => setQuantity(q)}
+            value={Math.min(quantity, variantMax)}
+            onChange={(q) => setQuantity(Math.min(q, variantMax))}
             min={1}
-            max={20}
+            max={variantMax}
           />
+          {typeof baseVariant?.maxAvailable === 'number' && !baseVariant?.isOutOfStock && (
+            <span className="text-[11px] text-ink-3 tabular-nums">
+              (Còn {baseVariant.maxAvailable} ly)
+            </span>
+          )}
         </div>
 
         <div className="text-right">

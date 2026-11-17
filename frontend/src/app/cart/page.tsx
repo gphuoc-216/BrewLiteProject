@@ -138,25 +138,38 @@ export default function CartPage() {
   const [couponError, setCouponError] = useState<string | null>(null);
   const [vouchers, setVouchers] = useState<AvailableVoucher[]>([]);
   const [outOfStockVariantIds, setOutOfStockVariantIds] = useState<Set<string>>(new Set());
+  const [maxAvailableMap, setMaxAvailableMap] = useState<Record<string, number | null>>({});
 
   // Kiểm tra tồn kho thời gian thực cho các món trong giỏ hàng
   useEffect(() => {
     let cancelled = false;
     const checkCartStock = async () => {
       if (items.length === 0) {
-        if (!cancelled) setOutOfStockVariantIds(new Set());
+        if (!cancelled) {
+          setOutOfStockVariantIds(new Set());
+          setMaxAvailableMap({});
+        }
         return;
       }
       try {
-        const res = await fetchApi<{ items?: Array<{ variants?: Array<{ id: string; isOutOfStock?: boolean }> }> }>('/products?limit=100');
+        const res = await fetchApi<{
+          items?: Array<{
+            variants?: Array<{ id: string; isOutOfStock?: boolean; maxAvailable?: number | null }>;
+          }>;
+        }>('/products?limit=100');
         const list = Array.isArray(res) ? res : (res?.items || []);
         const oos = new Set<string>();
+        const maxMap: Record<string, number | null> = {};
         for (const p of list) {
           for (const v of p.variants || []) {
             if (v.isOutOfStock) oos.add(v.id);
+            maxMap[v.id] = typeof v.maxAvailable === 'number' ? v.maxAvailable : null;
           }
         }
-        if (!cancelled) setOutOfStockVariantIds(oos);
+        if (!cancelled) {
+          setOutOfStockVariantIds(oos);
+          setMaxAvailableMap(maxMap);
+        }
       } catch {
         // Bỏ qua lỗi mạng tạm thời
       }
@@ -480,13 +493,30 @@ export default function CartPage() {
 
                 {/* Stepper & Line Total */}
                 <div className="flex items-center gap-4 shrink-0">
-                  <QuantityStepper
-                    size="sm"
-                    value={item.quantity}
-                    onChange={(newQty) => updateQuantity(item.id, newQty)}
-                    min={1}
-                    max={20}
-                  />
+                  <div className="flex flex-col items-end gap-0.5">
+                    <QuantityStepper
+                      size="sm"
+                      value={item.quantity}
+                      onChange={(newQty) => {
+                        const maxQty = maxAvailableMap[item.variantId];
+                        updateQuantity(
+                          item.id,
+                          typeof maxQty === 'number' ? Math.min(newQty, Math.max(1, maxQty)) : newQty
+                        );
+                      }}
+                      min={1}
+                      max={
+                        typeof maxAvailableMap[item.variantId] === 'number'
+                          ? Math.max(1, maxAvailableMap[item.variantId]!)
+                          : 999
+                      }
+                    />
+                    {typeof maxAvailableMap[item.variantId] === 'number' && !outOfStockVariantIds.has(item.variantId) && (
+                      <span className="text-[10px] text-ink-3 tabular-nums">
+                        Còn {maxAvailableMap[item.variantId]} ly
+                      </span>
+                    )}
+                  </div>
 
                   <div className="text-right min-w-[70px]">
                     <span className="font-semibold text-sm text-ink tabular-nums block">

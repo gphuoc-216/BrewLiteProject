@@ -103,6 +103,15 @@ function ProductCard({
           <span className="text-sm font-semibold text-ink tabular-nums">
             {Number(minPrice).toLocaleString('vi-VN')}đ
           </span>
+          {!isOutOfStock && typeof product.maxAvailable === 'number' && (
+            <span
+              className={`block text-[11px] font-medium tabular-nums mt-0.5 ${
+                product.maxAvailable <= 5 ? 'text-amber-600 dark:text-amber-400' : 'text-ink-3'
+              }`}
+            >
+              Còn {product.maxAvailable} ly
+            </span>
+          )}
         </div>
 
         {isOutOfStock ? (
