@@ -2106,13 +2106,13 @@
               ]
             },
             {
-              "name": "3.1 [Kịch bản Ly Cuối] Admin đặt tồn kho Robusta còn đúng 20g (Đủ 1 ly)",
+              "name": "3.1 [Kịch bản Ly Cuối] Admin đặt tồn kho DalatMilk còn đúng 30ml (Đủ 1 ly)",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "exec": [
-                      "pm.test('Admin cập nhật tồn kho về 20g thành công', () => {",
+                      "pm.test('Admin cập nhật tồn kho về 30ml thành công', () => {",
                       "    pm.expect([200, 201]).to.include(pm.response.code);",
                       "});"
                     ],
@@ -2134,23 +2134,23 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"stockQuantity\": 20\n}"
+                  "raw": "{\n  \"stockQuantity\": 30\n}"
                 },
                 "url": {
-                  "raw": "{{baseUrl}}/admin/ingredients/{{robustaId}}",
+                  "raw": "{{baseUrl}}/admin/ingredients/cf0ed96b-e211-4534-a324-cea2f7173a31",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "admin",
                     "ingredients",
-                    "{{robustaId}}"
+                    "cf0ed96b-e211-4534-a324-cea2f7173a31"
                   ]
                 }
               }
             },
             {
-              "name": "3.2 [Khách 1] Tạo đơn mua 1 ly cà phê",
+              "name": "3.2 [Khách 1] Tạo đơn mua 1 ly Xoài Dừa Đá Xay (Size S)",
               "event": [
                 {
                   "listen": "test",
@@ -2181,7 +2181,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"items\": [\n    {\n      \"variantId\": \"49461048-d7ba-4b08-9615-926ee291ae8f\",\n      \"quantity\": 1\n    }\n  ]\n}"
+                  "raw": "{\n  \"items\": [\n    {\n      \"variantId\": \"1fb2edac-927b-4595-9d6c-8f2a3213b1d0\",\n      \"quantity\": 1\n    }\n  ]\n}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/orders",
@@ -2241,7 +2241,7 @@
               }
             },
             {
-              "name": "3.4 [Khách 2] Tạo đơn mua tranh chấp cùng thời điểm",
+              "name": "3.4 [Khách 2] Tạo đơn mua tranh chấp cùng thời điểm (Xoài Dừa Size S)",
               "event": [
                 {
                   "listen": "test",
@@ -2272,7 +2272,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"items\": [\n    {\n      \"variantId\": \"49461048-d7ba-4b08-9615-926ee291ae8f\",\n      \"quantity\": 1\n    }\n  ]\n}"
+                  "raw": "{\n  \"items\": [\n    {\n      \"variantId\": \"1fb2edac-927b-4595-9d6c-8f2a3213b1d0\",\n      \"quantity\": 1\n    }\n  ]\n}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/orders",
@@ -2334,13 +2334,13 @@
               }
             },
             {
-              "name": "3.6 [Khôi phục kho] Admin nạp lại 30.000g Robusta vào kho",
+              "name": "3.6 [Khôi phục kho] Admin nạp lại 20.000ml DalatMilk vào kho",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "exec": [
-                      "pm.test('Khôi phục tồn kho 30.000g thành công', () => {",
+                      "pm.test('Khôi phục tồn kho 20.000ml thành công', () => {",
                       "    pm.expect([200, 201]).to.include(pm.response.code);",
                       "});"
                     ],
@@ -2362,17 +2362,17 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"stockQuantity\": 30000\n}"
+                  "raw": "{\n  \"stockQuantity\": 20000\n}"
                 },
                 "url": {
-                  "raw": "{{baseUrl}}/admin/ingredients/{{robustaId}}",
+                  "raw": "{{baseUrl}}/admin/ingredients/cf0ed96b-e211-4534-a324-cea2f7173a31",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "admin",
                     "ingredients",
-                    "{{robustaId}}"
+                    "cf0ed96b-e211-4534-a324-cea2f7173a31"
                   ]
                 }
               }
