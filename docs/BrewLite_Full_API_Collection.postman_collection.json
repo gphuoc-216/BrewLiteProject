@@ -2619,6 +2619,186 @@
           ]
         }
       ]
+    },
+    {
+      "name": "7. [LOAD TEST N-USER] Luồng N Khách Hàng Độc Lập (Register -> Login -> Order -> Pay)",
+      "item": [
+        {
+          "name": "7.1 [N-User] Đăng ký tài khoản ngẫu nhiên (UUID)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const uid = pm.variables.replaceIn('{{$guid}}').replace(/-/g, '').slice(0, 12);",
+                  "pm.variables.set('vuUsername', 'vu_' + uid);",
+                  "pm.variables.set('vuEmail', 'vu_' + uid + '@example.com');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('7.1 Đăng ký user mới thành công (HTTP 201)', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{vuUsername}}\",\n  \"password\": \"123456\",\n  \"email\": \"{{vuEmail}}\",\n  \"fullName\": \"Load Test User\",\n  \"phone\": \"0901234567\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          }
+        },
+        {
+          "name": "7.2 [N-User] Đăng nhập đúng tài khoản vừa tạo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('7.2 Đăng nhập user mới thành công (HTTP 200)', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "const res = pm.response.json();",
+                  "const token = res.accessToken || (res.data && res.data.accessToken) || '';",
+                  "pm.variables.set('vuToken', token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{vuUsername}}\",\n  \"password\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "7.3 [N-User] Tạo đơn hàng riêng (PENDING)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('7.3 Tạo đơn hàng mới thành công (HTTP 201)', () => pm.response.to.have.status(201));",
+                  "const res = pm.response.json();",
+                  "const orderId = res.id || (res.data && res.data.id) || '';",
+                  "pm.variables.set('vuOrderId', orderId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vuToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"variantId\": \"1fb2edac-927b-4595-9d6c-8f2a3213b1d0\",\n      \"quantity\": 1\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            }
+          }
+        },
+        {
+          "name": "7.4 [N-User] Thanh toán đơn hàng riêng (PAID)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('7.4 Thanh toán đơn thành công (HTTP 201)', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vuToken}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{vuOrderId}}\",\n  \"method\": \"WALLET\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments"
+              ]
+            }
+          }
+        }
+      ]
     }
   ]
 }
