@@ -80,7 +80,10 @@ export class OrdersService {
       const uniqueVariantIds = Array.from(new Set(variantIds));
       const variants = await this.prisma.productVariant.findMany({
         where: { id: { in: uniqueVariantIds } },
-        include: { product: true },
+        include: {
+          product: true,
+          recipes: { include: { ingredient: true } },
+        },
       });
 
       // Nếu số lượng biến thể độc nhất tìm thấy không khớp -> có món bị xóa hoặc ID sai
@@ -119,6 +122,64 @@ export class OrdersService {
           toppings: filteredToppings,
         };
       });
+
+      // Bước 1.5: Kiểm tra sớm tồn kho nguyên liệu (chỉ kiểm tra, CHƯA trừ kho - OCC sẽ trừ khi thanh toán)
+      const ingredientReqs = new Map<string, { required: number; stock: number; name: string }>();
+      const extraToppingReqs = new Map<string, number>();
+      for (const orderItem of orderItemsData) {
+        const variant = variantMap.get(orderItem.variantId) as any;
+        if (Array.isArray(variant?.recipes)) {
+          for (const recipe of variant.recipes) {
+            const ingId = recipe.ingredientId;
+            const reqQty = Number(recipe.quantityRequired ?? 0) * orderItem.quantity;
+            const stockQty = Number(recipe.ingredient?.stockQuantity ?? 0);
+            const cur = ingredientReqs.get(ingId) || {
+              required: 0,
+              stock: stockQty,
+              name: recipe.ingredient?.name || ingId,
+            };
+            cur.required += reqQty;
+            ingredientReqs.set(ingId, cur);
+          }
+        }
+        if (Array.isArray(orderItem.toppings)) {
+          for (const tName of orderItem.toppings) {
+            const req = getToppingIngredientRequirement(tName);
+            if (req) {
+              extraToppingReqs.set(
+                req.ingredientName,
+                (extraToppingReqs.get(req.ingredientName) || 0) + req.qty * orderItem.quantity,
+              );
+            }
+          }
+        }
+      }
+
+      if (extraToppingReqs.size > 0 && typeof this.prisma.ingredient?.findMany === 'function') {
+        const toppingIngs = await this.prisma.ingredient.findMany({
+          where: { name: { in: Array.from(extraToppingReqs.keys()) } },
+        });
+        for (const ing of toppingIngs) {
+          const addQty = extraToppingReqs.get(ing.name) || 0;
+          if (addQty > 0) {
+            const cur = ingredientReqs.get(ing.id) || {
+              required: 0,
+              stock: Number(ing.stockQuantity ?? 0),
+              name: ing.name,
+            };
+            cur.required += addQty;
+            ingredientReqs.set(ing.id, cur);
+          }
+        }
+      }
+
+      for (const req of ingredientReqs.values()) {
+        if (req.required > req.stock) {
+          throw new ConflictException(
+            `Tạm thời hết nguyên liệu "${req.name}" (không đủ số lượng đặt hàng)`,
+          );
+        }
+      }
 
       // Bước 2: Kiểm tra và áp dụng mã khuyến mãi (nếu khách hàng có nhập mã)
       const promoApplied = await this.applyPromotionCodes(dto.promotionCode, subtotal);
