@@ -524,7 +524,7 @@ function CheckoutContent() {
 
   // Xử lý xác nhận thanh toán & chuyển trang
   const handlePay = useCallback(
-    async (paymentDetails?: { senderStk: string; senderName: string }) => {
+    async (paymentDetails?: { senderStk: string; senderName: string; paidAmount?: number }) => {
       if (isPayingRef.current) return false;
       if (outOfStockItemNames.length > 0) {
         setErrorMsg(`Món vừa hết nguyên liệu (${outOfStockItemNames.join(', ')}). Không thể thanh toán.`);
@@ -568,6 +568,7 @@ function CheckoutContent() {
         setErrorMsg(null);
 
         let orderId = existingOrderRef.current;
+        let serverOrderTotal = retryOrder ? Number(retryOrder.totalAfterDiscount || finalTotal) : finalTotal;
 
         // 1. Tạo đơn hàng mới nếu chưa có orderId
         if (!orderId) {
@@ -601,13 +602,42 @@ function CheckoutContent() {
             body: JSON.stringify(orderPayload),
           });
 
-          // Trích xuất id an toàn từ response (hỗ trợ cả unboxed và boxed object)
+          // Trích xuất id và tổng tiền thật từ server (chống giả mạo localStorage)
           orderId = orderRes?.id || orderRes?.data?.id;
+          const rawServerTotal = orderRes?.totalAfterDiscount ?? orderRes?.data?.totalAfterDiscount;
+          if (rawServerTotal !== undefined && rawServerTotal !== null) {
+            serverOrderTotal = Number(rawServerTotal);
+          }
           if (!orderId) {
             throw new Error('Không thể khởi tạo đơn hàng từ máy chủ. Vui lòng thử lại.');
           }
           existingOrderRef.current = orderId;
           setPendingOrderId(orderId);
+        }
+
+        // Đối soát số tiền thực nhận qua chuyển khoản QR với tổng tiền thật của đơn hàng trên Server
+        if (
+          paymentDetails?.paidAmount !== undefined &&
+          Math.round(paymentDetails.paidAmount) < Math.round(serverOrderTotal)
+        ) {
+          setErrorMsg(
+            `Thanh toán bị từ chối: Số tiền chuyển khoản (${Math.round(paymentDetails.paidAmount).toLocaleString('vi-VN')} đ) nhỏ hơn tổng tiền thực tế của đơn hàng (${Math.round(serverOrderTotal).toLocaleString('vi-VN')} đ).`
+          );
+          setPaymentStatus('WAITING');
+          return false;
+        }
+
+        // Kiểm tra lại số dư ví theo tổng tiền thật của đơn hàng trên Server
+        if (paymentMethod === 'WALLET' && serverOrderTotal > 0) {
+          const currentWallet = linkedWallets.find((w) => w.id === selectedWalletId);
+          const currentBalance = Number(currentWallet?.balance || 0);
+          if (!currentWallet || currentBalance < serverOrderTotal) {
+            setErrorMsg(
+              `Thanh toán thất bại: Số dư ví (${currentBalance.toLocaleString('vi-VN')} đ) không đủ cho tổng tiền thực tế (${Math.round(serverOrderTotal).toLocaleString('vi-VN')} đ).`
+            );
+            setPaymentStatus('WAITING');
+            return false;
+          }
         }
 
         // 2. Sinh UUIDv4 duy nhất cho idempotencyKey nếu chưa có
@@ -621,7 +651,7 @@ function CheckoutContent() {
         // 3. Thực hiện thanh toán không tiền mặt lên máy chủ
         const paymentPayload: any = {
           orderId,
-          method: paymentMethod,
+          method: serverOrderTotal === 0 ? 'WALLET' : paymentMethod,
         };
 
         await fetchApi('/payments', {
@@ -639,7 +669,7 @@ function CheckoutContent() {
             const currentWallets = saved ? JSON.parse(saved) : linkedWallets;
             const updatedWallets = currentWallets.map((w: LinkedWallet) => {
               if (w.id === selectedWalletId) {
-                const newBal = Math.max(0, Number(w.balance || 0) - finalTotal);
+                const newBal = Math.max(0, Number(w.balance || 0) - serverOrderTotal);
                 return { ...w, balance: newBal };
               }
               return w;
@@ -656,7 +686,7 @@ function CheckoutContent() {
         setPaymentStatus('SUCCESS');
         setSuccessNotice({
           code: orderCodeDisplay,
-          amount: finalTotal,
+          amount: serverOrderTotal,
           senderStk: paymentDetails?.senderStk || '0589822346',
           senderName:
             paymentDetails?.senderName || user?.fullName || user?.username || 'Khách Hàng BrewLite',
@@ -827,6 +857,7 @@ function CheckoutContent() {
           user?.fullName ||
           user?.username ||
           'NGUYEN HOANG ANH',
+        paidAmount: paidAmt,
       });
       return;
     };
