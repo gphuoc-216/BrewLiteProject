@@ -7,6 +7,9 @@ ALTER TABLE "order_items" ADD COLUMN IF NOT EXISTS "iceLevel" TEXT DEFAULT '100%
 ALTER TABLE "order_items" ADD COLUMN IF NOT EXISTS "toppings" JSONB;
 
 -- AlterTable
+ALTER TABLE "promotions" ADD COLUMN IF NOT EXISTS "minOrderValue" DECIMAL(12, 2) NOT NULL DEFAULT 0;
+
+-- AlterTable
 ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "secondaryPromotionId" TEXT;
 
 -- AddForeignKey
