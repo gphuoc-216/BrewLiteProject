@@ -154,15 +154,9 @@ export const useCartStore = create<CartState>((set, get) => {
 
     loadUserCart: (accountKey?: string) => {
       const key = getStorageKey(accountKey);
-      const items = readStorageCart(key);
-      set({ items, promotion: null, promotions: [], loyaltyPointsUsed: 0 });
-    },
-
-    switchUserCart: (accountKey?: string) => {
-      const key = getStorageKey(accountKey);
       let items = readStorageCart(key);
 
-      if (accountKey && typeof window !== 'undefined') {
+      if (accountKey && accountKey !== 'guest' && typeof window !== 'undefined') {
         const guestItems = readStorageCart('brewlite_cart_guest');
         if (guestItems.length > 0) {
           const merged = [...items];
@@ -181,6 +175,10 @@ export const useCartStore = create<CartState>((set, get) => {
       }
 
       set({ items, promotion: null, promotions: [], loyaltyPointsUsed: 0 });
+    },
+
+    switchUserCart: (accountKey?: string) => {
+      get().loadUserCart(accountKey);
     },
 
     syncPricesWithServer: (variantMap, toppingsCatalog) => {
