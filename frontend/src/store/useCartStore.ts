@@ -36,6 +36,10 @@ interface CartState {
   clearCart: () => void;
   loadUserCart: (accountKey?: string) => void;
   switchUserCart: (accountKey?: string) => void;
+  syncPricesWithServer: (
+    variantMap: Record<string, { price: number; topping?: string }>,
+    toppingsCatalog: Array<{ name: string; price: number }>
+  ) => void;
   applyPromotion: (promo: AppliedPromotion) => void;
   togglePromotion: (promo: AppliedPromotion) => void;
   removePromotion: (code?: string) => void;
@@ -177,6 +181,43 @@ export const useCartStore = create<CartState>((set, get) => {
       }
 
       set({ items, promotion: null, promotions: [], loyaltyPointsUsed: 0 });
+    },
+
+    syncPricesWithServer: (variantMap, toppingsCatalog) => {
+      set((state) => {
+        let changed = false;
+        const updated = state.items.map((item) => {
+          const v = variantMap[item.variantId];
+          if (!v) return item;
+          const baseToppingLower = (v.topping || '').toLowerCase();
+          let extraPrice = 0;
+          if (item.topping && item.topping !== 'Tiêu chuẩn') {
+            const parts = item.topping
+              .split(/[·,]/)
+              .map((s) => s.trim())
+              .filter(Boolean);
+            for (const part of parts) {
+              const lower = part.toLowerCase();
+              if (baseToppingLower && baseToppingLower !== 'tiêu chuẩn') {
+                if (lower.includes('trân châu') && baseToppingLower.includes('trân châu')) continue;
+                if (lower.includes('kem cheese') && baseToppingLower.includes('kem cheese')) continue;
+                if (baseToppingLower.includes(lower)) continue;
+              }
+              const matched = toppingsCatalog.find((t) => t.name.toLowerCase() === lower);
+              if (matched) extraPrice += Number(matched.price) || 0;
+            }
+          }
+          const realPrice = Number(v.price) + extraPrice;
+          if (Number(item.price) !== realPrice) {
+            changed = true;
+            return { ...item, price: realPrice };
+          }
+          return item;
+        });
+        if (!changed) return state;
+        saveToStorage(updated);
+        return { items: updated };
+      });
     },
 
     applyPromotion: (promo) => {

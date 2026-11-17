@@ -8,6 +8,7 @@ import QRCode from 'qrcode';
 import { useCartStore } from '../../store/useCartStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { fetchApi, getErrorMessage } from '../../lib/api';
+import { ALL_TOPPINGS, fetchToppingsCatalog } from '../../lib/toppings';
 import { Button, PageHeader } from '../../components/ui';
 import {
   Wallet,
@@ -276,13 +277,21 @@ function CheckoutContent() {
     let cancelled = false;
     const checkCheckoutStock = async () => {
       try {
-        const res = await fetchApi<{ items?: Array<{ variants?: Array<{ id: string; isOutOfStock?: boolean }> }> }>('/products?limit=100');
+        const res = await fetchApi<{ items?: Array<{ variants?: Array<{ id: string; price?: number; topping?: string; isOutOfStock?: boolean }> }> }>('/products?limit=100');
         const list = Array.isArray(res) ? res : (res?.items || []);
         const oosIds = new Set<string>();
+        const variantPriceMap: Record<string, { price: number; topping?: string }> = {};
         for (const p of list) {
           for (const v of p.variants || []) {
             if (v.isOutOfStock) oosIds.add(v.id);
+            if (v.price !== undefined) {
+              variantPriceMap[v.id] = { price: Number(v.price), topping: v.topping };
+            }
           }
+        }
+        const toppingsCatalog = await fetchToppingsCatalog().catch(() => ALL_TOPPINGS);
+        if (!cancelled && !isBuyNow && !retryOrder) {
+          useCartStore.getState().syncPricesWithServer(variantPriceMap, toppingsCatalog.length > 0 ? toppingsCatalog : ALL_TOPPINGS);
         }
         const oosNames = itemsToCheck
           .filter((item) => oosIds.has(item.variantId))

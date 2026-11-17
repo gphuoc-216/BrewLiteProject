@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useCartStore } from '../../store/useCartStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { fetchApi, getErrorMessage } from '../../lib/api';
+import { ALL_TOPPINGS, fetchToppingsCatalog } from '../../lib/toppings';
 import { Button, QuantityStepper, PageHeader, EmptyState } from '../../components/ui';
 import {
   Trash2,
@@ -154,21 +155,27 @@ export default function CartPage() {
       try {
         const res = await fetchApi<{
           items?: Array<{
-            variants?: Array<{ id: string; isOutOfStock?: boolean; maxAvailable?: number | null }>;
+            variants?: Array<{ id: string; price?: number; topping?: string; isOutOfStock?: boolean; maxAvailable?: number | null }>;
           }>;
         }>('/products?limit=100');
         const list = Array.isArray(res) ? res : (res?.items || []);
         const oos = new Set<string>();
         const maxMap: Record<string, number | null> = {};
+        const variantPriceMap: Record<string, { price: number; topping?: string }> = {};
         for (const p of list) {
           for (const v of p.variants || []) {
             if (v.isOutOfStock) oos.add(v.id);
             maxMap[v.id] = typeof v.maxAvailable === 'number' ? v.maxAvailable : null;
+            if (v.price !== undefined) {
+              variantPriceMap[v.id] = { price: Number(v.price), topping: v.topping };
+            }
           }
         }
+        const toppingsCatalog = await fetchToppingsCatalog().catch(() => ALL_TOPPINGS);
         if (!cancelled) {
           setOutOfStockVariantIds(oos);
           setMaxAvailableMap(maxMap);
+          useCartStore.getState().syncPricesWithServer(variantPriceMap, toppingsCatalog.length > 0 ? toppingsCatalog : ALL_TOPPINGS);
         }
       } catch {
         // Bỏ qua lỗi mạng tạm thời
