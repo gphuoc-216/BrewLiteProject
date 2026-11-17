@@ -156,7 +156,26 @@ export const useCartStore = create<CartState>((set, get) => {
 
     switchUserCart: (accountKey?: string) => {
       const key = getStorageKey(accountKey);
-      const items = readStorageCart(key);
+      let items = readStorageCart(key);
+
+      if (accountKey && typeof window !== 'undefined') {
+        const guestItems = readStorageCart('brewlite_cart_guest');
+        if (guestItems.length > 0) {
+          const merged = [...items];
+          for (const gItem of guestItems) {
+            const idx = merged.findIndex((u) => u.id === gItem.id);
+            if (idx > -1) {
+              merged[idx] = { ...merged[idx], quantity: merged[idx].quantity + gItem.quantity };
+            } else {
+              merged.push(gItem);
+            }
+          }
+          items = merged;
+          localStorage.setItem(key, JSON.stringify(items));
+          localStorage.removeItem('brewlite_cart_guest');
+        }
+      }
+
       set({ items, promotion: null, promotions: [], loyaltyPointsUsed: 0 });
     },
 
