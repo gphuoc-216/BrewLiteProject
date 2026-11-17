@@ -2018,7 +2018,51 @@
           "name": "3. Task 10.3 - Optimistic Locking (Chống âm kho)",
           "item": [
             {
-              "name": "3.0 Đăng nhập Khách 2 (customer2 -> lưu customer2Token)",
+              "name": "3.0a Đăng nhập Khách 1 (customer1 -> lưu customerToken)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"customer1\",\n  \"password\": \"123456\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200/201 Customer 1 Logged In', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                      "const res = pm.response.json();",
+                      "pm.collectionVariables.set('customerToken', res.accessToken || res.data?.accessToken || '');"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "3.0b Đăng nhập Khách 2 (customer2 -> lưu customer2Token)",
               "request": {
                 "method": "POST",
                 "header": [
