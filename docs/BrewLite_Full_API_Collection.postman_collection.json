@@ -268,12 +268,23 @@
           "name": "0.5 Đăng ký khách hàng mới (/auth/register)",
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const uid = pm.variables.replaceIn('{{$guid}}').replace(/-/g, '').slice(0, 10);",
+                  "pm.collectionVariables.set('regUsername', 'cust_' + uid);",
+                  "pm.collectionVariables.set('regEmail', 'cust_' + uid + '@example.com');"
+                ]
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Đăng ký khách hàng mới hoàn tất (HTTP 201 hoặc 409 nếu trùng)\", () => {",
-                  "    pm.expect(pm.response.code).to.be.oneOf([201, 409]);",
+                  "pm.test(\"Đăng ký khách hàng mới thành công (HTTP 201)\", () => {",
+                  "    pm.response.to.have.status(201);",
                   "});"
                 ]
               }
@@ -289,7 +300,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"username\": \"new_customer_{{$timestamp}}\",\n  \"password\": \"password123\",\n  \"email\": \"user_{{$timestamp}}@example.com\",\n  \"fullName\": \"Nguyen Van Test\",\n  \"phone\": \"0901234567\"\n}"
+              "raw": "{\n  \"username\": \"{{regUsername}}\",\n  \"password\": \"password123\",\n  \"email\": \"{{regEmail}}\",\n  \"fullName\": \"Nguyen Van Test\",\n  \"phone\": \"0901234567\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/auth/register",
@@ -724,6 +735,29 @@
           "name": "2.4 Hủy đơn hàng PENDING (/orders/:id/cancel)",
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const baseUrl = pm.collectionVariables.get('baseUrl') || pm.environment.get('baseUrl');",
+                  "const token = pm.collectionVariables.get('customerToken') || pm.environment.get('customerToken');",
+                  "const variantId = pm.collectionVariables.get('testVariantId') || pm.environment.get('testVariantId');",
+                  "pm.sendRequest({",
+                  "    url: baseUrl + '/orders',",
+                  "    method: 'POST',",
+                  "    header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },",
+                  "    body: { mode: 'raw', raw: JSON.stringify({ items: [{ variantId: variantId, quantity: 1 }] }) }",
+                  "}, (err, res) => {",
+                  "    if (!err && res) {",
+                  "        const json = res.json();",
+                  "        const id = json.id || (json.data && json.data.id);",
+                  "        if (id) pm.collectionVariables.set('cancelOrderId', id);",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
@@ -744,13 +778,13 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/orders/{{activeOrderId}}/cancel",
+              "raw": "{{baseUrl}}/orders/{{cancelOrderId}}/cancel",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "orders",
-                "{{activeOrderId}}",
+                "{{cancelOrderId}}",
                 "cancel"
               ]
             }
@@ -834,7 +868,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"orderId\": \"{{activeOrderId}}\",\n  \"method\": \"WALLET\",\n  \"simulateError\": \"FAIL\"\n}",
+              "raw": "{\n  \"orderId\": \"{{failOrderId}}\",\n  \"method\": \"WALLET\",\n  \"simulateError\": \"FAIL\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -843,6 +877,29 @@
             }
           },
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const baseUrl = pm.collectionVariables.get('baseUrl') || pm.environment.get('baseUrl');",
+                  "const token = pm.collectionVariables.get('customerToken') || pm.environment.get('customerToken');",
+                  "const variantId = pm.collectionVariables.get('testVariantId') || pm.environment.get('testVariantId');",
+                  "pm.sendRequest({",
+                  "    url: baseUrl + '/orders',",
+                  "    method: 'POST',",
+                  "    header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },",
+                  "    body: { mode: 'raw', raw: JSON.stringify({ items: [{ variantId: variantId, quantity: 1 }] }) }",
+                  "}, (err, res) => {",
+                  "    if (!err && res) {",
+                  "        const json = res.json();",
+                  "        const id = json.id || (json.data && json.data.id);",
+                  "        if (id) pm.collectionVariables.set('failOrderId', id);",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
