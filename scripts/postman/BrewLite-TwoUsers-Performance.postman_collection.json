@@ -1,0 +1,157 @@
+{
+  "info": {
+    "_postman_id": "a7b8c9d0-1111-4222-8333-brewlite2users",
+    "name": "BrewLite - 2 Users Concurrent Test",
+    "description": "Kịch bản Postman Performance test 2 user (customer1 & customer2) tranh chấp tồn kho cùng lúc.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3001/api", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "variantId", "value": "", "type": "string" },
+    { "key": "orderQty", "value": "2", "type": "string" },
+    { "key": "orderId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "1. Login (từ users.csv)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Login thành công (200/201)', function () {",
+              "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+              "});",
+              "const res = pm.response.json();",
+              "const token = res.accessToken || res.data?.accessToken;",
+              "if (token) {",
+              "  pm.collectionVariables.set('token', token);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/login"
+      }
+    },
+    {
+      "name": "2. Lấy sản phẩm & tính ngưỡng đặt tranh chấp",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Lấy danh sách sản phẩm thành công', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "const res = pm.response.json();",
+              "const items = res.items || res.data?.items || res.data || [];",
+              "for (const p of items) {",
+              "  const v = (p.variants || []).find(x => (x.maxAvailable ?? 1) > 0);",
+              "  if (v) {",
+              "    const maxAvail = v.maxAvailable ?? p.maxAvailable ?? 3;",
+              "    const qty = Math.floor(maxAvail / 2) + 1;",
+              "    pm.collectionVariables.set('variantId', v.id);",
+              "    pm.collectionVariables.set('orderQty', String(qty));",
+              "    break;",
+              "  }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/products"
+      }
+    },
+    {
+      "name": "3. Tạo đơn hàng (tranh chấp tồn kho)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Tạo đơn (201) hoặc bị chặn hết nguyên liệu (400/409)', function () {",
+              "  pm.expect(pm.response.code).to.be.oneOf([200, 201, 400, 409]);",
+              "});",
+              "const res = pm.response.json();",
+              "const orderId = res.id || res.data?.id;",
+              "if (orderId) {",
+              "  pm.collectionVariables.set('orderId', orderId);",
+              "} else {",
+              "  pm.collectionVariables.set('orderId', '');",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"items\": [\n    {\n      \"variantId\": \"{{variantId}}\",\n      \"quantity\": {{orderQty}}\n    }\n  ]\n}"
+        },
+        "url": "{{baseUrl}}/orders"
+      }
+    },
+    {
+      "name": "4. Thanh toán đơn hàng (WALLET + Idempotency-Key)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const oid = pm.collectionVariables.get('orderId');",
+              "if (!oid) {",
+              "  pm.execution.skipRequest();",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Thanh toán thành công hoặc bị chặn do tranh chấp kho (409)', function () {",
+              "  pm.expect(pm.response.code).to.be.oneOf([200, 201, 400, 409]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Idempotency-Key", "value": "{{$guid}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"method\": \"WALLET\"\n}"
+        },
+        "url": "{{baseUrl}}/payments"
+      }
+    }
+  ]
+}
