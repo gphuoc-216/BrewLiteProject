@@ -997,7 +997,7 @@ export default function ProductDetailPage() {
                 value={quantity}
                 onChange={setQuantity}
                 min={1}
-                max={20}
+                max={Math.min(20, selectedVariant?.maxAvailable ?? 20)}
               />
             </div>
 
