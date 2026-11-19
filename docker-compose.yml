@@ -51,6 +51,7 @@ services:
       - JWT_SECRET=brewlite_super_secret_jwt_key_2026
       - JWT_REFRESH_SECRET=brewlite_refresh_secret_key_2026
       - FRONTEND_URL=http://localhost:3000
+      - MBBANK_SYNC_SECRET=brewlite_mb_secret_2026
     depends_on:
       # Chỉ khởi động Backend sau khi PostgreSQL đã hoàn toàn pass bài test sức khỏe (service_healthy)
       postgres:

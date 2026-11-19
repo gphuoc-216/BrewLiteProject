@@ -22,6 +22,7 @@
     "prisma:studio": "prisma studio",
     "seed": "ts-node prisma/seed.ts",
     "clean:orders": "ts-node prisma/reset-orders.ts",
+    "clean:all": "ts-node prisma/reset-orders.ts && node -e \"const{PrismaClient}=require('@prisma/client');const p=new PrismaClient();const keep=Array.from({length:20},(_,i)=>'customer'+(i+1));p.customer.deleteMany({where:{account:{username:{notIn:keep},role:'CUSTOMER'}}}).then(()=>p.account.deleteMany({where:{username:{notIn:keep},role:'CUSTOMER'}})).then(r=>console.log('Deleted extra accounts:',r.count)).finally(()=>p['\\$disconnect']())\"",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",

@@ -1,0 +1,751 @@
+{
+  "info": {
+    "_postman_id": "b8c9d0e1-2222-4333-9444-brewlitemoreapi",
+    "name": "BrewLite_More (Extended & Remaining Backend APIs)",
+    "description": "Bộ sưu tập kiểm thử toàn bộ các API mở rộng còn lại của Backend ngoài 10 Task cơ bản: Change Password, Mock Gateway, MBBank QR Sync/Check/Invalidate, Review Eligibility & Moderation, Admin CRUD đầy đủ (Customer, Staff, Product, Variant, Recipe, Promotion, Ingredient, Supplier, Import Receipt).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3001/api", "type": "string" },
+    { "key": "adminToken", "value": "", "type": "string" },
+    { "key": "customerToken", "value": "", "type": "string" },
+    { "key": "sampleProductId", "value": "", "type": "string" },
+    { "key": "sampleIngredientId", "value": "", "type": "string" },
+    { "key": "createdCustomerAccId", "value": "", "type": "string" },
+    { "key": "createdStaffId", "value": "", "type": "string" },
+    { "key": "createdProductId", "value": "", "type": "string" },
+    { "key": "createdVariantId", "value": "", "type": "string" },
+    { "key": "createdRecipeId", "value": "", "type": "string" },
+    { "key": "createdPromoId", "value": "", "type": "string" },
+    { "key": "createdIngredientId", "value": "", "type": "string" },
+    { "key": "createdSupplierId", "value": "", "type": "string" },
+    { "key": "sampleReviewId", "value": "", "type": "string" },
+    { "key": "mbOrderCode", "value": "MORE9999", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "0. Khởi tạo Token (Admin & Customer)",
+      "item": [
+        {
+          "name": "0.1 Login Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Admin login OK', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "const r = pm.response.json();",
+                  "const t = r.accessToken || r.data?.accessToken;",
+                  "if (t) pm.collectionVariables.set('adminToken', t);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"123456\"\n}" },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "0.2 Login Customer1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Customer1 login OK', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "const r = pm.response.json();",
+                  "const t = r.accessToken || r.data?.accessToken;",
+                  "if (t) pm.collectionVariables.set('customerToken', t);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"customer1\",\n  \"password\": \"123456\"\n}" },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "0.3 Lấy Product & Ingredient mẫu",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Lấy danh sách sản phẩm OK', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "const items = r.items || r.data?.items || r.data || [];",
+                  "if (items.length > 0) pm.collectionVariables.set('sampleProductId', items[0].id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": { "method": "GET", "url": "{{baseUrl}}/products" }
+        },
+        {
+          "name": "0.4 Lấy danh sách nguyên liệu (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Lấy ingredients OK', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "const list = r.data || r;",
+                  "if (Array.isArray(list) && list.length > 0) pm.collectionVariables.set('sampleIngredientId', list[0].id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/admin/ingredients"
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Auth mở rộng (Change Password)",
+      "item": [
+        {
+          "name": "1.1 Đổi mật khẩu (123456 -> 654321)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('Đổi mật khẩu thành công (200)', () => pm.response.to.have.status(200));"], "type": "text/javascript" }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"oldPassword\": \"123456\",\n  \"newPassword\": \"654321\"\n}" },
+            "url": "{{baseUrl}}/auth/change-password"
+          }
+        },
+        {
+          "name": "1.2 Khôi phục mật khẩu cũ (654321 -> 123456)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('Khôi phục mật khẩu thành công (200)', () => pm.response.to.have.status(200));"], "type": "text/javascript" }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"oldPassword\": \"654321\",\n  \"newPassword\": \"123456\"\n}" },
+            "url": "{{baseUrl}}/auth/change-password"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Mock Gateway & MBBank QR APIs",
+      "item": [
+        {
+          "name": "2.1 Mock Gateway - Charge SUCCESS",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Mock Gateway SUCCESS (200/201)', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 49000,\n  \"method\": \"WALLET\"\n}" },
+            "url": "{{baseUrl}}/mock-gateway/charge"
+          }
+        },
+        {
+          "name": "2.2 Mock Gateway - Simulate FAIL (400)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Mock Gateway FAIL trả 400', () => pm.response.to.have.status(400));"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 49000,\n  \"method\": \"CARD\",\n  \"simulateError\": \"FAIL\"\n}" },
+            "url": "{{baseUrl}}/mock-gateway/charge"
+          }
+        },
+        {
+          "name": "2.3 MBBank Sync Webhook (POST /payments/mbbank-sync)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('MBBank sync OK (200/201)', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"orderCode\": \"{{mbOrderCode}}\",\n  \"amount\": 49000,\n  \"content\": \"BREWLITE {{mbOrderCode}}\",\n  \"sender\": \"0589822346\",\n  \"senderName\": \"TEST USER\"\n}" },
+            "url": "{{baseUrl}}/payments/mbbank-sync"
+          }
+        },
+        {
+          "name": "2.4 MBBank Check Polling (GET /payments/mbbank-check/:orderCode)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('MBBank check trả paid: true', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const r = pm.response.json();",
+                  "  const d = r.data || r;",
+                  "  pm.expect(d.paid).to.eql(true);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": { "method": "GET", "url": "{{baseUrl}}/payments/mbbank-check/{{mbOrderCode}}?expectedAmount=49000" }
+        },
+        {
+          "name": "2.5 MBBank Invalidate QR (POST /payments/mbbank-invalidate/:orderCode)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Invalidate QR OK', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));"], "type": "text/javascript" } }
+          ],
+          "request": { "method": "POST", "url": "{{baseUrl}}/payments/mbbank-invalidate/{{mbOrderCode}}" }
+        }
+      ]
+    },
+    {
+      "name": "3. Reviews mở rộng",
+      "item": [
+        {
+          "name": "3.1 Kiểm tra điều kiện đánh giá (GET /reviews/eligibility/:productId)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Check eligibility OK (200)', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+            "url": "{{baseUrl}}/reviews/eligibility/{{sampleProductId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Admin - Accounts & Staff CRUD",
+      "item": [
+        {
+          "name": "4.1 Tạo Customer mới (POST /admin/customers)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Tạo customer OK', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "const r = pm.response.json();",
+                  "const d = r.data || r;",
+                  "const id = d.accountId || d.id || d.account?.id;",
+                  "if (id) pm.collectionVariables.set('createdCustomerAccId', id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"more_cust_{{$timestamp}}\",\n  \"password\": \"123456\",\n  \"fullName\": \"Khach Test More\",\n  \"email\": \"more_{{$timestamp}}@test.com\",\n  \"loyaltyPoints\": 10\n}" },
+            "url": "{{baseUrl}}/admin/customers"
+          }
+        },
+        {
+          "name": "4.2 Cập nhật Customer (PATCH /admin/accounts/:id)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Cập nhật account OK', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"fullName\": \"Khach Test Updated\"\n}" },
+            "url": "{{baseUrl}}/admin/accounts/{{createdCustomerAccId}}"
+          }
+        },
+        {
+          "name": "4.3 Khóa tài khoản (PATCH /admin/accounts/:id/lock)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Khóa account OK', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/admin/accounts/{{createdCustomerAccId}}/lock"
+          }
+        },
+        {
+          "name": "4.4 Mở khóa tài khoản (PATCH /admin/accounts/:id/unlock)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Mở khóa account OK', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/admin/accounts/{{createdCustomerAccId}}/unlock"
+          }
+        },
+        {
+          "name": "4.5 Xóa Customer test (DELETE /admin/accounts/:id)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Xóa account OK', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/admin/accounts/{{createdCustomerAccId}}"
+          }
+        },
+        {
+          "name": "4.6 Tạo Staff mới (POST /admin/staff)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Tạo staff OK', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "const r = pm.response.json();",
+                  "const d = r.data || r;",
+                  "const id = d.id || d.staff?.id;",
+                  "if (id) pm.collectionVariables.set('createdStaffId', id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"more_staff_{{$timestamp}}\",\n  \"password\": \"123456\",\n  \"fullName\": \"Barista Test More\",\n  \"email\": \"staff_{{$timestamp}}@test.com\"\n}" },
+            "url": "{{baseUrl}}/admin/staff"
+          }
+        },
+        {
+          "name": "4.7 Cập nhật Staff (PATCH /admin/staff/:id)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Cập nhật staff OK', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"fullName\": \"Barista Test Updated\"\n}" },
+            "url": "{{baseUrl}}/admin/staff/{{createdStaffId}}"
+          }
+        },
+        {
+          "name": "4.8 Xóa Staff test (DELETE /admin/staff/:id)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Xóa staff OK', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/admin/staff/{{createdStaffId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Admin - Products, Variants, Recipes CRUD",
+      "item": [
+        {
+          "name": "5.1 Tạo Product mới (POST /admin/products)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Tạo product OK', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "const r = pm.response.json();",
+                  "const d = r.data || r;",
+                  "if (d.id) pm.collectionVariables.set('createdProductId', d.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Mon Test More {{$timestamp}}\",\n  \"category\": \"COFFEE\",\n  \"imageUrl\": \"https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=600\",\n  \"description\": \"Mo ta test\"\n}" },
+            "url": "{{baseUrl}}/admin/products"
+          }
+        },
+        {
+          "name": "5.2 Sửa Product (PATCH /admin/products/:id)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Sửa product OK', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"description\": \"Mo ta da cap nhat\"\n}" },
+            "url": "{{baseUrl}}/admin/products/{{createdProductId}}"
+          }
+        },
+        {
+          "name": "5.3 Tạo Variant (POST /admin/variants)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Tạo variant OK', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "const r = pm.response.json();",
+                  "const d = r.data || r;",
+                  "if (d.id) pm.collectionVariables.set('createdVariantId', d.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"productId\": \"{{createdProductId}}\",\n  \"size\": \"M\",\n  \"price\": 35000\n}" },
+            "url": "{{baseUrl}}/admin/variants"
+          }
+        },
+        {
+          "name": "5.4 Sửa Variant (PATCH /admin/variants/:id)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Sửa variant OK', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"price\": 39000\n}" },
+            "url": "{{baseUrl}}/admin/variants/{{createdVariantId}}"
+          }
+        },
+        {
+          "name": "5.5 Tạo Recipe (POST /admin/recipes)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Tạo recipe OK', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "const r = pm.response.json();",
+                  "const d = r.data || r;",
+                  "if (d.id) pm.collectionVariables.set('createdRecipeId', d.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"variantId\": \"{{createdVariantId}}\",\n  \"ingredientId\": \"{{sampleIngredientId}}\",\n  \"quantityRequired\": 10\n}" },
+            "url": "{{baseUrl}}/admin/recipes"
+          }
+        },
+        {
+          "name": "5.6 Sửa Recipe (PATCH /admin/recipes/:id)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Sửa recipe OK', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"quantityRequired\": 12\n}" },
+            "url": "{{baseUrl}}/admin/recipes/{{createdRecipeId}}"
+          }
+        },
+        {
+          "name": "5.7 Xóa Recipe (DELETE /admin/recipes/:id)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Xóa recipe OK', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/admin/recipes/{{createdRecipeId}}"
+          }
+        },
+        {
+          "name": "5.8 Xóa Variant (DELETE /admin/variants/:id)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Xóa variant OK', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/admin/variants/{{createdVariantId}}"
+          }
+        },
+        {
+          "name": "5.9 Xóa Product (DELETE /admin/products/:id)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Xóa product OK', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/admin/products/{{createdProductId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Admin - Promotions, Ingredients, Suppliers & Import",
+      "item": [
+        {
+          "name": "6.1 Tạo Promotion (POST /admin/promotions)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Tạo promotion OK', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "const r = pm.response.json();",
+                  "const d = r.data || r;",
+                  "if (d.id) pm.collectionVariables.set('createdPromoId', d.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"code\": \"MORE{{$timestamp}}\",\n  \"name\": \"Voucher Test More\",\n  \"discountType\": \"FIXED\",\n  \"discountValue\": 5000,\n  \"minOrderValue\": 20000,\n  \"quantity\": 10,\n  \"startDate\": \"2026-01-01T00:00:00.000Z\",\n  \"endDate\": \"2027-12-31T23:59:59.000Z\"\n}" },
+            "url": "{{baseUrl}}/admin/promotions"
+          }
+        },
+        {
+          "name": "6.2 Sửa Promotion (PATCH /admin/promotions/:id)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Sửa promotion OK', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"quantity\": 20\n}" },
+            "url": "{{baseUrl}}/admin/promotions/{{createdPromoId}}"
+          }
+        },
+        {
+          "name": "6.3 Xóa Promotion (DELETE /admin/promotions/:id)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Xóa promotion OK', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/admin/promotions/{{createdPromoId}}"
+          }
+        },
+        {
+          "name": "6.4 Tạo Ingredient mới (POST /admin/ingredients)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Tạo ingredient OK', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "const r = pm.response.json();",
+                  "const d = r.data || r;",
+                  "if (d.id) pm.collectionVariables.set('createdIngredientId', d.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Nguyen Lieu Test {{$timestamp}}\",\n  \"unit\": \"g\",\n  \"stockQuantity\": 100\n}" },
+            "url": "{{baseUrl}}/admin/ingredients"
+          }
+        },
+        {
+          "name": "6.5 Lấy danh sách Nhà cung cấp (GET /admin/suppliers)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Lấy suppliers OK', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/admin/suppliers"
+          }
+        },
+        {
+          "name": "6.6 Tạo Nhà cung cấp mới (POST /admin/suppliers)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Tạo supplier OK', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "const r = pm.response.json();",
+                  "const d = r.data || r;",
+                  "if (d.id) pm.collectionVariables.set('createdSupplierId', d.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"NCC Test {{$timestamp}}\",\n  \"phone\": \"0909123456\",\n  \"address\": \"TP.HCM\"\n}" },
+            "url": "{{baseUrl}}/admin/suppliers"
+          }
+        },
+        {
+          "name": "6.7 Nhập kho qua Phiếu nhập (POST /admin/import-receipts)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Tạo phiếu nhập OK', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"supplierId\": \"{{createdSupplierId}}\",\n  \"items\": [\n    {\n      \"ingredientId\": \"{{createdIngredientId}}\",\n      \"quantity\": 50,\n      \"unitPrice\": 1000\n    }\n  ]\n}" },
+            "url": "{{baseUrl}}/admin/import-receipts"
+          }
+        },
+        {
+          "name": "6.8 Xem lịch sử Phiếu nhập (GET /admin/import-receipts)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Lấy import receipts OK', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/admin/import-receipts"
+          }
+        },
+        {
+          "name": "6.9 Xóa Ingredient test (DELETE /admin/ingredients/:id)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Xóa ingredient OK', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/admin/ingredients/{{createdIngredientId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Admin - Kiểm duyệt Đánh giá (Reviews)",
+      "item": [
+        {
+          "name": "7.1 Xem tất cả Reviews (GET /admin/reviews)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Lấy danh sách reviews OK', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "const list = r.data || r;",
+                  "if (Array.isArray(list) && list.length > 0) pm.collectionVariables.set('sampleReviewId', list[0].id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/admin/reviews"
+          }
+        },
+        {
+          "name": "7.2 Ẩn Review (PATCH /admin/reviews/:id/hide)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": { "exec": ["if (!pm.collectionVariables.get('sampleReviewId')) pm.execution.skipRequest();"], "type": "text/javascript" }
+            },
+            { "listen": "test", "script": { "exec": ["pm.test('Ẩn review OK', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/admin/reviews/{{sampleReviewId}}/hide"
+          }
+        },
+        {
+          "name": "7.3 Hiện lại Review (PATCH /admin/reviews/:id/show)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": { "exec": ["if (!pm.collectionVariables.get('sampleReviewId')) pm.execution.skipRequest();"], "type": "text/javascript" }
+            },
+            { "listen": "test", "script": { "exec": ["pm.test('Hiện lại review OK', () => pm.response.to.have.status(200));"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/admin/reviews/{{sampleReviewId}}/show"
+          }
+        }
+      ]
+    }
+  ]
+}
